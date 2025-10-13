@@ -1,3 +1,10 @@
+async function loadViewsUtils() {
+  const mod = await import(
+    `${window.STATIC_BASE}/core/views-utils.js?v=${window.HomeInventarVersion}`
+  );
+  return mod.attachItemCardInteractions;
+}
+
 export async function renderOrganizersView(app, content) {
   const s = app.state;
   if (!s.selectedRoom || !s.selectedCupboard || !s.selectedShelf) {
@@ -5,14 +12,6 @@ export async function renderOrganizersView(app, content) {
     return app.renderView();
   }
 
-  console.log('=== renderOrganizersView DEBUG ===');
-  console.log('Selected location:', {
-    room: s.selectedRoom,
-    cupboard: s.selectedCupboard,
-    shelf: s.selectedShelf,
-  });
-
-  // Obține organizatoarele
   const data = await app.api
     .getOrganizers(s.selectedRoom, s.selectedCupboard, s.selectedShelf)
     .catch((err) => {
@@ -34,7 +33,6 @@ export async function renderOrganizersView(app, content) {
   console.log('Items without organizer:', itemsWithoutOrganizer.length);
 
   const canModify = await app.api.canModifyStructure();
-  console.log('Can modify:', canModify);
 
   content.innerHTML = `
     <div>
@@ -122,11 +120,7 @@ export async function renderOrganizersView(app, content) {
             <span style="font-size:1.3em;">📦</span>
             <span>Obiecte Direct pe Raft</span>
           </h3>
-          ${
-            canModify
-              ? '<button id="addItemDirectBtn" style="padding:8px 16px;background:var(--secondary-background-color);color:var(--primary-text-color);border:1px solid var(--primary-color);border-radius:4px;cursor:pointer;font-weight:500;">+ Adaugă Obiect</button>'
-              : ''
-          }
+          <button id="addItemDirectBtn" style="padding:8px 16px;background:var(--secondary-background-color);color:var(--primary-text-color);border:1px solid var(--primary-color);border-radius:4px;cursor:pointer;font-weight:500;">+ Adaugă Obiect</button>
         </div>
 
         <!-- Grid items -->
@@ -212,117 +206,134 @@ export async function renderOrganizersView(app, content) {
     app.renderView();
   });
 
-  if (canModify) {
-    console.log('=== Attaching form handlers DIRECTLY ===');
+  console.log('=== Attaching form handlers DIRECTLY ===');
 
-    // Atașăm handler-ele DIRECT fără ui-utils
-    const toggleBtn = content.querySelector('#toggleAddBtn');
-    const addForm = content.querySelector('#addForm');
-    const cancelBtn = content.querySelector('#cancelBtn');
-    const saveBtn = content.querySelector('#saveBtn');
+  const toggleBtn = content.querySelector('#toggleAddBtn');
+  const addForm = content.querySelector('#addForm');
+  const cancelBtn = content.querySelector('#cancelBtn');
+  const saveBtn = content.querySelector('#saveBtn');
 
-    console.log('Form elements found:', {
-      toggleBtn: !!toggleBtn,
-      addForm: !!addForm,
-      cancelBtn: !!cancelBtn,
-      saveBtn: !!saveBtn,
-    });
+  console.log('Form elements found:', {
+    toggleBtn: !!toggleBtn,
+    addForm: !!addForm,
+    cancelBtn: !!cancelBtn,
+    saveBtn: !!saveBtn,
+  });
 
-    let opened = false;
+  let opened = false;
 
-    toggleBtn?.addEventListener('click', () => {
-      console.log('Toggle button clicked!');
-      opened = !opened;
-      addForm.style.display = opened ? 'block' : 'none';
-      if (opened) {
-        const firstInput = addForm.querySelector('#newOrganizerName');
-        firstInput?.focus();
-      }
-    });
+  toggleBtn?.addEventListener('click', () => {
+    console.log('Toggle button clicked!');
+    opened = !opened;
+    addForm.style.display = opened ? 'block' : 'none';
+    if (opened) {
+      const firstInput = addForm.querySelector('#newOrganizerName');
+      firstInput?.focus();
+    }
+  });
 
-    cancelBtn?.addEventListener('click', () => {
-      console.log('Cancel button clicked!');
-      opened = false;
-      addForm.style.display = 'none';
-      content.querySelector('#newOrganizerName').value = '';
-    });
+  cancelBtn?.addEventListener('click', () => {
+    console.log('Cancel button clicked!');
+    opened = false;
+    addForm.style.display = 'none';
+    content.querySelector('#newOrganizerName').value = '';
+  });
 
-    saveBtn?.addEventListener('click', async () => {
-      const input = content.querySelector('#newOrganizerName');
-      const fileInput = content.querySelector('#newOrganizerImage');
-      const name = (input?.value || '').trim();
+  saveBtn?.addEventListener('click', async () => {
+    const input = content.querySelector('#newOrganizerName');
+    const fileInput = content.querySelector('#newOrganizerImage');
+    const name = (input?.value || '').trim();
 
-      if (!name) {
-        alert('Te rog introdu numele organizatorului.');
-        return;
-      }
+    if (!name) {
+      alert('Te rog introdu numele organizatorului.');
+      return;
+    }
 
-      let imagePath = '';
-      const imageFile = fileInput.files[0];
-      if (imageFile) {
-        imagePath = await app.api.uploadImage(imageFile, {
-          room: s.selectedRoom,
-          cupboard: s.selectedCupboard,
-          shelf: s.selectedShelf,
-          item: name,
-        });
-      }
-
-      const result = await app.api.addOrganizer(
-        s.selectedRoom,
-        s.selectedCupboard,
-        s.selectedShelf,
-        name
-      );
-
-      if (imagePath) {
-        await app.api.updateOrganizer(result.id, { image: imagePath });
-      }
-
-      addForm.style.display = 'none';
-      input.value = '';
-      fileInput.value = '';
-      await app.renderView();
-    });
-
-    console.log('=== Direct handlers attached ===');
-
-    // Buton pentru adăugare item direct pe raft
-    content
-      .querySelector('#addItemDirectBtn')
-      ?.addEventListener('click', () => {
-        s.selectedOrganizer = null;
-        s.currentView = 'items';
-        app.renderView();
+    let imagePath = '';
+    const imageFile = fileInput.files[0];
+    if (imageFile) {
+      imagePath = await app.api.uploadImage(imageFile, {
+        room: s.selectedRoom,
+        cupboard: s.selectedCupboard,
+        shelf: s.selectedShelf,
+        item: name,
       });
+    }
+
+    const result = await app.api.addOrganizer(
+      s.selectedRoom,
+      s.selectedCupboard,
+      s.selectedShelf,
+      name
+    );
+
+    if (imagePath) {
+      await app.api.updateOrganizer(result.id, { image: imagePath });
+    }
+
+    addForm.style.display = 'none';
+    input.value = '';
+    fileInput.value = '';
+    await app.renderView();
+  });
+
+  console.log('=== Direct handlers attached ===');
+
+  // Buton pentru adăugare item direct pe raft
+  content.querySelector('#addItemDirectBtn')?.addEventListener('click', () => {
+    s.selectedOrganizer = null;
+    s.currentView = 'items';
+    app.renderView();
+  });
+
+  let touchTimer = null;
+
+  content.querySelectorAll('.organizer-card-container').forEach((container) => {
+    const organizerCard = container.querySelector('.organizer-card');
+
+    container.style.userSelect = 'none';
+    container.style.webkitUserSelect = 'none';
+    container.style.webkitTouchCallout = 'none';
+    container.style.touchAction = 'manipulation';
 
     let touchTimer = null;
 
-    content
-      .querySelectorAll('.organizer-card-container')
-      .forEach((container) => {
-        const organizerCard = container.querySelector('.organizer-card');
+    // ---- Click simplu = navigare în iteme ----
+    organizerCard?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const organizerName = organizerCard.dataset.organizer;
+      s.selectedOrganizer = organizerName;
+      s.currentView = 'items';
+      app.renderView();
+    });
 
-        container.style.userSelect = 'none';
-        container.style.webkitUserSelect = 'none';
-        container.style.webkitTouchCallout = 'none';
-        container.style.touchAction = 'manipulation';
+    // ---- Click dreapta (desktop) = edit modal ----
+    container.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      clearTimeout(touchTimer);
+      openEditOrganizerModal(
+        {
+          id: container.dataset.id,
+          name: container.dataset.name,
+          itemCount: container.dataset.count,
+        },
+        app
+      );
+    });
 
-        let touchTimer = null;
+    // ---- Touch lung (mobil) = edit modal ----
+    let touchStartTime = 0;
+    let longPressTriggered = false;
 
-        // ---- Click simplu = navigare în iteme ----
-        organizerCard?.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const organizerName = organizerCard.dataset.organizer;
-          s.selectedOrganizer = organizerName;
-          s.currentView = 'items';
-          app.renderView();
-        });
+    container.addEventListener(
+      'touchstart',
+      (e) => {
+        longPressTriggered = false;
+        touchStartTime = Date.now();
 
-        // ---- Click dreapta (desktop) = edit modal ----
-        container.addEventListener('contextmenu', (e) => {
+        touchTimer = setTimeout(() => {
+          longPressTriggered = true;
           e.preventDefault();
-          clearTimeout(touchTimer);
           openEditOrganizerModal(
             {
               id: container.dataset.id,
@@ -331,74 +342,49 @@ export async function renderOrganizersView(app, content) {
             },
             app
           );
-        });
+        }, 550);
+      },
+      { passive: true }
+    );
 
-        // ---- Touch lung (mobil) = edit modal ----
-        let touchStartTime = 0;
-        let longPressTriggered = false;
+    container.addEventListener('touchend', (e) => {
+      clearTimeout(touchTimer);
 
-        container.addEventListener(
-          'touchstart',
-          (e) => {
-            longPressTriggered = false;
-            touchStartTime = Date.now();
-
-            touchTimer = setTimeout(() => {
-              longPressTriggered = true;
-              e.preventDefault();
-              openEditOrganizerModal(
-                {
-                  id: container.dataset.id,
-                  name: container.dataset.name,
-                  itemCount: container.dataset.count,
-                },
-                app
-              );
-            }, 550);
-          },
-          { passive: true }
-        );
-
-        container.addEventListener('touchend', (e) => {
-          clearTimeout(touchTimer);
-
-          if (!longPressTriggered && Date.now() - touchStartTime < 300) {
-            const organizerName = organizerCard.dataset.organizer;
-            s.selectedOrganizer = organizerName;
-            s.currentView = 'items';
-            app.renderView();
-          }
-        });
-
-        container.addEventListener('touchmove', () => clearTimeout(touchTimer));
-      });
-
-    // Click pe item card container pentru edit
-    content.querySelectorAll('.item-card-container').forEach((container) => {
-      container.addEventListener('click', () => {
-        const item = JSON.parse(container.dataset.item);
-        openEditItemModal(item, app);
-      });
-    });
-  } else {
-    // Dacă nu poate modifica, click pe organizator navighează către items
-    content.querySelectorAll('.organizer-card').forEach((card) => {
-      const container = card.closest('.organizer-card-container');
-      const organizer = {
-        id: container.dataset.id,
-        name: container.dataset.name,
-        itemCount: container.dataset.count,
-      };
-
-      card.addEventListener('click', () => {
-        s.selectedOrganizer = organizer.name;
+      if (!longPressTriggered && Date.now() - touchStartTime < 300) {
+        const organizerName = organizerCard.dataset.organizer;
+        s.selectedOrganizer = organizerName;
         s.currentView = 'items';
         app.renderView();
-      });
+      }
     });
-  }
 
-  console.log('=== renderOrganizersView COMPLETE ===');
+    container.addEventListener('touchmove', () => clearTimeout(touchTimer));
+  });
+
+  // Click pe item card container pentru edit
+  content
+    .querySelectorAll('.item-card-container')
+    .forEach(async (container) => {
+      const item = JSON.parse(container.dataset.item);
+      const attachItemCardInteractions = await loadViewsUtils();
+      attachItemCardInteractions(container, item, app, () => app.renderView());
+    });
+
+  // Dacă nu poate modifica, click pe organizator navighează către items
+  content.querySelectorAll('.organizer-card').forEach((card) => {
+    const container = card.closest('.organizer-card-container');
+    const organizer = {
+      id: container.dataset.id,
+      name: container.dataset.name,
+      itemCount: container.dataset.count,
+    };
+
+    card.addEventListener('click', () => {
+      s.selectedOrganizer = organizer.name;
+      s.currentView = 'items';
+      app.renderView();
+    });
+  });
 }
 
 function openEditOrganizerModal(organizer, app) {

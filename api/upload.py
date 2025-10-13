@@ -60,16 +60,16 @@ class HomeInventarUpload(HomeAssistantView):
                 _LOGGER.warning(f"Could not apply EXIF rotation: {e}")
             
             original_width, original_height = img.size
-            _LOGGER.info(f"Original image size: {original_width}x{original_height}")
+            _LOGGER.debug(f"Original image size: {original_width}x{original_height}")
             
             if original_width <= MAX_WIDTH and original_height <= MAX_HEIGHT:
-                _LOGGER.info("Image is already small enough, no resize needed")
+                _LOGGER.debug("Image is already small enough, no resize needed")
                 return image_data
             
             img.thumbnail((MAX_WIDTH, MAX_HEIGHT), Image.Resampling.LANCZOS)
             new_width, new_height = img.size
             
-            _LOGGER.info(f"Resized image to: {new_width}x{new_height}")
+            _LOGGER.debug(f"Resized image to: {new_width}x{new_height}")
             
             output = BytesIO()
             
@@ -140,7 +140,7 @@ class HomeInventarUpload(HomeAssistantView):
 
             original_size = len(image_data) / 1024
             final_size = len(resized_data) / 1024
-            _LOGGER.info(
+            _LOGGER.debug(
                 f"[HomeInventar] 📸 Image uploaded: {filename} "
                 f"(original: {original_size:.1f}KB, final: {final_size:.1f}KB)"
             )
@@ -174,7 +174,7 @@ class HomeInventarUpload(HomeAssistantView):
             
             if os.path.exists(full_path):
                 os.remove(full_path)
-                _LOGGER.info(f"[HomeInventar] 🗑️ Deleted old image: {filename}")
+                _LOGGER.debug(f"[HomeInventar] 🗑️ Deleted old image: {filename}")
             
         except Exception as e:
             _LOGGER.error(f"[HomeInventar] Error deleting old image: {e}", exc_info=True)
@@ -229,7 +229,7 @@ class HomeInventarImageView(HomeAssistantView):
     async def get(self, request: web.Request, filename: str) -> web.Response:
         """Servește imaginea doar dacă utilizatorul este autentificat."""
         try:
-            _LOGGER.info(f"[HomeInventar] Image request for: {filename}")
+            _LOGGER.debug(f"[HomeInventar] Image request for: {filename}")
 
             if not self._authenticate(request):
                 _LOGGER.warning(f"[HomeInventar] ❌ Unauthorized: {filename}")
@@ -245,7 +245,7 @@ class HomeInventarImageView(HomeAssistantView):
                 _LOGGER.warning(f"[HomeInventar] Image not found: {image_path}")
                 return web.Response(status=404, text="Image not found")
 
-            _LOGGER.info(f"[HomeInventar] ✅ Serving image: {filename}")
+            _LOGGER.debug(f"[HomeInventar] ✅ Serving image: {filename}")
             with open(image_path, "rb") as f:
                 image_data = f.read()
 

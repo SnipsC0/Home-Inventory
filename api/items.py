@@ -57,7 +57,10 @@ class HomeInventarItemsView(HomeAssistantView):
             if organizer:
                 # Items dintr-un organizator specific
                 cur.execute('''
-                    SELECT i.id, i.name, i.image, i.quantity, i.min_quantity, i.track_quantity, i.aliases
+                    SELECT i.id, i.name, i.image, i.quantity, i.min_quantity, i.track_quantity, i.aliases,
+                        r.name as room_name,
+                        c.name as cupboard_name,
+                        s.name as shelf_name
                     FROM items i
                     JOIN organizers o ON i.organizer_id = o.id
                     JOIN shelves s ON i.shelf_id = s.id
@@ -69,7 +72,9 @@ class HomeInventarItemsView(HomeAssistantView):
             else:
                 # Items fără organizator (direct pe raft)
                 cur.execute('''
-                    SELECT i.id, i.name, i.image, i.quantity, i.min_quantity, i.track_quantity, i.aliases
+                    SELECT i.id, i.name, i.image, i.quantity, i.min_quantity, i.track_quantity, i.aliases, r.name as room_name,
+                    c.name as cupboard_name,
+                    s.name as shelf_name
                     FROM items i
                     JOIN shelves s ON i.shelf_id = s.id
                     JOIN cupboards c ON s.cupboard_id = c.id
@@ -91,7 +96,8 @@ class HomeInventarItemsView(HomeAssistantView):
                     "quantity": r[3],
                     "min_quantity": r[4],
                     "track_quantity": bool(r[5]),
-                    "aliases": r[6]
+                    "aliases": r[6],
+                    "location": f"{r[7]} / {r[8]} / {r[9]}"
                 }
                 _LOGGER.debug(f"Item fetched - ID: {r[0]}, Name: {r[1]}, Image: '{image}'")
                 result.append(item)
@@ -116,7 +122,7 @@ class HomeInventarItemsView(HomeAssistantView):
         if not all([room, cupboard, shelf, name]):
             return web.json_response({"error": "Missing required params"}, status=400)
 
-        _LOGGER.info(f"Creating item - Name: {name}, Image: '{image}', Organizer: '{organizer}'")
+        _LOGGER.debug(f"Creating item - Name: {name}, Image: '{image}', Organizer: '{organizer}'")
 
         def insert():
             conn = sqlite3.connect(self.db_path)
@@ -205,7 +211,7 @@ class HomeInventarItemView(HomeAssistantView):
             
             if os.path.exists(full_path):
                 os.remove(full_path)
-                _LOGGER.info(f"[HomeInventar] 🗑️ Deleted image file: {full_path}")
+                _LOGGER.debug(f"[HomeInventar] 🗑️ Deleted image file: {full_path}")
             else:
                 _LOGGER.debug(f"[HomeInventar] Image file not found: {full_path}")
                 
@@ -216,7 +222,7 @@ class HomeInventarItemView(HomeAssistantView):
         """Update item details - cu cleanup imagine veche"""
         try:
             data = await request.json()
-            _LOGGER.info(f"PATCH item {item_id} - received data: {data}")
+            _LOGGER.debug(f"PATCH item {item_id} - received data: {data}")
             
             name = data.get("name")
             aliases = data.get("aliases")
@@ -251,7 +257,7 @@ class HomeInventarItemView(HomeAssistantView):
                 if new_image is not None:
                     updates.append("image = ?")
                     params.append(new_image)
-                    _LOGGER.info(f"Updating item image to: '{new_image}'")
+                    _LOGGER.debug(f"Updating item image to: '{new_image}'")
                 
                 if quantity is not None:
                     updates.append("quantity = ?")
@@ -272,7 +278,7 @@ class HomeInventarItemView(HomeAssistantView):
                 params.append(item_id)
                 sql = f"UPDATE items SET {', '.join(updates)} WHERE id = ?"
                 
-                _LOGGER.info(f"Executing: {sql} with params: {params}")
+                _LOGGER.debug(f"Executing: {sql} with params: {params}")
                 cur.execute(sql, params)
                 conn.commit()
                 count = cur.rowcount
@@ -289,7 +295,7 @@ class HomeInventarItemView(HomeAssistantView):
             # Ștergem imaginea veche dacă s-a schimbat
             if old_image:
                 self._delete_image_file(old_image)
-                _LOGGER.info(f"Old image cleaned: {old_image}")
+                _LOGGER.debug(f"Old image cleaned: {old_image}")
             
             return web.json_response({"message": "Updated"})
             
@@ -326,7 +332,7 @@ class HomeInventarItemView(HomeAssistantView):
             if old_image:
                 self._delete_image_file(old_image)
             
-            _LOGGER.info(f"Item {item_id} deleted successfully" + (" (image cleaned)" if old_image else ""))
+            _LOGGER.debug(f"Item {item_id} deleted successfully" + (" (image cleaned)" if old_image else ""))
             return web.json_response({"message": "Deleted"})
             
         except Exception as e:

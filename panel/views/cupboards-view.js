@@ -1,7 +1,4 @@
-import {
-  attachFormToggleHandlers,
-  attachCardGridNavigation,
-} from '../core/ui-utils.js';
+import { attachFormToggleHandlers } from '../core/ui-utils.js';
 import { downloadQRCode } from '../core/qr-generator.js';
 
 export async function renderCupboardsView(app, content) {

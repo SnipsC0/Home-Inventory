@@ -1,6 +1,8 @@
-// app.js
 const urlParams = new URLSearchParams(window.location.search);
 const APP_VERSION = urlParams.get('v') || Date.now();
+
+window.STATIC_BASE = '/home_inventar_static';
+window.HomeInventarVersion = APP_VERSION;
 
 class HomeInventarApp extends HTMLElement {
   constructor() {
@@ -230,12 +232,12 @@ class HomeInventarApp extends HTMLElement {
     }
 
     const viewMap = {
-      rooms: './views/rooms-view.js',
-      cupboards: './views/cupboards-view.js',
-      shelves: './views/shelves-view.js',
-      organizers: './views/organizers-view.js',
-      items: './views/items-view.js',
-      'all-items': './views/all-items-view.js',
+      rooms: `${window.STATIC_BASE}/views/rooms-view.js`,
+      cupboards: `${window.STATIC_BASE}/views/cupboards-view.js`,
+      shelves: `${window.STATIC_BASE}/views/shelves-view.js`,
+      organizers: `${window.STATIC_BASE}/views/organizers-view.js`,
+      items: `${window.STATIC_BASE}/views/items-view.js`,
+      'all-items': `${window.STATIC_BASE}/views/all-items-view.js`,
     };
 
     const modulePath = viewMap[viewName];

@@ -245,9 +245,11 @@ class HomeInventarImageView(HomeAssistantView):
                 _LOGGER.warning(f"[HomeInventar] Image not found: {image_path}")
                 return web.Response(status=404, text="Image not found")
 
-            _LOGGER.debug(f"[HomeInventar] ✅ Serving image: {filename}")
-            with open(image_path, "rb") as f:
-                image_data = f.read()
+            def _read_file(path):
+                with open(path, "rb") as f:
+                    return f.read()
+
+            image_data = await self.hass.async_add_executor_job(_read_file, image_path)
 
             return web.Response(
                 body=image_data,

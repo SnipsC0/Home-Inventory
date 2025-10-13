@@ -276,7 +276,7 @@ function attachItemCardInteractions(
 
     if (
       !longPressTriggered &&
-      Date.now() - touchStartTime < 300 &&
+      Date.now() - touchStartTime < 50 &&
       !e.target.closest('.qty-plus-btn') &&
       !e.target.closest('.qty-minus-btn')
     ) {

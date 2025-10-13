@@ -1,8 +1,14 @@
+// Cache pentru funcția loadViewsUtils
+let cachedAttachFunction = null;
+
 async function loadViewsUtils() {
-  const mod = await import(
-    `${window.STATIC_BASE}/core/views-utils.js?v=${window.HomeInventarVersion}`
-  );
-  return mod.attachItemCardInteractions;
+  if (!cachedAttachFunction) {
+    const mod = await import(
+      `${window.STATIC_BASE}/core/views-utils.js?v=${window.HomeInventarVersion}`
+    );
+    cachedAttachFunction = mod.attachItemCardInteractions;
+  }
+  return cachedAttachFunction;
 }
 
 export async function renderAllItemsView(app, content) {
@@ -65,7 +71,22 @@ export async function renderAllItemsView(app, content) {
 
       <!-- Lista obiecte -->
       <div id="itemsList" style="display:grid;gap:12px;"></div>
+      
+      <!-- Loading indicator -->
+      <div id="loadingIndicator" style="display:none;text-align:center;padding:20px;color:var(--secondary-text-color);">
+        <div style="display:inline-block;width:40px;height:40px;border:4px solid var(--divider-color);border-top-color:var(--primary-color);border-radius:50%;animation:spin 1s linear infinite;"></div>
+        <div style="margin-top:10px;">Se încarcă...</div>
+      </div>
+      
+      <!-- Sentinel pentru infinite scroll -->
+      <div id="scrollSentinel" style="height:1px;"></div>
     </div>
+    
+    <style>
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
   `;
 
   // Populează filtrul de camere
@@ -84,12 +105,25 @@ export async function renderAllItemsView(app, content) {
     app.renderView();
   });
 
-  // Funcție de render listă
-  function renderItemsList() {
+  // ============================================
+  // INFINITE SCROLL LOGIC
+  // ============================================
+  const ITEMS_PER_PAGE = 30; // Items per batch
+  let currentPage = 0;
+  let filteredItems = [];
+  let isLoading = false;
+  let hasMore = true;
+  let observer = null;
+
+  // Pre-load attach function
+  const attachItemCardInteractions = await loadViewsUtils();
+
+  // Funcție pentru filtrare și sortare
+  function getFilteredAndSortedItems() {
     const searchTerm = content
       .querySelector('#searchInput')
       .value.toLowerCase();
-    const roomFilter = content.querySelector('#roomFilter').value;
+    const roomFilterValue = content.querySelector('#roomFilter').value;
     const sortBy = content.querySelector('#sortSelect').value;
     const stockFilter = content.querySelector('#stockFilter').value;
 
@@ -102,7 +136,7 @@ export async function renderAllItemsView(app, content) {
           .some((alias) => alias.trim().includes(searchTerm));
         if (!nameMatch && !aliasMatch) return false;
       }
-      if (roomFilter !== 'all' && item.room !== roomFilter) {
+      if (roomFilterValue !== 'all' && item.room !== roomFilterValue) {
         return false;
       }
       if (stockFilter === 'tracked' && !item.track_quantity) {
@@ -142,12 +176,198 @@ export async function renderAllItemsView(app, content) {
       }
     });
 
-    content.querySelector(
-      '#itemCount'
-    ).textContent = `${filtered.length} obiecte`;
+    return filtered;
+  }
+
+  // Funcție pentru a genera HTML pentru un item (optimizat - template string caching)
+  function buildItemHTML(item) {
+    const isLowStock =
+      item.track_quantity &&
+      item.quantity !== null &&
+      item.quantity <= item.min_quantity;
+
+    const stockBadge = item.track_quantity
+      ? `<span style="padding:4px 8px;border-radius:4px;font-size:0.85em;font-weight:500;
+                  background:${
+                    isLowStock ? 'var(--error-color)' : 'var(--success-color)'
+                  };
+                  color:white;">
+        ${item.quantity ?? '?'} ${
+          item.min_quantity ? `/ min ${item.min_quantity}` : ''
+        }
+      </span>`
+      : '';
+
+    const imageHTML = item.image
+      ? `<img src="${item.image}" alt="${item.name}" 
+            style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0;" />`
+      : `<div style="width:60px;height:60px;background:var(--divider-color);
+                  border-radius:6px;display:flex;align-items:center;
+                  justify-content:center;font-size:1.5em;flex-shrink:0;">📦</div>`;
+
+    const qtyButtons = item.track_quantity
+      ? `<button data-id="${item.id}" class="qty-minus-btn"
+              style="width:36px;height:36px;background:var(--error-color);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:1.2em;font-weight:bold;display:flex;align-items:center;justify-content:center;">
+          −
+        </button>
+        <button data-id="${item.id}" class="qty-plus-btn"
+              style="width:36px;height:36px;background:var(--success-color);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:1.2em;font-weight:bold;display:flex;align-items:center;justify-content:center;">
+          +
+        </button>`
+      : '';
+
+    return `
+      <div class="item-card" data-id="${item.id}" 
+           style="display:flex;align-items:center;gap:12px;padding:12px;
+                  background:var(--card-background-color);border-radius:8px;
+                  box-shadow:0 2px 4px rgba(0,0,0,0.1);
+                  ${
+                    isLowStock
+                      ? 'border-left:4px solid var(--error-color);'
+                      : ''
+                  }
+                  cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;
+                  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;">
+        ${imageHTML}
+        <div style="flex-grow:1;min-width:0;">
+          <div style="font-weight:600;margin-bottom:4px;word-wrap:break-word;">${
+            item.name
+          }</div>
+          <div style="font-size:0.85em;color:var(--secondary-text-color);margin-bottom:4px;">
+            📍 ${item.location}
+          </div>
+          ${stockBadge}
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;">
+          ${qtyButtons}
+        </div>
+      </div>
+    `;
+  }
+
+  // Funcție pentru a atașa event handlers pe un batch de items (optimizat)
+  function attachEventHandlersToCards(newCards) {
+    newCards.forEach((card) => {
+      const itemId = card.dataset.id;
+      const item = items.find((i) => i.id == itemId);
+
+      if (!item) return;
+
+      // Attach main interaction handlers
+      attachItemCardInteractions(card, item, app, resetAndReload);
+
+      // Attach quantity buttons handlers cu event delegation optimization
+      const plusBtn = card.querySelector('.qty-plus-btn');
+      const minusBtn = card.querySelector('.qty-minus-btn');
+
+      if (plusBtn) {
+        plusBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await updateQuantity(item, (item.quantity || 0) + 1, card);
+        });
+      }
+
+      if (minusBtn) {
+        minusBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await updateQuantity(
+            item,
+            Math.max(0, (item.quantity || 0) - 1),
+            card
+          );
+        });
+      }
+    });
+  }
+
+  // Helper pentru update cantitate (optimizat - nu re-render tot)
+  async function updateQuantity(item, newQuantity, card) {
+    if (!item || !item.track_quantity) return;
+
+    try {
+      await app.api.updateItem(item.id, { quantity: newQuantity });
+      item.quantity = newQuantity;
+
+      // Update doar badge-ul specific, fără re-render
+      const stockBadge = card.querySelector('span[style*="padding:4px 8px"]');
+      if (stockBadge) {
+        const isLowStock = item.quantity <= item.min_quantity;
+        stockBadge.style.background = isLowStock
+          ? 'var(--error-color)'
+          : 'var(--success-color)';
+        stockBadge.innerHTML = `${item.quantity ?? '?'} ${
+          item.min_quantity ? `/ min ${item.min_quantity}` : ''
+        }`;
+
+        // Update border pentru low stock
+        if (isLowStock) {
+          card.style.borderLeft = '4px solid var(--error-color)';
+        } else {
+          card.style.borderLeft = '';
+        }
+      }
+    } catch (err) {
+      alert(`Nu s-a putut actualiza cantitatea: ${err?.message || ''}`);
+    }
+  }
+
+  // Funcție pentru a încărca următorul batch de items
+  function loadMoreItems() {
+    if (isLoading || !hasMore) return;
+
+    isLoading = true;
+    const loadingIndicator = content.querySelector('#loadingIndicator');
+    loadingIndicator.style.display = 'block';
+
+    // Folosim requestAnimationFrame pentru smooth rendering
+    requestAnimationFrame(() => {
+      const startIndex = currentPage * ITEMS_PER_PAGE;
+      const endIndex = startIndex + ITEMS_PER_PAGE;
+      const batch = filteredItems.slice(startIndex, endIndex);
+
+      if (batch.length === 0) {
+        hasMore = false;
+        loadingIndicator.style.display = 'none';
+        isLoading = false;
+        return;
+      }
+
+      const itemsList = content.querySelector('#itemsList');
+      const fragment = document.createDocumentFragment();
+
+      // Optimizare: crează toate elementele dintr-o dată
+      const tempContainer = document.createElement('div');
+      tempContainer.innerHTML = batch.map(buildItemHTML).join('');
+      const newCards = Array.from(tempContainer.children);
+
+      newCards.forEach((card) => fragment.appendChild(card));
+      itemsList.appendChild(fragment);
+
+      // Attach handlers după DOM insertion
+      attachEventHandlersToCards(newCards);
+
+      currentPage++;
+      hasMore = endIndex < filteredItems.length;
+      loadingIndicator.style.display = 'none';
+      isLoading = false;
+    });
+  }
+
+  // Reset și reload
+  function resetAndReload() {
+    currentPage = 0;
+    hasMore = true;
+    filteredItems = getFilteredAndSortedItems();
 
     const itemsList = content.querySelector('#itemsList');
-    if (filtered.length === 0) {
+    itemsList.innerHTML = '';
+
+    // Update counter
+    content.querySelector(
+      '#itemCount'
+    ).textContent = `${filteredItems.length} obiecte`;
+
+    if (filteredItems.length === 0) {
       itemsList.innerHTML = `
         <p style="text-align:center;color:var(--secondary-text-color);padding:40px;">
           Nu s-au găsit obiecte cu aceste filtre.
@@ -156,148 +376,54 @@ export async function renderAllItemsView(app, content) {
       return;
     }
 
-    itemsList.innerHTML = filtered
-      .map((item) => {
-        const isLowStock =
-          item.track_quantity &&
-          item.quantity !== null &&
-          item.quantity <= item.min_quantity;
-        const stockBadge = item.track_quantity
-          ? `<span style="padding:4px 8px;border-radius:4px;font-size:0.85em;font-weight:500;
-                      background:${
-                        isLowStock
-                          ? 'var(--error-color)'
-                          : 'var(--success-color)'
-                      };
-                      color:white;">
-            ${item.quantity ?? '?'} ${
-              item.min_quantity ? `/ min ${item.min_quantity}` : ''
-            }
-          </span>`
-          : '';
-
-        return `
-        <div class="item-card" data-id="${item.id}" 
-             style="display:flex;align-items:center;gap:12px;padding:12px;
-                    background:var(--card-background-color);border-radius:8px;
-                    box-shadow:0 2px 4px rgba(0,0,0,0.1);
-                    ${
-                      isLowStock
-                        ? 'border-left:4px solid var(--error-color);'
-                        : ''
-                    }
-                    cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;
-                    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;">
-          ${
-            item.image
-              ? `<img src="${item.image}" alt="${item.name}" 
-                    style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0;" />`
-              : `<div style="width:60px;height:60px;background:var(--divider-color);
-                          border-radius:6px;display:flex;align-items:center;
-                          justify-content:center;font-size:1.5em;flex-shrink:0;">📦</div>`
-          }
-          <div style="flex-grow:1;min-width:0;">
-            <div style="font-weight:600;margin-bottom:4px;word-wrap:break-word;">${
-              item.name
-            }</div>
-            <div style="font-size:0.85em;color:var(--secondary-text-color);margin-bottom:4px;">
-              📍 ${item.location}
-            </div>
-            ${stockBadge}
-          </div>
-          <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;">
-            ${
-              item.track_quantity
-                ? `
-            <button data-id="${item.id}" class="qty-minus-btn"
-                    style="width:36px;height:36px;background:var(--error-color);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:1.2em;font-weight:bold;display:flex;align-items:center;justify-content:center;">
-              −
-            </button>
-            <button data-id="${item.id}" class="qty-plus-btn"
-                    style="width:36px;height:36px;background:var(--success-color);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:1.2em;font-weight:bold;display:flex;align-items:center;justify-content:center;">
-              +
-            </button>
-            `
-                : ''
-            }
-          </div>
-        </div>
-      `;
-      })
-      .join('');
-
-    // Event handlers pentru carduri
-    itemsList.querySelectorAll('.item-card').forEach(async (card) => {
-      const itemId = card.dataset.id;
-      const item = items.find((i) => i.id == itemId);
-
-      const attachItemCardInteractions = await loadViewsUtils();
-      attachItemCardInteractions(card, item, app, renderItemsList);
-    });
-
-    // Butoane + pentru creștere cantitate
-    itemsList.querySelectorAll('.qty-plus-btn').forEach((btn) => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const id = btn.dataset.id;
-        const item = items.find((i) => i.id == id);
-
-        if (!item || !item.track_quantity) return;
-
-        const newQuantity = (item.quantity || 0) + 1;
-
-        try {
-          await app.api.updateItem(item.id, {
-            quantity: newQuantity,
-          });
-
-          item.quantity = newQuantity;
-          renderItemsList();
-        } catch (err) {
-          alert(`Nu s-a putut actualiza cantitatea: ${err?.message || ''}`);
-        }
-      });
-    });
-
-    // Butoane - pentru scădere cantitate
-    itemsList.querySelectorAll('.qty-minus-btn').forEach((btn) => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const id = btn.dataset.id;
-        const item = items.find((i) => i.id == id);
-
-        if (!item || !item.track_quantity) return;
-
-        const newQuantity = Math.max(0, (item.quantity || 0) - 1);
-
-        try {
-          await app.api.updateItem(item.id, {
-            quantity: newQuantity,
-          });
-
-          item.quantity = newQuantity;
-          renderItemsList();
-        } catch (err) {
-          alert(`Nu s-a putut actualiza cantitatea: ${err?.message || ''}`);
-        }
-      });
-    });
+    // Load first batch
+    loadMoreItems();
   }
 
-  content
-    .querySelector('#searchInput')
-    .addEventListener('input', renderItemsList);
+  // Intersection Observer pentru infinite scroll
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting && hasMore && !isLoading) {
+        loadMoreItems();
+      }
+    },
+    {
+      root: null,
+      rootMargin: '300px', // Start loading 300px before bottom
+      threshold: 0,
+    }
+  );
+
+  const sentinel = content.querySelector('#scrollSentinel');
+  observer.observe(sentinel);
+
+  // Event listeners pentru filtre (debounced search)
+  let searchTimeout;
+  content.querySelector('#searchInput').addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(resetAndReload, 300); // Debounce 300ms
+  });
+
   content
     .querySelector('#roomFilter')
-    .addEventListener('change', renderItemsList);
+    .addEventListener('change', resetAndReload);
   content
     .querySelector('#sortSelect')
-    .addEventListener('change', renderItemsList);
+    .addEventListener('change', resetAndReload);
   content
     .querySelector('#stockFilter')
-    .addEventListener('change', renderItemsList);
+    .addEventListener('change', resetAndReload);
 
-  renderItemsList();
+  // Initial load
+  resetAndReload();
+
+  // Cleanup function
+  return () => {
+    if (observer) {
+      observer.disconnect();
+    }
+    clearTimeout(searchTimeout);
+  };
 }
 
 function showAuthOrError(content, err) {

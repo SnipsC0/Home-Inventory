@@ -47,6 +47,7 @@ export async function renderItemsView(app, content) {
 
       <!-- Form de adăugare -->
       <div id="addForm" style="display:none;background:var(--card-background-color);padding:16px;border-radius:8px;margin-bottom:16px;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+        <div id="quickNotice" style="display:none; background:var(--primary-color); color:white; padding:6px 10px; border-radius:6px; margin-bottom:10px; font-size:0.85em; font-weight:500;"></div>
         <input id="newItemName" placeholder="Nume obiect (ex: Orez)" style="width:100%;padding:10px;border-radius:4px;border:1px solid var(--divider-color);margin-bottom:10px;box-sizing:border-box;" />
         
         <!-- Imagine -->
@@ -92,7 +93,7 @@ export async function renderItemsView(app, content) {
       </div>
 
       <!-- Grid cu items -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr));gap:12px;">
+      <div data-items-grid style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr));gap:12px;">
         ${
           items.length === 0
             ? `<p style="grid-column:1/-1;text-align:center;color:var(--secondary-text-color);padding:40px;">
@@ -212,30 +213,51 @@ export async function renderItemsView(app, content) {
   attachFormToggleHandlers(content, 'items', {
     addItem: async () => {
       const nameInput = content.querySelector('#newItemName');
-      const name = (nameInput?.value || '').trim();
-      if (!name) return alert('Te rog introdu numele obiectului.');
+      const imageFileInput = imageInput; // deja definit mai sus
+      const quantityInput = content.querySelector('#quantityInput');
+      const minQuantityInput = content.querySelector('#minQuantityInput');
 
-      const trackQuantity = content.querySelector(
-        '#trackQuantityCheckbox'
-      ).checked;
-      const quantity = trackQuantity
-        ? parseInt(content.querySelector('#quantityInput').value) || null
-        : null;
-      const minQuantity = trackQuantity
-        ? parseInt(content.querySelector('#minQuantityInput').value) || null
-        : null;
+      // ✅ 1. Stocăm valorile într-un BACKUP LOCAL
+      const nameValue = (nameInput?.value || '').trim();
+      if (!nameValue) return alert('Te rog introdu numele obiectului.');
 
-      const imageFile = imageInput?.files[0];
+      const trackQuantity = trackCheckbox.checked;
+      const quantityValue = trackQuantity
+        ? parseInt(quantityInput.value) || null
+        : null;
+      const minQuantityValue = trackQuantity
+        ? parseInt(minQuantityInput.value) || null
+        : null;
+      const imageFileValue = imageFileInput?.files[0] || null; // stocăm FIȘIERUL
       let imagePath = '';
 
+      // ✅ 2. Resetăm UI-ul imediat (UX instant, fără așteptare rețea)
+      nameInput.value = '';
+      if (imageFileInput) {
+        imageFileInput.value = '';
+        imagePreview.style.display = 'none';
+      }
+      trackCheckbox.checked = false;
+      quantityFields.style.display = 'none';
+      quantityInput.value = '';
+      minQuantityInput.value = '';
+
+      // ✅ 3. Afișăm mesaj rapid
+      const notice = content.querySelector('#quickNotice');
+      notice.textContent =
+        'Se adaugă obiectul... Poți continua adăugarea altor obiecte.';
+      notice.style.display = 'block';
+      setTimeout(() => (notice.style.display = 'none'), 2000);
+
+      // ✅ 4. FACEM upload și addItem în fundal FOLOSIND BACKUP-ul din memorie
       try {
-        if (imageFile) {
-          imagePath = await app.api.uploadImage(imageFile, {
+        if (imageFileValue) {
+          imagePath = await app.api.uploadImage(imageFileValue, {
             room: s.selectedRoom,
             cupboard: s.selectedCupboard,
             shelf: s.selectedShelf,
-            organizer: organizer || null, // <-- ADĂUGAT
-            item: name,
+            organizer: organizer || null,
+            item: nameValue,
           });
         }
 
@@ -245,20 +267,91 @@ export async function renderItemsView(app, content) {
           s.selectedShelf,
           organizer,
           {
-            name,
+            name: nameValue,
             image: imagePath,
-            quantity,
-            min_quantity: minQuantity,
+            quantity: quantityValue,
+            min_quantity: minQuantityValue,
             track_quantity: trackQuantity,
           }
         );
 
-        content.querySelector('#addForm').style.display = 'none';
-        await app.renderView();
+        // ✅ 5. Reîmprospătăm doar lista din grid, formularul rămâne neatins
+        await refreshItemsGrid(app, content, organizer);
       } catch (err) {
         alert(`Eroare: ${err?.message || 'Adăugare eșuată'}`);
       }
     },
+  });
+}
+
+async function refreshItemsGrid(app, content, organizer) {
+  const s = app.state;
+  const grid = content.querySelector('[data-items-grid]');
+  if (!grid) return;
+
+  const updatedItems = await app.api.getItems(
+    s.selectedRoom,
+    s.selectedCupboard,
+    s.selectedShelf,
+    organizer
+  );
+
+  if (!updatedItems || updatedItems.length === 0) {
+    grid.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:var(--secondary-text-color);padding:40px;">
+      Nu există obiecte ${
+        organizer ? 'în acest organizator' : 'direct pe acest raft'
+      }.
+    </p>`;
+    return;
+  }
+
+  grid.innerHTML = updatedItems
+    .map((item) => {
+      let quantityDisplay = '';
+      if (item.track_quantity && item.quantity !== null) {
+        if (item.min_quantity !== null && item.min_quantity > 0) {
+          quantityDisplay = ` <span style="color:${
+            item.quantity <= item.min_quantity
+              ? 'var(--error-color)'
+              : 'var(--primary-color)'
+          };font-weight:600;">${item.quantity}/${item.min_quantity}</span>`;
+        } else {
+          quantityDisplay = ` <span style="color:var(--primary-color);font-weight:600;">${item.quantity}</span>`;
+        }
+      }
+
+      return `
+      <div class="item-card" data-id="${item.id}" data-item='${JSON.stringify(
+        item
+      ).replace(/'/g, '&#39;')}'
+          style="background:var(--card-background-color);border-radius:8px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.1);cursor:pointer;transition:all .2s;">
+          ${
+            item.image
+              ? `<div style="width:100%;height:150px;background:var(--secondary-background-color);position:relative;overflow:hidden;">
+                <img src="${item.image}" style="width:100%;height:100%;object-fit:cover;" />
+              </div>`
+              : `<div style="width:100%;height:150px;background:var(--secondary-background-color);display:flex;align-items:center;justify-content:center;font-size:3em;">📦</div>`
+          }
+          <div style="padding:12px;">
+            <div style="font-weight:600;font-size:1.05em;">${
+              item.name
+            }${quantityDisplay}</div>
+          </div>
+      </div>`;
+    })
+    .join('');
+
+  // Reatașăm interacțiunile
+  grid.querySelectorAll('.item-card').forEach(async (card) => {
+    const item = JSON.parse(card.dataset.item);
+    const attachItemCardInteractions = await loadViewsUtils();
+    attachItemCardInteractions(
+      card,
+      item,
+      app,
+      () => refreshItemsGrid(app, content, organizer),
+      organizer
+    );
   });
 }
 

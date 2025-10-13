@@ -1,0 +1,28 @@
+{
+  "title": "Home Inventar",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configurează Home Inventar",
+        "description": "Această integrare permite gestionarea unui inventar local de obiecte.\n\n{structure_info}",
+        "data": {
+          "allow_structure_modification": "Permite modificarea structurii inventarului"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Home Inventar este deja configurat."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opțiuni Home Inventar",
+        "description": "{structure_info}",
+        "data": {
+          "allow_structure_modification": "Permite modificarea structurii inventarului"
+        }
+      }
+    }
+  }
+}

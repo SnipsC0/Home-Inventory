@@ -1,0 +1,11 @@
+{
+  "domain": "home_inventar",
+  "name": "Home Inventar",
+  "version": "2.1.1",
+  "config_flow": true,
+  "documentation": "https://example.com/home_inventar",
+  "integration_type": "hub",
+  "codeowners": ["@emilianpetrovici"],
+  "requirements": ["Pillow>=10.0.0"],
+  "iot_class": "local_polling"
+}

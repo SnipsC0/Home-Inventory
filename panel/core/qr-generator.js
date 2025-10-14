@@ -3,31 +3,23 @@
  * Format: homeassistant://navigate/home_inventar?data=base64encoded
  */
 export function downloadQRCode(room, cupboard) {
-  // Creează payload-ul pentru deep link
   const payload = JSON.stringify({ room, cupboard });
   const base64Data = btoa(payload);
 
-  // URL pentru deep linking în aplicația Home Assistant
   const deepLinkUrl = `homeassistant://navigate/home_inventar?data=${base64Data}`;
 
-  console.log('Generating QR with deep link:', deepLinkUrl);
-
-  // Generează QR code folosind API public
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(
     deepLinkUrl
   )}`;
 
-  // Creează un link temporar pentru download
   const link = document.createElement('a');
   link.href = qrApiUrl;
   link.download = `QR_${room}_${cupboard}.png`;
 
-  // Trigger download
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
 
-  // Afișează un modal cu previzualizare și instrucțiuni
   showQRPreview(qrApiUrl, room, cupboard, deepLinkUrl);
 }
 
@@ -130,7 +122,6 @@ function showQRPreview(qrUrl, room, cupboard, deepLinkUrl) {
 
   document.body.appendChild(modal);
 
-  // Event listeners
   modal.querySelector('#closeQRModal').addEventListener('click', () => {
     document.body.removeChild(modal);
   });

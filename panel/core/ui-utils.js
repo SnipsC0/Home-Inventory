@@ -1,4 +1,3 @@
-// Back button handler
 export function attachBackButton(rootEl, targetView, state, onChange) {
   const backBtn = rootEl.querySelector('#backBtn');
   backBtn?.addEventListener('click', () => {

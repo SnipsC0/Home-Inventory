@@ -162,7 +162,6 @@ export async function renderShelvesView(app, content) {
       },
     });
 
-    // Edit buttons
     content.querySelectorAll('.edit-shelf-btn').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -176,7 +175,6 @@ export async function renderShelvesView(app, content) {
       });
     });
 
-    // Delete buttons
     content.querySelectorAll('.delete-shelf-btn').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();

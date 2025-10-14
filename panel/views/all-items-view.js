@@ -1,4 +1,3 @@
-// Cache pentru funcția loadViewsUtils
 let cachedAttachFunction = null;
 
 async function loadViewsUtils() {
@@ -89,7 +88,6 @@ export async function renderAllItemsView(app, content) {
     </style>
   `;
 
-  // Populează filtrul de camere
   const roomFilter = content.querySelector('#roomFilter');
   const rooms = [...new Set(items.map((i) => i.room))].sort();
   rooms.forEach((room) => {
@@ -99,26 +97,20 @@ export async function renderAllItemsView(app, content) {
     roomFilter.appendChild(opt);
   });
 
-  // Back button
   content.querySelector('#backBtn')?.addEventListener('click', () => {
     app.state.currentView = 'rooms';
     app.renderView();
   });
 
-  // ============================================
-  // INFINITE SCROLL LOGIC
-  // ============================================
-  const ITEMS_PER_PAGE = 30; // Items per batch
+  const ITEMS_PER_PAGE = 30;
   let currentPage = 0;
   let filteredItems = [];
   let isLoading = false;
   let hasMore = true;
   let observer = null;
 
-  // Pre-load attach function
   const attachItemCardInteractions = await loadViewsUtils();
 
-  // Funcție pentru filtrare și sortare
   function getFilteredAndSortedItems() {
     const searchTerm = content
       .querySelector('#searchInput')
@@ -179,7 +171,6 @@ export async function renderAllItemsView(app, content) {
     return filtered;
   }
 
-  // Funcție pentru a genera HTML pentru un item (optimizat - template string caching)
   function buildItemHTML(item) {
     const isLowStock =
       item.track_quantity &&
@@ -187,7 +178,7 @@ export async function renderAllItemsView(app, content) {
       item.quantity <= item.min_quantity;
 
     const stockBadge = item.track_quantity
-      ? `<span style="padding:4px 8px;border-radius:4px;font-size:0.85em;font-weight:500;
+      ? `<span class="stock-badge" style="padding:4px 8px;border-radius:4px;font-size:0.85em;font-weight:500;
                   background:${
                     isLowStock ? 'var(--error-color)' : 'var(--success-color)'
                   };
@@ -200,7 +191,7 @@ export async function renderAllItemsView(app, content) {
 
     const imageHTML = item.image
       ? `<img src="${item.image}" alt="${item.name}" 
-            style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0;" />`
+            style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0;" loading="lazy"/>`
       : `<div style="width:60px;height:60px;background:var(--divider-color);
                   border-radius:6px;display:flex;align-items:center;
                   justify-content:center;font-size:1.5em;flex-shrink:0;">📦</div>`;
@@ -245,7 +236,6 @@ export async function renderAllItemsView(app, content) {
     `;
   }
 
-  // Funcție pentru a atașa event handlers pe un batch de items (optimizat)
   function attachEventHandlersToCards(newCards) {
     newCards.forEach((card) => {
       const itemId = card.dataset.id;
@@ -253,16 +243,15 @@ export async function renderAllItemsView(app, content) {
 
       if (!item) return;
 
-      // Attach main interaction handlers
       attachItemCardInteractions(card, item, app, resetAndReload);
 
-      // Attach quantity buttons handlers cu event delegation optimization
       const plusBtn = card.querySelector('.qty-plus-btn');
       const minusBtn = card.querySelector('.qty-minus-btn');
 
       if (plusBtn) {
         plusBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
+          e.preventDefault();
           await updateQuantity(item, (item.quantity || 0) + 1, card);
         });
       }
@@ -270,6 +259,7 @@ export async function renderAllItemsView(app, content) {
       if (minusBtn) {
         minusBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
+          e.preventDefault();
           await updateQuantity(
             item,
             Math.max(0, (item.quantity || 0) - 1),
@@ -280,30 +270,48 @@ export async function renderAllItemsView(app, content) {
     });
   }
 
-  // Helper pentru update cantitate (optimizat - nu re-render tot)
   async function updateQuantity(item, newQuantity, card) {
     if (!item || !item.track_quantity) return;
 
     try {
       await app.api.updateItem(item.id, { quantity: newQuantity });
+
+      const idx = items.findIndex((i) => i.id === item.id);
+      if (idx !== -1) {
+        items[idx].quantity = newQuantity;
+      }
       item.quantity = newQuantity;
 
-      // Update doar badge-ul specific, fără re-render
-      const stockBadge = card.querySelector('span[style*="padding:4px 8px"]');
+      const stockBadge = card.querySelector('.stock-badge');
       if (stockBadge) {
-        const isLowStock = item.quantity <= item.min_quantity;
+        const isLowStock = newQuantity <= (item.min_quantity || 0);
+
         stockBadge.style.background = isLowStock
           ? 'var(--error-color)'
           : 'var(--success-color)';
-        stockBadge.innerHTML = `${item.quantity ?? '?'} ${
-          item.min_quantity ? `/ min ${item.min_quantity}` : ''
-        }`;
+        stockBadge.textContent =
+          `${newQuantity ?? '?'}` +
+          (item.min_quantity ? ` / min ${item.min_quantity}` : '');
 
-        // Update border pentru low stock
-        if (isLowStock) {
-          card.style.borderLeft = '4px solid var(--error-color)';
-        } else {
-          card.style.borderLeft = '';
+        card.style.borderLeft = isLowStock
+          ? '4px solid var(--error-color)'
+          : '';
+
+        stockBadge.style.transition = 'transform 0.2s';
+        stockBadge.style.transform = 'scale(1.15)';
+        setTimeout(() => {
+          stockBadge.style.transform = 'scale(1)';
+        }, 180);
+      } else {
+        try {
+          const html = buildItemHTML(items[idx] || item);
+          const temp = document.createElement('div');
+          temp.innerHTML = html.trim();
+          const newCard = temp.firstElementChild;
+          card.replaceWith(newCard);
+          attachEventHandlersToCards([newCard]);
+        } catch (e) {
+          console.warn('Fallback render failed:', e);
         }
       }
     } catch (err) {
@@ -311,7 +319,6 @@ export async function renderAllItemsView(app, content) {
     }
   }
 
-  // Funcție pentru a încărca următorul batch de items
   function loadMoreItems() {
     if (isLoading || !hasMore) return;
 
@@ -319,7 +326,6 @@ export async function renderAllItemsView(app, content) {
     const loadingIndicator = content.querySelector('#loadingIndicator');
     loadingIndicator.style.display = 'block';
 
-    // Folosim requestAnimationFrame pentru smooth rendering
     requestAnimationFrame(() => {
       const startIndex = currentPage * ITEMS_PER_PAGE;
       const endIndex = startIndex + ITEMS_PER_PAGE;
@@ -335,7 +341,6 @@ export async function renderAllItemsView(app, content) {
       const itemsList = content.querySelector('#itemsList');
       const fragment = document.createDocumentFragment();
 
-      // Optimizare: crează toate elementele dintr-o dată
       const tempContainer = document.createElement('div');
       tempContainer.innerHTML = batch.map(buildItemHTML).join('');
       const newCards = Array.from(tempContainer.children);
@@ -343,7 +348,6 @@ export async function renderAllItemsView(app, content) {
       newCards.forEach((card) => fragment.appendChild(card));
       itemsList.appendChild(fragment);
 
-      // Attach handlers după DOM insertion
       attachEventHandlersToCards(newCards);
 
       currentPage++;
@@ -353,7 +357,6 @@ export async function renderAllItemsView(app, content) {
     });
   }
 
-  // Reset și reload
   function resetAndReload() {
     currentPage = 0;
     hasMore = true;
@@ -362,7 +365,6 @@ export async function renderAllItemsView(app, content) {
     const itemsList = content.querySelector('#itemsList');
     itemsList.innerHTML = '';
 
-    // Update counter
     content.querySelector(
       '#itemCount'
     ).textContent = `${filteredItems.length} obiecte`;
@@ -376,11 +378,9 @@ export async function renderAllItemsView(app, content) {
       return;
     }
 
-    // Load first batch
     loadMoreItems();
   }
 
-  // Intersection Observer pentru infinite scroll
   observer = new IntersectionObserver(
     (entries) => {
       if (entries[0].isIntersecting && hasMore && !isLoading) {
@@ -389,7 +389,6 @@ export async function renderAllItemsView(app, content) {
     },
     {
       root: null,
-      rootMargin: '300px', // Start loading 300px before bottom
       threshold: 0,
     }
   );
@@ -397,11 +396,10 @@ export async function renderAllItemsView(app, content) {
   const sentinel = content.querySelector('#scrollSentinel');
   observer.observe(sentinel);
 
-  // Event listeners pentru filtre (debounced search)
   let searchTimeout;
   content.querySelector('#searchInput').addEventListener('input', () => {
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(resetAndReload, 300); // Debounce 300ms
+    searchTimeout = setTimeout(resetAndReload, 300);
   });
 
   content
@@ -414,10 +412,8 @@ export async function renderAllItemsView(app, content) {
     .querySelector('#stockFilter')
     .addEventListener('change', resetAndReload);
 
-  // Initial load
   resetAndReload();
 
-  // Cleanup function
   return () => {
     if (observer) {
       observer.disconnect();

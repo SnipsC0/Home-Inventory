@@ -7,7 +7,6 @@ DOMAIN = "home_inventar"
 
 
 class HomeInventarConfigView(HomeAssistantView):
-    """API endpoint pentru configurație."""
 
     url = "/api/home_inventar/config"
     name = "api:home_inventar:config"
@@ -17,7 +16,6 @@ class HomeInventarConfigView(HomeAssistantView):
         self.hass = hass
 
     async def get(self, request):
-        """Returnează configurația curentă."""
         try:
             entry = self.hass.data.get(DOMAIN, {}).get("entry")
             
@@ -44,7 +42,4 @@ class HomeInventarConfigView(HomeAssistantView):
             )
     
     def _get_qr_redirect_url(self):
-        """Generează URL-ul de bază pentru QR redirect cu deep linking."""
-        # URL pentru deep linking în aplicația Home Assistant
-        # Format: homeassistant://navigate/home_inventar
         return "homeassistant://navigate/home_inventar"

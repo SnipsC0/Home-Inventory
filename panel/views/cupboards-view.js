@@ -63,7 +63,7 @@ export async function renderCupboardsView(app, content) {
               c.image
                 ? `<img src="${app.api._getImageUrl(c.image)}" alt="${
                     c.name
-                  }" style="width:100%;height:50%;object-fit:cover;border-radius:6px;margin-bottom:12px;" />`
+                  }" style="width:100%;height:50%;object-fit:cover;border-radius:6px;margin-bottom:12px;" loading="lazy"/>`
                 : `<div style="width:100%;height:150px;background:var(--divider-color);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:3em;margin-bottom:12px;">🗄️</div>`
             }
             <div class="cupboard-card" data-cupboard="${c.name}"
@@ -205,7 +205,7 @@ function openEditCupboardModal(cupboard, room, app, content) {
         ${
           cupboard.image
             ? `<img id="currentCupboardImage" src="${cupboard.image}" alt="${cupboard.name}" 
-                  style="max-width:400px;max-height:300px;border-radius:8px;object-fit:cover;" />`
+                  style="max-width:400px;max-height:300px;border-radius:8px;object-fit:cover;" loading="lazy"/>`
             : `<div id="noImagePlaceholder" style="width:150px;height:150px;background:var(--divider-color);
                         border-radius:8px;display:flex;align-items:center;justify-content:center;
                         font-size:3em;margin:0 auto;">🗄️</div>`

@@ -41,26 +41,22 @@ async def async_setup(hass: HomeAssistant, config: ConfigType):
 async def async_setup_entry(hass, entry):
     _LOGGER.info("[Home Inventar] Inițializare integrare...")
 
-    # Crează directoare
     base_path = ensure_data_folders(hass)
     db_path = os.path.join(base_path, "db", "inventar.db")
 
-    # Inițializează baza de date în noul path
     await hass.async_add_executor_job(initialize_db, db_path)
     _LOGGER.info(f"[Home Inventar] ✅ Baza de date inițializată la {db_path}")
 
-    # Stochează config entry pentru acces la opțiuni
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["entry"] = entry
 
-    # Înregistrează toate rutele API - UPDATED: pasează hass unde e nevoie
     for view in [
-        HomeInventarRoomsView(db_path, hass),  # ✅ Adăugat hass
-        HomeInventarCupboardsView(db_path, hass),  # ✅ Adăugat hass
-        HomeInventarShelvesView(db_path, hass),  # ✅ Adăugat hass
-        HomeInventarOrganizersView(db_path, hass),  # ✅ Adăugat hass
-        HomeInventarItemsView(db_path, hass),  # ✅ Adăugat hass
-        HomeInventarItemView(db_path, hass),  # ✅ Adăugat hass
+        HomeInventarRoomsView(db_path, hass), 
+        HomeInventarCupboardsView(db_path, hass), 
+        HomeInventarShelvesView(db_path, hass), 
+        HomeInventarOrganizersView(db_path, hass), 
+        HomeInventarItemsView(db_path, hass), 
+        HomeInventarItemView(db_path, hass), 
         HomeInventarAllItemsView(db_path),
         HomeInventarUpdateItemQuantityView(db_path),
         HomeInventarUpload(hass),
@@ -72,14 +68,12 @@ async def async_setup_entry(hass, entry):
         hass.http.register_view(view)
     _LOGGER.info("[Home Inventar] ✅ API-uri înregistrate")
 
-    # Servește fișierele frontend
     panel_dir = os.path.join(os.path.dirname(__file__), "panel")
     await hass.http.async_register_static_paths([
         StaticPathConfig(url_path=f"/{DOMAIN}_static", path=panel_dir, cache_headers=False)
     ])
     _LOGGER.info("[Home Inventar] ✅ Static path înregistrat")
 
-    # Înregistrează panoul frontend
     try:
         async_register_built_in_panel(
             hass,
@@ -102,7 +96,6 @@ async def async_setup_entry(hass, entry):
         else:
             raise
     
-    # Înregistrează callback pentru actualizări de opțiuni
     entry.async_on_unload(entry.add_update_listener(async_update_options))
     
     return True

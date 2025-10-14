@@ -1,7 +1,7 @@
 {
   "domain": "home_inventar",
   "name": "Home Inventar",
-  "version": "2.1.1",
+  "version": "1.2.0",
   "config_flow": true,
   "documentation": "https://example.com/home_inventar",
   "integration_type": "hub",

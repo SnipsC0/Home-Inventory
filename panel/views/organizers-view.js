@@ -20,17 +20,12 @@ export async function renderOrganizersView(app, content) {
       return { organizers: [], itemsWithoutOrganizer: 0 };
     });
 
-  console.log('Organizers data:', data);
-
-  // Obține items-urile fără organizator (direct pe raft)
   const itemsWithoutOrganizer = await app.api
     .getItems(s.selectedRoom, s.selectedCupboard, s.selectedShelf, null)
     .catch((err) => {
       console.error('Error loading items without organizer:', err);
       return [];
     });
-
-  console.log('Items without organizer:', itemsWithoutOrganizer.length);
 
   const canModify = await app.api.canModifyStructure();
 
@@ -96,7 +91,7 @@ export async function renderOrganizersView(app, content) {
                      style="padding:16px;text-align:center;">
                   <div class="organizer-image" style="font-size:2.5em;margin-bottom:8px;">${
                     org.image
-                      ? `<img src="${org.image}" alt="${org.name}" style="width:100%;height:120px;object-fit:cover;border-radius:6px;" />`
+                      ? `<img src="${org.image}" alt="${org.name}" style="width:100%;height:120px;object-fit:cover;border-radius:6px;" loading="lazy"/>`
                       : `🗃️`
                   }</div>
                   <div style="font-weight:600;margin-bottom:8px;font-size:1.05em;">${
@@ -137,7 +132,6 @@ export async function renderOrganizersView(app, content) {
                 </p>`
               : itemsWithoutOrganizer
                   .map((item) => {
-                    // Construiește afișarea cantității
                     let quantityDisplay = '';
                     if (item.track_quantity && item.quantity !== null) {
                       if (item.min_quantity !== null && item.min_quantity > 0) {
@@ -206,24 +200,14 @@ export async function renderOrganizersView(app, content) {
     app.renderView();
   });
 
-  console.log('=== Attaching form handlers DIRECTLY ===');
-
   const toggleBtn = content.querySelector('#toggleAddBtn');
   const addForm = content.querySelector('#addForm');
   const cancelBtn = content.querySelector('#cancelBtn');
   const saveBtn = content.querySelector('#saveBtn');
 
-  console.log('Form elements found:', {
-    toggleBtn: !!toggleBtn,
-    addForm: !!addForm,
-    cancelBtn: !!cancelBtn,
-    saveBtn: !!saveBtn,
-  });
-
   let opened = false;
 
   toggleBtn?.addEventListener('click', () => {
-    console.log('Toggle button clicked!');
     opened = !opened;
     addForm.style.display = opened ? 'block' : 'none';
     if (opened) {
@@ -233,7 +217,6 @@ export async function renderOrganizersView(app, content) {
   });
 
   cancelBtn?.addEventListener('click', () => {
-    console.log('Cancel button clicked!');
     opened = false;
     addForm.style.display = 'none';
     content.querySelector('#newOrganizerName').value = '';
@@ -277,9 +260,6 @@ export async function renderOrganizersView(app, content) {
     await app.renderView();
   });
 
-  console.log('=== Direct handlers attached ===');
-
-  // Buton pentru adăugare item direct pe raft
   content.querySelector('#addItemDirectBtn')?.addEventListener('click', () => {
     s.selectedOrganizer = null;
     s.currentView = 'items';
@@ -298,7 +278,6 @@ export async function renderOrganizersView(app, content) {
 
     let touchTimer = null;
 
-    // ---- Click simplu = navigare în iteme ----
     organizerCard?.addEventListener('click', (e) => {
       e.stopPropagation();
       const organizerName = organizerCard.dataset.organizer;
@@ -307,7 +286,6 @@ export async function renderOrganizersView(app, content) {
       app.renderView();
     });
 
-    // ---- Click dreapta (desktop) = edit modal ----
     container.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       clearTimeout(touchTimer);
@@ -321,7 +299,6 @@ export async function renderOrganizersView(app, content) {
       );
     });
 
-    // ---- Touch lung (mobil) = edit modal ----
     let touchStartTime = 0;
     let longPressTriggered = false;
 
@@ -361,7 +338,6 @@ export async function renderOrganizersView(app, content) {
     container.addEventListener('touchmove', () => clearTimeout(touchTimer));
   });
 
-  // Click pe item card container pentru edit
   content
     .querySelectorAll('.item-card-container')
     .forEach(async (container) => {
@@ -370,7 +346,6 @@ export async function renderOrganizersView(app, content) {
       attachItemCardInteractions(container, item, app, () => app.renderView());
     });
 
-  // Dacă nu poate modifica, click pe organizator navighează către items
   content.querySelectorAll('.organizer-card').forEach((card) => {
     const container = card.closest('.organizer-card-container');
     const organizer = {
@@ -416,7 +391,7 @@ function openEditOrganizerModal(organizer, app) {
         ${
           organizer.image
             ? `<div style="margin-bottom:10px;display:flex;justify-content:center;">
-                <img src="${organizer.image}" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--divider-color);" />
+                <img src="${organizer.image}" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--divider-color);" loading="lazy"/>
               </div>`
             : ''
         }
@@ -581,7 +556,7 @@ function openEditItemModal(item, app) {
           item.image
             ? `
           <div style="margin-bottom:10px;">
-            <img src="${item.image}" style="max-width:200px;max-height:200px;border-radius:8px;border:2px solid var(--divider-color);" />
+            <img src="${item.image}" style="max-width:200px;max-height:200px;border-radius:8px;border:2px solid var(--divider-color);" loading="lazy"/>
           </div>
         `
             : ''
@@ -590,7 +565,7 @@ function openEditItemModal(item, app) {
                style="width:100%;padding:8px;border-radius:4px;border:1px solid var(--divider-color);box-sizing:border-box;" />
         <div id="editImagePreview" style="margin-top:10px;display:none;">
           <div id="editItemUploadStatus" style="font-size:.9em;margin-bottom:10px;min-height:20px;"></div>
-          <img id="editPreviewImg" style="max-width:200px;max-height:200px;border-radius:8px;border:2px solid var(--divider-color);" />
+          <img id="editPreviewImg" style="max-width:200px;max-height:200px;border-radius:8px;border:2px solid var(--divider-color);" loading="lazy"/>
         </div>
       </div>
 

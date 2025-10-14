@@ -57,7 +57,7 @@ export async function renderItemsView(app, content) {
           </label>
           <input type="file" id="itemImageInput" accept="image/*" style="width:100%;padding:8px;border-radius:4px;border:1px solid var(--divider-color);box-sizing:border-box;" />
           <div id="imagePreview" style="margin-top:10px;display:none;">
-            <img id="previewImg" style="max-width:200px;max-height:200px;border-radius:8px;border:2px solid var(--divider-color);" />
+            <img id="previewImg" style="max-width:200px;max-height:200px;border-radius:8px;border:2px solid var(--divider-color);" loading="lazy"/>
           </div>
         </div>
 
@@ -132,7 +132,7 @@ export async function renderItemsView(app, content) {
               <div style="width:100%;height:150px;background:var(--secondary-background-color);position:relative;overflow:hidden;">
                 <img src="${item.image}" alt="${item.name}" 
                      style="width:100%;height:100%;object-fit:cover;"
-                     onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;font-size:3em;\\'>📦</div>';" />
+                     onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;font-size:3em;\\'>📦</div>';" loading="lazy"/>
               </div>
             `
                 : `
@@ -179,7 +179,6 @@ export async function renderItemsView(app, content) {
     quantityFields.style.display = e.target.checked ? 'block' : 'none';
   });
 
-  // Image preview
   const imageInput = content.querySelector('#itemImageInput');
   const imagePreview = content.querySelector('#imagePreview');
   const previewImg = content.querySelector('#previewImg');
@@ -213,11 +212,10 @@ export async function renderItemsView(app, content) {
   attachFormToggleHandlers(content, 'items', {
     addItem: async () => {
       const nameInput = content.querySelector('#newItemName');
-      const imageFileInput = imageInput; // deja definit mai sus
+      const imageFileInput = imageInput;
       const quantityInput = content.querySelector('#quantityInput');
       const minQuantityInput = content.querySelector('#minQuantityInput');
 
-      // ✅ 1. Stocăm valorile într-un BACKUP LOCAL
       const nameValue = (nameInput?.value || '').trim();
       if (!nameValue) return alert('Te rog introdu numele obiectului.');
 
@@ -228,11 +226,11 @@ export async function renderItemsView(app, content) {
       const minQuantityValue = trackQuantity
         ? parseInt(minQuantityInput.value) || null
         : null;
-      const imageFileValue = imageFileInput?.files[0] || null; // stocăm FIȘIERUL
       let imagePath = '';
+      const imageFileValue = imageFileInput?.files[0] || null; // stocăm FIȘIERUL
 
-      // ✅ 2. Resetăm UI-ul imediat (UX instant, fără așteptare rețea)
       nameInput.value = '';
+
       if (imageFileInput) {
         imageFileInput.value = '';
         imagePreview.style.display = 'none';
@@ -242,14 +240,12 @@ export async function renderItemsView(app, content) {
       quantityInput.value = '';
       minQuantityInput.value = '';
 
-      // ✅ 3. Afișăm mesaj rapid
       const notice = content.querySelector('#quickNotice');
       notice.textContent =
         'Se adaugă obiectul... Poți continua adăugarea altor obiecte.';
       notice.style.display = 'block';
       setTimeout(() => (notice.style.display = 'none'), 2000);
 
-      // ✅ 4. FACEM upload și addItem în fundal FOLOSIND BACKUP-ul din memorie
       try {
         if (imageFileValue) {
           imagePath = await app.api.uploadImage(imageFileValue, {
@@ -275,7 +271,6 @@ export async function renderItemsView(app, content) {
           }
         );
 
-        // ✅ 5. Reîmprospătăm doar lista din grid, formularul rămâne neatins
         await refreshItemsGrid(app, content, organizer);
       } catch (err) {
         alert(`Eroare: ${err?.message || 'Adăugare eșuată'}`);
@@ -328,7 +323,7 @@ async function refreshItemsGrid(app, content, organizer) {
           ${
             item.image
               ? `<div style="width:100%;height:150px;background:var(--secondary-background-color);position:relative;overflow:hidden;">
-                <img src="${item.image}" style="width:100%;height:100%;object-fit:cover;" />
+                <img src="${item.image}" style="width:100%;height:100%;object-fit:cover;" loading="lazy"/>
               </div>`
               : `<div style="width:100%;height:150px;background:var(--secondary-background-color);display:flex;align-items:center;justify-content:center;font-size:3em;">📦</div>`
           }
@@ -341,7 +336,6 @@ async function refreshItemsGrid(app, content, organizer) {
     })
     .join('');
 
-  // Reatașăm interacțiunile
   grid.querySelectorAll('.item-card').forEach(async (card) => {
     const item = JSON.parse(card.dataset.item);
     const attachItemCardInteractions = await loadViewsUtils();

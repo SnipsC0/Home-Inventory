@@ -11,18 +11,15 @@ from PIL import Image
 DOMAIN = "home_inventar"
 _LOGGER = logging.getLogger(__name__)
 
-# Configurare redimensionare
 MAX_WIDTH = 1600
 MAX_HEIGHT = 1200
 JPEG_QUALITY = 85
 
 
 def sanitize_filename(text: str) -> str:
-    """Convertește text în nume de fișier valid, fără diacritice."""
     if not text:
         return "unknown"
     
-    # Înlocuiește diacriticele românești
     replacements = {
         'ă': 'a', 'â': 'a', 'î': 'i', 'ș': 's', 'ț': 't',
         'Ă': 'A', 'Â': 'A', 'Î': 'I', 'Ș': 'S', 'Ț': 'T'
@@ -30,11 +27,8 @@ def sanitize_filename(text: str) -> str:
     for old, new in replacements.items():
         text = text.replace(old, new)
     
-    # Păstrează doar caractere alfanumerice, spații și underscore
     text = re.sub(r'[^a-zA-Z0-9\s_-]', '', text)
-    # Înlocuiește spațiile cu underscore
     text = re.sub(r'\s+', '_', text.strip())
-    # Limitează lungimea
     text = text[:50]
     
     return text.lower() if text else "unknown"
@@ -49,7 +43,6 @@ class HomeInventarUpload(HomeAssistantView):
         self.hass = hass
 
     def _resize_image(self, image_data: bytes) -> bytes:
-        """Redimensionează imaginea păstrând aspect ratio-ul."""
         try:
             img = Image.open(BytesIO(image_data))
             
@@ -84,20 +77,16 @@ class HomeInventarUpload(HomeAssistantView):
             return image_data
 
     async def post(self, request: web.Request) -> web.Response:
-        """Primește un fișier și îl salvează cu nume sugestiv."""
         try:
             reader = await request.multipart()
             field = await reader.next()
             if not field:
                 return web.json_response({"error": "No file"}, status=400)
 
-            # Citește datele imaginii
             image_data = await field.read()
             
-            # Redimensionează imaginea
             resized_data = self._resize_image(image_data)
             
-            # Obține parametrii pentru denumire din query string
             room = request.query.get('room', '')
             cupboard = request.query.get('cupboard', '')
             shelf = request.query.get('shelf', '')
@@ -105,7 +94,6 @@ class HomeInventarUpload(HomeAssistantView):
             item = request.query.get('item', '')
             old_image = request.query.get('old_image', '')
             
-            # Construiește numele fișierului
             name_parts = []
             if room:
                 name_parts.append(sanitize_filename(room))
@@ -113,30 +101,27 @@ class HomeInventarUpload(HomeAssistantView):
                 name_parts.append(sanitize_filename(cupboard))
             if shelf:
                 name_parts.append(sanitize_filename(shelf))
-            # ADĂUGAT: Adaugă organizatorul dacă există
             if organizer and organizer != 'null':
                 name_parts.append(sanitize_filename(organizer))
             if item:
                 name_parts.append(sanitize_filename(item))
             
             if name_parts:
-                # Nume sugestiv: camera_dulap_raft_organizator_obiect.jpg
                 base_name = '_'.join(name_parts)
-                # Adaugă un UUID scurt pentru unicitate
                 short_uuid = str(uuid.uuid4())[:8]
                 filename = f"{base_name}_{short_uuid}.jpg"
             else:
-                # Fallback la UUID dacă nu avem context
                 filename = f"{uuid.uuid4()}.jpg"
             
-            # Path către imagine
             base_path = self.hass.config.path(f"data/{DOMAIN}/images")
             os.makedirs(base_path, exist_ok=True)
             storage_path = os.path.join(base_path, filename)
 
-            # Salvează imaginea nouă
-            with open(storage_path, "wb") as f:
-                f.write(resized_data)
+            def _write_file(path, data):
+                with open(path, "wb") as f:
+                    f.write(data)
+
+            await self.hass.async_add_executor_job(_write_file, storage_path, resized_data)
 
             original_size = len(image_data) / 1024
             final_size = len(resized_data) / 1024
@@ -145,7 +130,6 @@ class HomeInventarUpload(HomeAssistantView):
                 f"(original: {original_size:.1f}KB, final: {final_size:.1f}KB)"
             )
             
-            # Șterge imaginea veche dacă există
             if old_image and old_image != filename:
                 self._delete_old_image(old_image)
             
@@ -156,16 +140,13 @@ class HomeInventarUpload(HomeAssistantView):
             return web.json_response({"error": str(e)}, status=500)
 
     def _delete_old_image(self, image_path: str):
-        """Șterge imaginea veche de pe disk."""
         if not image_path:
             return
         
         try:
-            # Extrage filename
             if image_path.startswith('/api/home_inventar/images/'):
                 filename = image_path.split('/')[-1].split('?')[0]
             elif image_path.startswith('/local/'):
-                # Imagini vechi, nu le ștergem
                 return
             else:
                 filename = image_path
@@ -181,7 +162,6 @@ class HomeInventarUpload(HomeAssistantView):
 
 
 class HomeInventarImageView(HomeAssistantView):
-    """Servește imagini securizat, acceptând token din header sau query string."""
 
     url = f"/api/{DOMAIN}/images/{{filename}}"
     name = f"api:{DOMAIN}_image"
@@ -191,7 +171,6 @@ class HomeInventarImageView(HomeAssistantView):
         self.hass = hass
 
     def _authenticate(self, request: web.Request) -> bool:
-        """Validează tokenul Home Assistant folosind metoda oficială (sincron)."""
         try:
             token = None
 
@@ -227,7 +206,6 @@ class HomeInventarImageView(HomeAssistantView):
             return False
 
     async def get(self, request: web.Request, filename: str) -> web.Response:
-        """Servește imaginea doar dacă utilizatorul este autentificat."""
         try:
             _LOGGER.debug(f"[HomeInventar] Image request for: {filename}")
 

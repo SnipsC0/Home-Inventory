@@ -1,4 +1,4 @@
-"""Config flow pentru Home Inventar."""
+
 import logging
 import voluptuous as vol
 from homeassistant import config_entries
@@ -9,12 +9,10 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class HomeInventarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Flux de configurare Home Inventar."""
 
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
-        """Pasul inițial: creează o instanță unică cu opțiuni."""
         _LOGGER.debug("[HomeInventar] Config flow user step called")
         
         await self.async_set_unique_id(DOMAIN)

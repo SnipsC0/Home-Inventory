@@ -15,21 +15,17 @@ class HomeInventarOrganizersView(HomeAssistantView):
         self.hass = hass
 
     def _delete_image_file(self, image_path):
-        """Șterge fizic fișierul imaginii de pe disk"""
         if not image_path:
             return
         
         try:
-            # Extrage doar filename-ul (UUID)
             if image_path.startswith('/api/home_inventar/images/'):
                 filename = image_path.split('/')[-1].split('?')[0]
             elif image_path.startswith('/local/'):
-                # Imagini vechi, nu le ștergem
                 return
             else:
                 filename = image_path
             
-            # Path complet către imagine
             full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
             
             if os.path.exists(full_path):
@@ -42,7 +38,6 @@ class HomeInventarOrganizersView(HomeAssistantView):
             _LOGGER.error(f"[HomeInventar] Error deleting image file: {e}", exc_info=True)
 
     async def get(self, request):
-        """Obține organizatoare pentru un raft + itemele fără organizator"""
         room = request.query.get("room")
         cupboard = request.query.get("cupboard")
         shelf = request.query.get("shelf")
@@ -54,7 +49,6 @@ class HomeInventarOrganizersView(HomeAssistantView):
             conn = sqlite3.connect(self.db_path)
             cur = conn.cursor()
             
-            # Obține organizatoarele cu numărul de items și imagine
             cur.execute('''
                 SELECT o.id, o.name, o.image, COUNT(DISTINCT i.id)
                 FROM organizers o
@@ -77,7 +71,6 @@ class HomeInventarOrganizersView(HomeAssistantView):
                     "itemCount": r[3]
                 })
             
-            # Obține numărul de items fără organizator
             cur.execute('''
                 SELECT COUNT(i.id)
                 FROM items i
@@ -100,7 +93,6 @@ class HomeInventarOrganizersView(HomeAssistantView):
         return web.json_response(data)
 
     async def post(self, request):
-        """Adaugă un organizator nou"""
         data = await request.json()
         room = data.get("room", "").strip()
         cupboard = data.get("cupboard", "").strip()
@@ -117,7 +109,6 @@ class HomeInventarOrganizersView(HomeAssistantView):
             conn = sqlite3.connect(self.db_path)
             cur = conn.cursor()
             
-            # Get shelf_id
             cur.execute('''
                 SELECT s.id FROM shelves s
                 JOIN cupboards c ON s.cupboard_id = c.id
@@ -132,7 +123,6 @@ class HomeInventarOrganizersView(HomeAssistantView):
             
             shelf_id = row[0]
             
-            # Insert organizer cu imagine
             cur.execute("INSERT INTO organizers (name, image, shelf_id) VALUES (?, ?, ?)", 
                        (name, image, shelf_id))
             conn.commit()
@@ -149,7 +139,6 @@ class HomeInventarOrganizersView(HomeAssistantView):
             return web.json_response({"error": "Organizer already exists"}, status=400)
 
     async def patch(self, request):
-        """Update organizer name și/sau imagine"""
         try:
             data = await request.json()
             _LOGGER.info(f"PATCH organizers - received data: {data}")
@@ -166,7 +155,6 @@ class HomeInventarOrganizersView(HomeAssistantView):
                 conn = sqlite3.connect(self.db_path)
                 cur = conn.cursor()
                 
-                # Obținem imaginea veche pentru a o șterge dacă se schimbă
                 old_image = None
                 if new_image is not None:
                     cur.execute("SELECT image FROM organizers WHERE id = ?", (organizer_id,))
@@ -199,7 +187,6 @@ class HomeInventarOrganizersView(HomeAssistantView):
                 count = cur.rowcount
                 conn.close()
                 
-                # Returnă imaginea veche doar dacă s-a schimbat efectiv
                 return count, old_image if (new_image is not None and old_image and old_image != new_image) else None
 
             count, old_image = await request.app["hass"].async_add_executor_job(update_organizer)
@@ -208,7 +195,6 @@ class HomeInventarOrganizersView(HomeAssistantView):
                 _LOGGER.error(f"Organizer not found with ID: {organizer_id}")
                 return web.json_response({"error": "Organizer not found"}, status=404)
             
-            # Ștergem imaginea veche dacă s-a schimbat
             if old_image:
                 self._delete_image_file(old_image)
                 _LOGGER.info(f"Old organizer image cleaned: {old_image}")
@@ -223,7 +209,6 @@ class HomeInventarOrganizersView(HomeAssistantView):
             return web.json_response({"error": str(e)}, status=500)
 
     async def delete(self, request):
-        """Delete organizer and all its items (cascading delete) + cleanup images"""
         try:
             data = await request.json()
             organizer_id = data.get("id")
@@ -231,46 +216,52 @@ class HomeInventarOrganizersView(HomeAssistantView):
             if not organizer_id:
                 return web.json_response({"error": "Organizer ID required"}, status=400)
 
-            def delete_organizer():
+            def hard_delete_organizer():
                 conn = sqlite3.connect(self.db_path)
                 cur = conn.cursor()
-                
-                # Colectăm imaginea organizatorului și imaginile de la items care vor fi șterse
+
                 cur.execute("SELECT image FROM organizers WHERE id = ?", (organizer_id,))
                 org_row = cur.fetchone()
                 organizer_image = org_row[0] if org_row else None
-                
-                cur.execute('''
-                    SELECT image FROM items 
-                    WHERE organizer_id = ? AND image IS NOT NULL AND image != ''
-                ''', (organizer_id,))
-                item_images = [row[0] for row in cur.fetchall()]
-                
-                # Ștergem organizatorul (foreign keys ON DELETE CASCADE vor șterge automat items)
+
+                cur.execute("SELECT id, image FROM items WHERE organizer_id = ?", (organizer_id,))
+                items_to_delete = cur.fetchall()
+
+                cur.execute("DELETE FROM items WHERE organizer_id = ?", (organizer_id,))
+
                 cur.execute("DELETE FROM organizers WHERE id = ?", (organizer_id,))
                 conn.commit()
-                count = cur.rowcount
-                conn.close()
-                
-                return count, organizer_image, item_images
+                deleted_organizer = cur.rowcount > 0
 
-            count, organizer_image, item_images = await request.app["hass"].async_add_executor_job(delete_organizer)
-            
-            if count == 0:
+                conn.close()
+
+                item_images = [img for (_, img) in items_to_delete]
+                return deleted_organizer, organizer_image, item_images, len(items_to_delete)
+
+            deleted_organizer, organizer_image, item_images, items_deleted = (
+                await request.app["hass"].async_add_executor_job(hard_delete_organizer)
+            )
+
+            if not deleted_organizer:
                 return web.json_response({"error": "Organizer not found"}, status=404)
-            
-            # Ștergem imaginea organizatorului
+
+            images_deleted_count = 0
             if organizer_image:
                 self._delete_image_file(organizer_image)
-            
-            # Ștergem imaginile items-urilor
+                images_deleted_count += 1
+
             for image in item_images:
-                self._delete_image_file(image)
-            
-            total_images = (1 if organizer_image else 0) + len(item_images)
-            _LOGGER.info(f"Organizer {organizer_id} deleted successfully (cleaned {total_images} images)")
-            return web.json_response({"message": "Deleted", "images_deleted": total_images})
-            
+                if image:
+                    self._delete_image_file(image)
+                    images_deleted_count += 1
+
+            _LOGGER.info(f"[HomeInventar] Organizer {organizer_id} HARD DELETED — {items_deleted} items and {images_deleted_count} images cleaned.")
+            return web.json_response({
+                "message": "Deleted",
+                "items_deleted": items_deleted,
+                "images_deleted": images_deleted_count
+            })
+
         except Exception as e:
             _LOGGER.error(f"Error deleting organizer: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)

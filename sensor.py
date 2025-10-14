@@ -9,7 +9,6 @@ _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(minutes=5)
 
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities):
-    """Configurare senzori pentru inventar"""
     db_path = hass.config.path(f"custom_components/{DOMAIN}/storage/inventar.db")
     
     sensors = [
@@ -22,7 +21,6 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities):
 
 
 class InventoryTotalItemsSensor(SensorEntity):
-    """Senzor pentru numărul total de obiecte"""
     
     def __init__(self, hass, db_path):
         self._hass = hass
@@ -38,13 +36,11 @@ class InventoryTotalItemsSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Atribute adiționale"""
         return {
             "unit_of_measurement": "obiecte",
         }
 
     async def async_update(self):
-        """Actualizare stare senzor"""
         def fetch():
             conn = sqlite3.connect(self._db_path)
             cur = conn.cursor()
@@ -57,7 +53,6 @@ class InventoryTotalItemsSensor(SensorEntity):
 
 
 class InventoryLowStockSensor(SensorEntity):
-    """Senzor pentru obiecte cu stoc redus"""
     
     def __init__(self, hass, db_path):
         self._hass = hass
@@ -74,14 +69,12 @@ class InventoryLowStockSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Atribute adiționale cu lista obiectelor"""
         return {
             "unit_of_measurement": "obiecte",
             "items": self._items,
         }
 
     async def async_update(self):
-        """Actualizare stare senzor"""
         def fetch():
             conn = sqlite3.connect(self._db_path)
             cur = conn.cursor()
@@ -119,7 +112,6 @@ class InventoryLowStockSensor(SensorEntity):
 
 
 class InventoryTrackedItemsSensor(SensorEntity):
-    """Senzor pentru obiecte cu urmărire cantitate"""
     
     def __init__(self, hass, db_path):
         self._hass = hass
@@ -136,14 +128,12 @@ class InventoryTrackedItemsSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Atribute adiționale"""
         return {
             "unit_of_measurement": "obiecte",
             "items": self._items,
         }
 
     async def async_update(self):
-        """Actualizare stare senzor"""
         def fetch():
             conn = sqlite3.connect(self._db_path)
             cur = conn.cursor()

@@ -15,21 +15,17 @@ class HomeInventarShelvesView(HomeAssistantView):
         self.hass = hass
 
     def _delete_image_file(self, image_path):
-        """Șterge fizic fișierul imaginii de pe disk"""
         if not image_path:
             return
         
         try:
-            # Extrage doar filename-ul (UUID)
             if image_path.startswith('/api/home_inventar/images/'):
                 filename = image_path.split('/')[-1].split('?')[0]
             elif image_path.startswith('/local/'):
-                # Imagini vechi, nu le ștergem
                 return
             else:
                 filename = image_path
             
-            # Path complet către imagine
             full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
             
             if os.path.exists(full_path):
@@ -81,7 +77,6 @@ class HomeInventarShelvesView(HomeAssistantView):
             conn = sqlite3.connect(self.db_path)
             cur = conn.cursor()
             
-            # Get cupboard_id
             cur.execute('''
                 SELECT c.id FROM cupboards c
                 JOIN rooms r ON c.room_id = r.id
@@ -95,7 +90,6 @@ class HomeInventarShelvesView(HomeAssistantView):
             
             cupboard_id = row[0]
             
-            # Insert shelf
             cur.execute("INSERT INTO shelves (name, cupboard_id) VALUES (?, ?)", (name, cupboard_id))
             conn.commit()
             shelf_id = cur.lastrowid
@@ -111,7 +105,6 @@ class HomeInventarShelvesView(HomeAssistantView):
             return web.json_response({"error": "Shelf already exists"}, status=400)
 
     async def patch(self, request):
-        """Update shelf name"""
         try:
             data = await request.json()
             _LOGGER.info(f"PATCH shelves - received data: {data}")
@@ -153,7 +146,6 @@ class HomeInventarShelvesView(HomeAssistantView):
             return web.json_response({"error": str(e)}, status=500)
 
     async def delete(self, request):
-        """Delete shelf and all its items (cascading delete) + cleanup images"""
         try:
             data = await request.json()
             shelf_id = data.get("id")
@@ -165,14 +157,12 @@ class HomeInventarShelvesView(HomeAssistantView):
                 conn = sqlite3.connect(self.db_path)
                 cur = conn.cursor()
                 
-                # Colectăm toate imaginile de la items care vor fi șterse
                 cur.execute('''
                     SELECT image FROM items 
                     WHERE shelf_id = ? AND image IS NOT NULL AND image != ''
                 ''', (shelf_id,))
                 images_to_delete = [row[0] for row in cur.fetchall()]
                 
-                # Ștergem raftul (foreign keys ON DELETE CASCADE vor șterge automat items)
                 cur.execute("DELETE FROM shelves WHERE id = ?", (shelf_id,))
                 conn.commit()
                 count = cur.rowcount
@@ -185,7 +175,6 @@ class HomeInventarShelvesView(HomeAssistantView):
             if count == 0:
                 return web.json_response({"error": "Shelf not found"}, status=404)
             
-            # Ștergem imaginile fizic
             for image in images_to_delete:
                 self._delete_image_file(image)
             

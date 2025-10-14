@@ -202,6 +202,13 @@ async function openEditModal(item, app, rerenderCallback, organizer = null) {
         </button>
       </div>
 
+      <!-- Buton de mutare -->
+      <button id="moveItemBtn"
+              style="width:100%;padding:12px;background:var(--info-color);color:white;
+                     border:none;border-radius:4px;cursor:pointer;font-weight:500;margin-bottom:10px;">
+        📦 Mută Obiectul
+      </button>
+
       <button id="deleteItemBtn"
               style="width:100%;padding:12px;background:var(--error-color);color:white;
                      border:none;border-radius:4px;cursor:pointer;font-weight:500;">
@@ -429,11 +436,487 @@ function buildDeepLinkSection(canModify, consumeDeepLink) {
   `;
 }
 
+async function openMoveItemModal(item, app, closeEditModal, rerenderCallback) {
+  const moveModal = document.createElement('div');
+  moveModal.style.cssText = `
+    position:fixed;top:0;left:0;right:0;bottom:0;
+    background:rgba(0,0,0,0.7);display:flex;align-items:center;
+    justify-content:center;z-index:10000;padding:20px;
+  `;
+
+  moveModal.innerHTML = `
+    <div style="background:var(--card-background-color);border-radius:12px;
+                padding:24px;max-width:500px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.3);
+                max-height:80vh;overflow-y:auto;">
+      <h3 style="margin:0 0 20px 0;display:flex;align-items:center;gap:8px;">
+        📦 Mută Obiectul: ${item.name}
+      </h3>
+
+      <div style="background:var(--secondary-background-color);padding:12px;border-radius:6px;margin-bottom:16px;">
+        <div style="font-size:0.85em;color:var(--secondary-text-color);margin-bottom:4px;">Locație curentă:</div>
+        <div style="font-weight:600;">${item.location}</div>
+      </div>
+
+      <!-- Selectare Camera -->
+      <div style="margin-bottom:16px;" id="roomSection">
+        <label style="display:block;font-size:0.9em;margin-bottom:6px;color:var(--secondary-text-color);font-weight:500;">
+          1️⃣ Selectează Camera
+        </label>
+        <select id="moveRoomSelect" style="width:100%;padding:10px;border-radius:4px;border:1px solid var(--divider-color);box-sizing:border-box;">
+          <option value="">-- Alege camera --</option>
+        </select>
+      </div>
+
+      <!-- Selectare Dulap -->
+      <div style="margin-bottom:16px;display:none;" id="cupboardSection">
+        <label style="display:block;font-size:0.9em;margin-bottom:6px;color:var(--secondary-text-color);font-weight:500;">
+          2️⃣ Selectează Dulapul
+        </label>
+        <select id="moveCupboardSelect" style="width:100%;padding:10px;border-radius:4px;border:1px solid var(--divider-color);box-sizing:border-box;">
+          <option value="">-- Alege dulapul --</option>
+        </select>
+      </div>
+
+      <!-- Selectare Raft -->
+      <div style="margin-bottom:16px;display:none;" id="shelfSection">
+        <label style="display:block;font-size:0.9em;margin-bottom:6px;color:var(--secondary-text-color);font-weight:500;">
+          3️⃣ Selectează Raftul
+        </label>
+        <select id="moveShelfSelect" style="width:100%;padding:10px;border-radius:4px;border:1px solid var(--divider-color);box-sizing:border-box;">
+          <option value="">-- Alege raftul --</option>
+        </select>
+      </div>
+
+      <!-- Selectare Organizator sau Direct pe Raft -->
+      <div style="margin-bottom:16px;display:none;" id="organizerSection">
+        <label style="display:block;font-size:0.9em;margin-bottom:6px;color:var(--secondary-text-color);font-weight:500;">
+          4️⃣ Selectează Destinația
+        </label>
+        <select id="moveOrganizerSelect" style="width:100%;padding:10px;border-radius:4px;border:1px solid var(--divider-color);box-sizing:border-box;">
+          <option value="">-- Direct pe raft --</option>
+        </select>
+      </div>
+
+      <!-- Secțiune Cantitate (doar pentru items cu track_quantity) -->
+      <div style="margin-bottom:16px;display:none;" id="quantitySection">
+        <div style="background:var(--secondary-background-color);padding:12px;border-radius:6px;">
+          <div style="font-size:0.9em;color:var(--secondary-text-color);margin-bottom:10px;font-weight:500;">
+            📊 Cantitate de mutat
+          </div>
+          
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0;">
+              <input type="checkbox" id="moveIntegralCheckbox" checked
+                     style="width:18px;height:18px;cursor:pointer;" />
+              <span style="font-weight:500;">Integral</span>
+            </label>
+            
+            <div style="flex:1;">
+              <input type="number" id="moveQuantityInput" min="1" max="${
+                item.quantity || 1
+              }" 
+                     value="${item.quantity || 1}" disabled
+                     style="width:100%;padding:8px;border-radius:4px;border:1px solid var(--divider-color);box-sizing:border-box;" />
+            </div>
+          </div>
+          
+          <div style="font-size:0.85em;color:var(--secondary-text-color);">
+            Cantitate disponibilă: <strong>${item.quantity || 0}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div id="moveStatus" style="font-size:0.85em;margin-bottom:16px;min-height:20px;text-align:center;"></div>
+
+      <div style="display:flex;gap:10px;">
+        <button id="confirmMoveBtn" disabled
+                style="flex:1;padding:12px;background:var(--primary-color);color:white;
+                       border:none;border-radius:4px;cursor:pointer;font-weight:500;opacity:0.5;">
+          ✅ Confirmă Mutarea
+        </button>
+        <button id="cancelMoveBtn"
+                style="flex:1;padding:12px;background:var(--secondary-background-color);
+                       color:var(--primary-text-color);border:1px solid var(--divider-color);
+                       border-radius:4px;cursor:pointer;">
+          Anulează
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(moveModal);
+
+  const roomSelect = moveModal.querySelector('#moveRoomSelect');
+  const cupboardSelect = moveModal.querySelector('#moveCupboardSelect');
+  const shelfSelect = moveModal.querySelector('#moveShelfSelect');
+  const organizerSelect = moveModal.querySelector('#moveOrganizerSelect');
+  const confirmBtn = moveModal.querySelector('#confirmMoveBtn');
+  const cancelBtn = moveModal.querySelector('#cancelMoveBtn');
+  const moveStatus = moveModal.querySelector('#moveStatus');
+
+  const cupboardSection = moveModal.querySelector('#cupboardSection');
+  const shelfSection = moveModal.querySelector('#shelfSection');
+  const organizerSection = moveModal.querySelector('#organizerSection');
+  const quantitySection = moveModal.querySelector('#quantitySection');
+
+  const integralCheckbox = moveModal.querySelector('#moveIntegralCheckbox');
+  const quantityInput = moveModal.querySelector('#moveQuantityInput');
+
+  integralCheckbox?.addEventListener('change', (e) => {
+    if (e.target.checked) {
+      quantityInput.disabled = true;
+      quantityInput.value = item.quantity || 1;
+    } else {
+      quantityInput.disabled = false;
+      quantityInput.focus();
+    }
+  });
+
+  quantityInput?.addEventListener('input', (e) => {
+    const value = parseInt(e.target.value) || 0;
+    const maxQty = item.quantity || 1;
+
+    if (value >= maxQty) {
+      integralCheckbox.checked = true;
+      quantityInput.disabled = true;
+      quantityInput.value = maxQty;
+    }
+  });
+
+  try {
+    const rooms = await app.api.getRooms();
+    rooms.forEach((room) => {
+      const option = document.createElement('option');
+      option.value = room.name;
+      option.textContent = room.name;
+      roomSelect.appendChild(option);
+    });
+  } catch (err) {
+    moveStatus.textContent = '❌ Eroare la încărcarea camerelor';
+    moveStatus.style.color = 'var(--error-color)';
+  }
+
+  roomSelect.addEventListener('change', async (e) => {
+    const selectedRoom = e.target.value;
+    cupboardSection.style.display = 'none';
+    shelfSection.style.display = 'none';
+    organizerSection.style.display = 'none';
+    confirmBtn.disabled = true;
+    confirmBtn.style.opacity = '0.5';
+
+    if (!selectedRoom) return;
+
+    try {
+      const cupboards = await app.api.getCupboards(selectedRoom);
+      cupboardSelect.innerHTML =
+        '<option value="">-- Alege dulapul --</option>';
+      cupboards.forEach((cupboard) => {
+        const option = document.createElement('option');
+        option.value = cupboard.name;
+        option.textContent = cupboard.name;
+        cupboardSelect.appendChild(option);
+      });
+      cupboardSection.style.display = 'block';
+    } catch (err) {
+      moveStatus.textContent = '❌ Eroare la încărcarea dulapurilor';
+      moveStatus.style.color = 'var(--error-color)';
+    }
+  });
+
+  cupboardSelect.addEventListener('change', async (e) => {
+    const selectedCupboard = e.target.value;
+    shelfSection.style.display = 'none';
+    organizerSection.style.display = 'none';
+    confirmBtn.disabled = true;
+    confirmBtn.style.opacity = '0.5';
+
+    if (!selectedCupboard) return;
+
+    try {
+      const shelves = await app.api.getShelves(
+        roomSelect.value,
+        selectedCupboard
+      );
+      shelfSelect.innerHTML = '<option value="">-- Alege raftul --</option>';
+      shelves.forEach((shelf) => {
+        const option = document.createElement('option');
+        option.value = shelf.name;
+        option.textContent = shelf.name;
+        shelfSelect.appendChild(option);
+      });
+      shelfSection.style.display = 'block';
+    } catch (err) {
+      moveStatus.textContent = '❌ Eroare la încărcarea rafturilor';
+      moveStatus.style.color = 'var(--error-color)';
+    }
+  });
+
+  shelfSelect.addEventListener('change', async (e) => {
+    const selectedShelf = e.target.value;
+    organizerSection.style.display = 'none';
+    quantitySection.style.display = 'none';
+    confirmBtn.disabled = true;
+    confirmBtn.style.opacity = '0.5';
+
+    if (!selectedShelf) return;
+
+    try {
+      const data = await app.api.getOrganizers(
+        roomSelect.value,
+        cupboardSelect.value,
+        selectedShelf
+      );
+      organizerSelect.innerHTML =
+        '<option value="">-- Direct pe raft --</option>';
+
+      if (data.organizers && data.organizers.length > 0) {
+        data.organizers.forEach((organizer) => {
+          const option = document.createElement('option');
+          option.value = organizer.name;
+          option.textContent = `🗃️ ${organizer.name} (${organizer.itemCount} obiecte)`;
+          organizerSelect.appendChild(option);
+        });
+      }
+
+      organizerSection.style.display = 'block';
+
+      if (item.track_quantity && item.quantity !== null) {
+        quantitySection.style.display = 'block';
+      }
+
+      confirmBtn.disabled = false;
+      confirmBtn.style.opacity = '1';
+    } catch (err) {
+      moveStatus.textContent = '❌ Eroare la încărcarea organizatoarelor';
+      moveStatus.style.color = 'var(--error-color)';
+    }
+  });
+
+  confirmBtn.addEventListener('click', async () => {
+    const newRoom = roomSelect.value;
+    const newCupboard = cupboardSelect.value;
+    const newShelf = shelfSelect.value;
+    const newOrganizer = organizerSelect.value || null;
+
+    if (!newRoom || !newCupboard || !newShelf) {
+      moveStatus.textContent = '❌ Te rog selectează toate câmpurile';
+      moveStatus.style.color = 'var(--error-color)';
+      return;
+    }
+
+    const locationMatch = item.location?.match(/^(.+?) › (.+?) › (.+?)$/);
+    const currentRoom = locationMatch?.[1] || '';
+    const currentCupboard = locationMatch?.[2] || '';
+    const currentShelf = locationMatch?.[3] || '';
+
+    if (
+      currentRoom === newRoom &&
+      currentCupboard === newCupboard &&
+      currentShelf === newShelf &&
+      !newOrganizer
+    ) {
+      moveStatus.textContent = '⚠️ Obiectul este deja în această locație';
+      moveStatus.style.color = 'var(--warning-color)';
+      return;
+    }
+
+    const isIntegral = integralCheckbox?.checked !== false;
+    const moveQty = isIntegral
+      ? item.quantity || null
+      : parseInt(quantityInput?.value) || null;
+    const hasQuantityTracking = item.track_quantity && item.quantity !== null;
+
+    if (hasQuantityTracking && !isIntegral) {
+      if (moveQty <= 0 || moveQty > item.quantity) {
+        moveStatus.textContent = '❌ Cantitate invalidă';
+        moveStatus.style.color = 'var(--error-color)';
+        return;
+      }
+    }
+
+    try {
+      moveStatus.textContent = '🔄 Se mută obiectul...';
+      moveStatus.style.color = 'var(--primary-color)';
+      confirmBtn.disabled = true;
+
+      let existingItems = [];
+      try {
+        existingItems = await app.api.getItems(
+          newRoom,
+          newCupboard,
+          newShelf,
+          newOrganizer
+        );
+      } catch (err) {
+        console.warn('Could not check for existing items:', err);
+      }
+
+      const existingItem = existingItems.find(
+        (existing) =>
+          existing.name === item.name &&
+          existing.aliases === item.aliases &&
+          existing.track_quantity === item.track_quantity
+      );
+
+      if (isIntegral || !hasQuantityTracking) {
+        if (
+          existingItem &&
+          existingItem.track_quantity &&
+          existingItem.quantity !== null
+        ) {
+          const newQuantity =
+            (existingItem.quantity || 0) + (item.quantity || 0);
+
+          await app.api.updateItem(existingItem.id, {
+            quantity: newQuantity,
+          });
+
+          await app.api.deleteItem(item.id);
+
+          moveStatus.textContent = `✅ Obiect combinat cu succes! Cantitate totală: ${newQuantity}`;
+          moveStatus.style.color = 'var(--success-color)';
+        } else {
+          let oldImagePath = '';
+          if (item.image && item.image.includes('/api/home_inventar/images/')) {
+            const parts = item.image.split('/');
+            oldImagePath = parts[parts.length - 1].split('?')[0];
+          } else if (item.image && !item.image.startsWith('/local/')) {
+            oldImagePath = item.image;
+          }
+
+          let newImagePath = '';
+          if (oldImagePath) {
+            try {
+              const response = await fetch(item.image);
+              const blob = await response.blob();
+              const file = new File([blob], 'moved_image.jpg', {
+                type: blob.type,
+              });
+
+              newImagePath = await app.api.uploadImage(file, {
+                room: newRoom,
+                cupboard: newCupboard,
+                shelf: newShelf,
+                organizer: newOrganizer || null,
+                item: item.name,
+                old_image: oldImagePath,
+              });
+            } catch (imgErr) {
+              console.warn(
+                'Failed to copy image, moving without image:',
+                imgErr
+              );
+            }
+          }
+
+          await app.api.updateItem(item.id, {
+            room: newRoom,
+            cupboard: newCupboard,
+            shelf: newShelf,
+            organizer: newOrganizer,
+            image: newImagePath || oldImagePath,
+          });
+
+          moveStatus.textContent = '✅ Obiect mutat cu succes!';
+          moveStatus.style.color = 'var(--success-color)';
+        }
+      } else {
+        const remainingQty = item.quantity - moveQty;
+
+        const existingItem = existingItems.find(
+          (existing) =>
+            existing.name === item.name &&
+            existing.aliases === item.aliases &&
+            existing.track_quantity === item.track_quantity
+        );
+
+        if (
+          existingItem &&
+          existingItem.track_quantity &&
+          existingItem.quantity !== null
+        ) {
+          const newQuantity = (existingItem.quantity || 0) + moveQty;
+
+          await app.api.updateItem(existingItem.id, {
+            quantity: newQuantity,
+          });
+
+          moveStatus.textContent = `✅ ${moveQty} unități adăugate la obiectul existent! (${remainingQty} rămase în locația veche)`;
+        } else {
+          let imagePath = '';
+          if (item.image && item.image.includes('/api/home_inventar/images/')) {
+            const parts = item.image.split('/');
+            imagePath = parts[parts.length - 1].split('?')[0];
+          } else if (item.image && !item.image.startsWith('/local/')) {
+            imagePath = item.image;
+          }
+
+          let newImagePath = '';
+          if (imagePath) {
+            try {
+              const response = await fetch(item.image);
+              const blob = await response.blob();
+              const file = new File([blob], 'split_image.jpg', {
+                type: blob.type,
+              });
+
+              newImagePath = await app.api.uploadImage(file, {
+                room: newRoom,
+                cupboard: newCupboard,
+                shelf: newShelf,
+                organizer: newOrganizer || null,
+                item: item.name,
+              });
+            } catch (imgErr) {
+              console.warn('Failed to copy image for new item:', imgErr);
+            }
+          }
+
+          await app.api.addItem(newRoom, newCupboard, newShelf, newOrganizer, {
+            name: item.name,
+            aliases: item.aliases || '',
+            image: newImagePath,
+            quantity: moveQty,
+            min_quantity: item.min_quantity,
+            track_quantity: true,
+          });
+
+          moveStatus.textContent = `✅ ${moveQty} unități mutate cu succes! (${remainingQty} rămase)`;
+        }
+
+        await app.api.updateItem(item.id, {
+          quantity: remainingQty,
+        });
+
+        moveStatus.style.color = 'var(--success-color)';
+      }
+
+      setTimeout(() => {
+        document.body.removeChild(moveModal);
+        closeEditModal();
+        rerenderCallback();
+      }, 1500);
+    } catch (err) {
+      moveStatus.textContent = `❌ Eroare: ${err?.message || 'Mutare eșuată'}`;
+      moveStatus.style.color = 'var(--error-color)';
+      confirmBtn.disabled = false;
+    }
+  });
+
+  cancelBtn.addEventListener('click', () => {
+    document.body.removeChild(moveModal);
+  });
+
+  moveModal.addEventListener('click', (e) => {
+    if (e.target === moveModal) {
+      document.body.removeChild(moveModal);
+    }
+  });
+}
+
 function setupEditModalHandlers(modal, item, app, rerenderCallback, organizer) {
   const trackQtyCheckbox = modal.querySelector('#trackQty');
   const qtyFields = modal.querySelector('#qtyFields');
-
-  console.log(item);
 
   trackQtyCheckbox.addEventListener('change', () => {
     qtyFields.style.display = trackQtyCheckbox.checked ? 'block' : 'none';
@@ -441,6 +924,7 @@ function setupEditModalHandlers(modal, item, app, rerenderCallback, organizer) {
 
   const copyBtn = modal.querySelector('#copyDeepLinkBtn');
   copyBtn?.addEventListener('click', async () => {
+    const consumeDeepLink = `homeassistant://navigate/home_inventar/consume/${item.id}`;
     try {
       await navigator.clipboard.writeText(consumeDeepLink);
       copyBtn.textContent = '✓ Copiat!';
@@ -480,6 +964,17 @@ function setupEditModalHandlers(modal, item, app, rerenderCallback, organizer) {
 
   modal.querySelector('#cancelQtyBtn').addEventListener('click', () => {
     document.body.removeChild(modal);
+  });
+
+  modal.querySelector('#moveItemBtn')?.addEventListener('click', () => {
+    openMoveItemModal(
+      item,
+      app,
+      () => {
+        document.body.removeChild(modal);
+      },
+      rerenderCallback
+    );
   });
 
   modal.querySelector('#saveQtyBtn').addEventListener('click', async () => {

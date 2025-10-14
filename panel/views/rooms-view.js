@@ -114,7 +114,6 @@ export async function renderRoomsView(app, content) {
       },
     });
 
-    // Edit buttons
     content.querySelectorAll('.edit-room-btn').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -128,7 +127,6 @@ export async function renderRoomsView(app, content) {
       });
     });
 
-    // Delete buttons
     content.querySelectorAll('.delete-room-btn').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();

@@ -10,7 +10,6 @@ export async function connectToHass(maxAttempts = 100, delayMs = 100) {
 }
 
 function findHass() {
-  // cele mai comune locuri
   if (window.hass?.auth) return window.hass;
   if (window.hassConnection?.auth) return window.hassConnection;
 
@@ -20,7 +19,6 @@ function findHass() {
   const panel = document.querySelector('ha-panel-custom');
   if (panel?.hass?.auth) return panel.hass;
 
-  // încercare în parent (iframe)
   try {
     const p = window.parent;
     if (p && p !== window) {

@@ -15,21 +15,17 @@ class HomeInventarRoomsView(HomeAssistantView):
         self.hass = hass
 
     def _delete_image_file(self, image_path):
-        """Șterge fizic fișierul imaginii de pe disk"""
         if not image_path:
             return
         
         try:
-            # Extrage doar filename-ul (UUID)
             if image_path.startswith('/api/home_inventar/images/'):
                 filename = image_path.split('/')[-1].split('?')[0]
             elif image_path.startswith('/local/'):
-                # Imagini vechi, nu le ștergem
                 return
             else:
                 filename = image_path
             
-            # Path complet către imagine
             full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
             
             if os.path.exists(full_path):
@@ -83,7 +79,6 @@ class HomeInventarRoomsView(HomeAssistantView):
             return web.json_response({"error": "Room already exists"}, status=400)
 
     async def patch(self, request):
-        """Update room name"""
         try:
             data = await request.json()
             _LOGGER.info(f"PATCH rooms - received data: {data}")
@@ -125,7 +120,6 @@ class HomeInventarRoomsView(HomeAssistantView):
             return web.json_response({"error": str(e)}, status=500)
 
     async def delete(self, request):
-        """Delete room and all its contents (cascading delete) + cleanup images"""
         try:
             data = await request.json()
             room_id = data.get("id")
@@ -137,17 +131,14 @@ class HomeInventarRoomsView(HomeAssistantView):
                 conn = sqlite3.connect(self.db_path)
                 cur = conn.cursor()
                 
-                # Colectăm toate imaginile care vor fi șterse
                 images_to_delete = []
                 
-                # Imagini de la dulapuri
                 cur.execute('''
                     SELECT image FROM cupboards 
                     WHERE room_id = ? AND image IS NOT NULL AND image != ''
                 ''', (room_id,))
                 images_to_delete.extend([row[0] for row in cur.fetchall()])
                 
-                # Imagini de la items
                 cur.execute('''
                     SELECT i.image FROM items i
                     JOIN shelves s ON i.shelf_id = s.id
@@ -156,7 +147,6 @@ class HomeInventarRoomsView(HomeAssistantView):
                 ''', (room_id,))
                 images_to_delete.extend([row[0] for row in cur.fetchall()])
                 
-                # Ștergem camera (foreign keys ON DELETE CASCADE vor șterge restul)
                 cur.execute("DELETE FROM rooms WHERE id = ?", (room_id,))
                 conn.commit()
                 count = cur.rowcount
@@ -169,7 +159,6 @@ class HomeInventarRoomsView(HomeAssistantView):
             if count == 0:
                 return web.json_response({"error": "Room not found"}, status=404)
             
-            # Ștergem imaginile fizic
             for image in images_to_delete:
                 self._delete_image_file(image)
             

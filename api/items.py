@@ -20,16 +20,13 @@ class HomeInventarItemsView(HomeAssistantView):
             return
         
         try:
-            # Extrage doar filename-ul (UUID)
             if image_path.startswith('/api/home_inventar/images/'):
                 filename = image_path.split('/')[-1].split('?')[0]
             elif image_path.startswith('/local/'):
-                # Imagini vechi, nu le ștergem
                 return
             else:
                 filename = image_path
             
-            # Path complet către imagine
             full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
             
             if os.path.exists(full_path):
@@ -45,7 +42,7 @@ class HomeInventarItemsView(HomeAssistantView):
         room = request.query.get("room")
         cupboard = request.query.get("cupboard")
         shelf = request.query.get("shelf")
-        organizer = request.query.get("organizer")  # Poate fi None pentru items fără organizator
+        organizer = request.query.get("organizer") 
         
         if not room or not cupboard or not shelf:
             return web.json_response({"error": "Missing params"}, status=400)
@@ -55,7 +52,6 @@ class HomeInventarItemsView(HomeAssistantView):
             cur = conn.cursor()
             
             if organizer:
-                # Items dintr-un organizator specific
                 cur.execute('''
                     SELECT i.id, i.name, i.image, i.quantity, i.min_quantity, i.track_quantity, i.aliases,
                         r.name as room_name,
@@ -70,7 +66,6 @@ class HomeInventarItemsView(HomeAssistantView):
                     ORDER BY i.created_at DESC
                 ''', (room, cupboard, shelf, organizer))
             else:
-                # Items fără organizator (direct pe raft)
                 cur.execute('''
                     SELECT i.id, i.name, i.image, i.quantity, i.min_quantity, i.track_quantity, i.aliases, r.name as room_name,
                     c.name as cupboard_name,
@@ -97,7 +92,7 @@ class HomeInventarItemsView(HomeAssistantView):
                     "min_quantity": r[4],
                     "track_quantity": bool(r[5]),
                     "aliases": r[6],
-                    "location": f"{r[7]} / {r[8]} / {r[9]}"
+                    "location": f"{r[7]} › {r[8]} › {r[9]}"
                 }
                 _LOGGER.debug(f"Item fetched - ID: {r[0]}, Name: {r[1]}, Image: '{image}'")
                 result.append(item)
@@ -112,7 +107,7 @@ class HomeInventarItemsView(HomeAssistantView):
         room = data.get("room", "").strip()
         cupboard = data.get("cupboard", "").strip()
         shelf = data.get("shelf", "").strip()
-        organizer = data.get("organizer", "").strip() if data.get("organizer") else None  # <- ADĂUGAT
+        organizer = data.get("organizer", "").strip() if data.get("organizer") else None
         name = data.get("name", "").strip()
         image = data.get("image", "")
         quantity = data.get("quantity")
@@ -128,7 +123,6 @@ class HomeInventarItemsView(HomeAssistantView):
             conn = sqlite3.connect(self.db_path)
             cur = conn.cursor()
             
-            # Get shelf_id
             cur.execute('''
                 SELECT s.id FROM shelves s
                 JOIN cupboards c ON s.cupboard_id = c.id
@@ -143,7 +137,6 @@ class HomeInventarItemsView(HomeAssistantView):
             
             shelf_id = row[0]
             
-            # Get organizer_id dacă există organizator  <- ADĂUGAT
             organizer_id = None
             if organizer:
                 cur.execute('''
@@ -161,7 +154,6 @@ class HomeInventarItemsView(HomeAssistantView):
                 else:
                     _LOGGER.warning(f"Organizer '{organizer}' not found!")
             
-            # Insert item cu organizer_id  <- MODIFICAT
             cur.execute('''
                 INSERT INTO items (name, image, shelf_id, organizer_id, quantity, min_quantity, track_quantity)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -192,21 +184,17 @@ class HomeInventarItemView(HomeAssistantView):
         self.hass = hass
 
     def _delete_image_file(self, image_path):
-        """Șterge fizic fișierul imaginii de pe disk"""
         if not image_path:
             return
         
         try:
-            # Extrage doar filename-ul (UUID)
             if image_path.startswith('/api/home_inventar/images/'):
                 filename = image_path.split('/')[-1].split('?')[0]
             elif image_path.startswith('/local/'):
-                # Imagini vechi, nu le ștergem
                 return
             else:
                 filename = image_path
             
-            # Path complet către imagine
             full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
             
             if os.path.exists(full_path):
@@ -219,7 +207,7 @@ class HomeInventarItemView(HomeAssistantView):
             _LOGGER.error(f"[HomeInventar] Error deleting image file: {e}", exc_info=True)
 
     async def patch(self, request, item_id):
-        """Update item details - cu cleanup imagine veche"""
+        """Update item details - cu suport pentru mutare și cleanup imagine veche"""
         try:
             data = await request.json()
             _LOGGER.debug(f"PATCH item {item_id} - received data: {data}")
@@ -230,12 +218,15 @@ class HomeInventarItemView(HomeAssistantView):
             quantity = data.get("quantity")
             min_quantity = data.get("min_quantity")
             track_quantity = data.get("track_quantity")
+            
+            new_room = data.get("room")
+            new_cupboard = data.get("cupboard")
+            new_shelf = data.get("shelf")
 
             def update_item():
                 conn = sqlite3.connect(self.db_path)
                 cur = conn.cursor()
                 
-                # Obținem imaginea veche pentru a o șterge dacă se schimbă
                 old_image = None
                 if new_image is not None:
                     cur.execute("SELECT image FROM items WHERE id = ?", (item_id,))
@@ -271,9 +262,55 @@ class HomeInventarItemView(HomeAssistantView):
                     updates.append("track_quantity = ?")
                     params.append(1 if track_quantity else 0)
                 
+                if new_room and new_cupboard and new_shelf:
+                    _LOGGER.info(f"Moving item {item_id} to: {new_room}/{new_cupboard}/{new_shelf}/{new_organizer or 'direct'}")
+                    
+                    if new_image is not None and old_image is None:
+                        cur.execute("SELECT image FROM items WHERE id = ?", (item_id,))
+                        img_row = cur.fetchone()
+                        if img_row and img_row[0]:
+                            old_image = img_row[0]
+                    
+                    cur.execute('''
+                        SELECT s.id FROM shelves s
+                        JOIN cupboards c ON s.cupboard_id = c.id
+                        JOIN rooms r ON c.room_id = r.id
+                        WHERE r.name = ? AND c.name = ? AND s.name = ?
+                    ''', (new_room, new_cupboard, new_shelf))
+                    
+                    shelf_row = cur.fetchone()
+                    if not shelf_row:
+                        conn.close()
+                        return 0, None, "Destination shelf not found"
+                    
+                    new_shelf_id = shelf_row[0]
+                    updates.append("shelf_id = ?")
+                    params.append(new_shelf_id)
+                    
+                    new_organizer_id = None
+                    if new_organizer:
+                        cur.execute('''
+                            SELECT o.id FROM organizers o
+                            JOIN shelves s ON o.shelf_id = s.id
+                            JOIN cupboards c ON s.cupboard_id = c.id
+                            JOIN rooms r ON c.room_id = r.id
+                            WHERE r.name = ? AND c.name = ? AND s.name = ? AND o.name = ?
+                        ''', (new_room, new_cupboard, new_shelf, new_organizer))
+                        
+                        org_row = cur.fetchone()
+                        if org_row:
+                            new_organizer_id = org_row[0]
+                            _LOGGER.info(f"Found organizer_id: {new_organizer_id} for '{new_organizer}'")
+                        else:
+                            conn.close()
+                            return 0, None, f"Organizer '{new_organizer}' not found"
+                    
+                    updates.append("organizer_id = ?")
+                    params.append(new_organizer_id)
+                
                 if not updates:
                     conn.close()
-                    return 0, None
+                    return 0, None, None
                 
                 params.append(item_id)
                 sql = f"UPDATE items SET {', '.join(updates)} WHERE id = ?"
@@ -284,18 +321,70 @@ class HomeInventarItemView(HomeAssistantView):
                 count = cur.rowcount
                 conn.close()
                 
-                # Returnăm imaginea veche doar dacă s-a schimbat efectiv
-                return count, old_image if (new_image is not None and old_image and old_image != new_image) else None
+                return count, old_image if (new_image is not None and old_image and old_image != new_image) else None, None
 
-            count, old_image = await request.app["hass"].async_add_executor_job(update_item)
+            count, old_image, error = await request.app["hass"].async_add_executor_job(update_item)
+            
+            if error:
+                return web.json_response({"error": error}, status=404)
             
             if count == 0:
                 return web.json_response({"error": "Item not found"}, status=404)
             
-            # Ștergem imaginea veche dacă s-a schimbat
             if old_image:
                 self._delete_image_file(old_image)
                 _LOGGER.debug(f"Old image cleaned: {old_image}")
+            
+            if quantity is not None:
+                def check_low_stock():
+                    conn = sqlite3.connect(self.db_path)
+                    cur = conn.cursor()
+                    
+                    cur.execute('''
+                        SELECT i.id, i.name, i.quantity, i.min_quantity, i.track_quantity, i.aliases,
+                               r.name as room_name, c.name as cupboard_name, s.name as shelf_name
+                        FROM items i
+                        JOIN shelves s ON i.shelf_id = s.id
+                        JOIN cupboards c ON s.cupboard_id = c.id
+                        JOIN rooms r ON c.room_id = r.id
+                        WHERE i.id = ?
+                    ''', (item_id,))
+                    
+                    row = cur.fetchone()
+                    conn.close()
+                    
+                    if not row:
+                        return None
+                    
+                    item_id_db, name, qty, min_qty, track_qty, aliases, room, cupboard, shelf = row
+                    
+                    if track_qty and qty is not None and min_qty is not None and qty > 0:
+                        if qty <= min_qty:
+                            return {
+                                "item_id": item_id_db,
+                                "name": name,
+                                "aliases": aliases,
+                                "quantity": qty,
+                                "min_quantity": min_qty,
+                                "room": room,
+                                "cupboard": cupboard,
+                                "shelf": shelf,
+                                "location": f"{room} › {cupboard} › {shelf}"
+                            }
+                    return None
+                
+                low_stock_data = await request.app["hass"].async_add_executor_job(check_low_stock)
+                
+                if low_stock_data:
+                    _LOGGER.warning(
+                        f"🔔 Low stock detected for item {low_stock_data['item_id']}: "
+                        f"{low_stock_data['name']} ({low_stock_data['quantity']}/{low_stock_data['min_quantity']}) "
+                        f"at {low_stock_data['location']}"
+                    )
+                    request.app["hass"].bus.async_fire(
+                        "home_inventar_low_stock",
+                        low_stock_data
+                    )
             
             return web.json_response({"message": "Updated"})
             
@@ -310,12 +399,10 @@ class HomeInventarItemView(HomeAssistantView):
                 conn = sqlite3.connect(self.db_path)
                 cur = conn.cursor()
                 
-                # Obținem imaginea înainte de a șterge
                 cur.execute("SELECT image FROM items WHERE id = ?", (item_id,))
                 row = cur.fetchone()
                 old_image = row[0] if row else None
                 
-                # Ștergem item-ul
                 cur.execute("DELETE FROM items WHERE id = ?", (item_id,))
                 conn.commit()
                 count = cur.rowcount
@@ -328,7 +415,6 @@ class HomeInventarItemView(HomeAssistantView):
             if count == 0:
                 return web.json_response({"error": "Item not found"}, status=404)
             
-            # Ștergem imaginea fizic
             if old_image:
                 self._delete_image_file(old_image)
             

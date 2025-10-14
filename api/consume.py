@@ -7,7 +7,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class HomeInventarConsumeView(HomeAssistantView):
-    """API endpoint pentru scăderea cantității unui item."""
 
     url = "/api/home_inventar/consume/{item_id}"
     name = "api:home_inventar:consume"
@@ -18,18 +17,20 @@ class HomeInventarConsumeView(HomeAssistantView):
         self.db_path = db_path
 
     async def post(self, request, item_id):
-        """Scade cantitatea cu 1 pentru item-ul specificat."""
         try:
             def consume_item():
                 conn = sqlite3.connect(self.db_path)
                 conn.row_factory = sqlite3.Row
                 cur = conn.cursor()
                 
-                # Verifică dacă item-ul există și are tracking activat
                 cur.execute("""
-                    SELECT id, name, quantity, min_quantity, track_quantity
-                    FROM items 
-                    WHERE id = ?
+                    SELECT i.id, i.name, i.quantity, i.min_quantity, i.track_quantity, i.aliases,
+                           r.name as room_name, c.name as cupboard_name, s.name as shelf_name
+                    FROM items i
+                    JOIN shelves s ON i.shelf_id = s.id
+                    JOIN cupboards c ON s.cupboard_id = c.id
+                    JOIN rooms r ON c.room_id = r.id
+                    WHERE i.id = ?
                 """, (item_id,))
                 
                 item = cur.fetchone()
@@ -46,7 +47,6 @@ class HomeInventarConsumeView(HomeAssistantView):
                     conn.close()
                     return None, "Item quantity is already 0 or not set"
                 
-                # Scade cantitatea cu 1
                 new_quantity = item['quantity'] - 1
                 
                 cur.execute("""
@@ -57,19 +57,26 @@ class HomeInventarConsumeView(HomeAssistantView):
                 
                 conn.commit()
                 
-                # Verifică dacă e stoc redus
                 is_low_stock = (
                     item['min_quantity'] is not None and 
+                    new_quantity > 0 and
                     new_quantity <= item['min_quantity']
                 )
+                
+                location = f"{item['room_name']} › {item['cupboard_name']} › {item['shelf_name']}"
                 
                 result = {
                     'id': item['id'],
                     'name': item['name'],
+                    'aliases': item['aliases'],
                     'old_quantity': item['quantity'],
                     'new_quantity': new_quantity,
                     'min_quantity': item['min_quantity'],
-                    'is_low_stock': is_low_stock
+                    'is_low_stock': is_low_stock,
+                    'room': item['room_name'],
+                    'cupboard': item['cupboard_name'],
+                    'shelf': item['shelf_name'],
+                    'location': location
                 }
                 
                 conn.close()
@@ -83,32 +90,42 @@ class HomeInventarConsumeView(HomeAssistantView):
                     status=400
                 )
             
-            # Fire event pentru automatizări
             if result['is_low_stock']:
+                _LOGGER.warning(
+                    f"🔔 Low stock detected (consume) for item {result['id']}: "
+                    f"{result['name']} ({result['new_quantity']}/{result['min_quantity']}) "
+                    f"at {result['location']}"
+                )
                 self.hass.bus.async_fire(
                     "home_inventar_low_stock",
                     {
                         "item_id": result['id'],
-                        "item_name": result['name'],
+                        "name": result['name'],
+                        "aliases": result['aliases'],
                         "quantity": result['new_quantity'],
-                        "min_quantity": result['min_quantity']
+                        "min_quantity": result['min_quantity'],
+                        "room": result['room'],
+                        "cupboard": result['cupboard'],
+                        "shelf": result['shelf'],
+                        "location": result['location']
                     }
                 )
             
-            # Fire event pentru consumare
             self.hass.bus.async_fire(
                 "home_inventar_item_consumed",
                 {
                     "item_id": result['id'],
-                    "item_name": result['name'],
+                    "name": result['name'],
                     "old_quantity": result['old_quantity'],
-                    "new_quantity": result['new_quantity']
+                    "new_quantity": result['new_quantity'],
+                    "location": result['location']
                 }
             )
             
             _LOGGER.info(
                 f"[Home Inventar] Item consumed: {result['name']} "
-                f"({result['old_quantity']} -> {result['new_quantity']})"
+                f"({result['old_quantity']} -> {result['new_quantity']}) "
+                f"at {result['location']}"
             )
             
             return web.json_response(result)
@@ -122,7 +139,6 @@ class HomeInventarConsumeView(HomeAssistantView):
 
 
 class HomeInventarItemDeepLinkView(HomeAssistantView):
-    """API endpoint pentru generarea deep link-ului de consumare."""
 
     url = "/api/home_inventar/items/{item_id}/consume_link"
     name = "api:home_inventar:item_consume_link"
@@ -132,14 +148,9 @@ class HomeInventarItemDeepLinkView(HomeAssistantView):
         self.hass = hass
 
     async def get(self, request, item_id):
-        """Returnează deep link-ul pentru consumarea item-ului."""
         try:
-            # Generează deep link pentru aplicația Home Assistant
-            # Folosim hash routing pentru a funcționa direct în app
-            deep_link = f"homeassistant://navigate/home_inventar?consume={item_id}"
+            deep_link = f"homeassistant://navigate/home_inventar/consume/{item_id}"
             
-            # Alternative: webhook URL pentru consumare directă
-            # Aceasta poate fi accesată și din exterior (cu long-lived token)
             webhook_url = f"{self._get_base_url()}/api/home_inventar/consume/{item_id}"
             
             return web.json_response({
@@ -156,7 +167,6 @@ class HomeInventarItemDeepLinkView(HomeAssistantView):
             )
     
     def _get_base_url(self):
-        """Obține URL-ul de bază al Home Assistant."""
         if hasattr(self.hass.config, "external_url") and self.hass.config.external_url:
             return self.hass.config.external_url
         elif hasattr(self.hass.config, "internal_url") and self.hass.config.internal_url:

@@ -1,1 +1,0 @@
-export function setupGlobalStyles(root) {}

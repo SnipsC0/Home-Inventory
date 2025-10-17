@@ -8,3 +8,5 @@ __pycache__/
 *.swp
 *.tar.gz
 *.zip
+frontend/.env
+frontend/node_modules

@@ -1,17 +1,24 @@
-## 1.2.0 - Move objects + fixes
+## 🏷️ 1.2.1 - Move objects + HA low stock event
+
+### Fixed
+
+- StockBadge UI update not refreshing correctly in All Items View
+- Cleanup: removed console debug logs
+
+## 🏷️ 1.2.0 - Move objects + HA low stock event
 
 ### Added
 
-- move objects for existent objects
-- event for integrating low stocks in home assistant automations
-- deeplink for consume an item + consume view
+- Move objects between organizers for existing items
+- Home Assistant event: `home_inventar_low_stock` (for automations & alerts)
+- Deep-link support for direct item consumption (`consume view`)
 
 ### Fixed
 
 - stockBadge in all items view preventing updating quantity in UI
-- removed useless logs in browser console
+- remove useless logs in browser console
 
-## 1.1.0 - Infinite scrolling + performance UX
+## 🏷️ 1.1.0 - Infinite scrolling + performance UX
 
 ### Added
 
@@ -28,4 +35,4 @@
 - fixed image upload glitch and input focus issues
 - cleaned up event listeners and permission handling for edit/view
 
-## 1.0.0 - Initial release
+## 🏷️ 1.0.0 - Initial release

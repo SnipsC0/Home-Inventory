@@ -1,8 +1,8 @@
 import sqlite3, logging, os
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
+from ..const import DOMAIN
 
-DOMAIN = "home_inventar"
 _LOGGER = logging.getLogger(__name__)
 
 class HomeInventarItemsView(HomeAssistantView):
@@ -222,6 +222,7 @@ class HomeInventarItemView(HomeAssistantView):
             new_room = data.get("room")
             new_cupboard = data.get("cupboard")
             new_shelf = data.get("shelf")
+            new_organizer = data.get("organizer")
 
             def update_item():
                 conn = sqlite3.connect(self.db_path)

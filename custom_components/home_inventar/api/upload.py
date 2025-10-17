@@ -7,8 +7,8 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 from PIL import Image
+from ..const import DOMAIN
 
-DOMAIN = "home_inventar"
 _LOGGER = logging.getLogger(__name__)
 
 MAX_WIDTH = 1600
@@ -90,7 +90,7 @@ class HomeInventarUpload(HomeAssistantView):
             room = request.query.get('room', '')
             cupboard = request.query.get('cupboard', '')
             shelf = request.query.get('shelf', '')
-            organizer = request.query.get('organizer', '')  # <-- ADĂUGAT
+            organizer = request.query.get('organizer', '')
             item = request.query.get('item', '')
             old_image = request.query.get('old_image', '')
             

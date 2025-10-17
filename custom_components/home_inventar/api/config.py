@@ -1,10 +1,9 @@
 from homeassistant.components.http import HomeAssistantView
 from aiohttp import web
 import logging
+from ..const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-DOMAIN = "home_inventar"
-
 
 class HomeInventarConfigView(HomeAssistantView):
 

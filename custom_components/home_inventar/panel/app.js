@@ -44,9 +44,9 @@ class HomeInventarApp extends HTMLElement {
     this._applyDeepLinkOnce();
 
     const consumed = await this._checkConsumeDeepLink();
-    if (consumed) return; // <--- IMPORTANT: oprește tot aici
+    if (consumed) return;
 
-    this.renderView(); // rulează doar dacă nu era consum
+    this.renderView();
   }
 
   _applyDeepLinkOnce() {
@@ -69,7 +69,6 @@ class HomeInventarApp extends HTMLElement {
   }
 
   async _checkConsumeDeepLink() {
-    // Verificăm dacă URL-ul conține /consume/ID în path
     const currentPath = window.location.pathname;
     const consumeMatch = currentPath.match(/\/consume\/(\d+)$/);
 
@@ -98,10 +97,8 @@ class HomeInventarApp extends HTMLElement {
 
       this._showConsumeResult(result, true);
 
-      // Timeout mai lung: 8 secunde
       setTimeout(() => {
         console.log('[HomeInventar] Auto-closing consume modal');
-        // Redirecționăm la path-ul de bază
         window.history.replaceState({}, '', '/home_inventar');
         this.renderView();
       }, 8000);
@@ -109,7 +106,6 @@ class HomeInventarApp extends HTMLElement {
       console.error('[HomeInventar] Consume error:', error);
       this._showConsumeResult({ error: error.message }, false);
 
-      // Timeout pentru eroare: 6 secunde
       setTimeout(() => {
         window.history.replaceState({}, '', '/home_inventar');
         this.renderView();
@@ -302,7 +298,6 @@ class HomeInventarApp extends HTMLElement {
         </style>
       `;
 
-      // Countdown logic
       let countdown = 8;
       const countdownElement = content.querySelector('#countdown');
       const countdownInterval = setInterval(() => {
@@ -315,7 +310,6 @@ class HomeInventarApp extends HTMLElement {
         }
       }, 1000);
 
-      // Buton manual de închidere
       const closeBtn = content.querySelector('#closeConsumeBtn');
       closeBtn?.addEventListener('click', () => {
         clearInterval(countdownInterval);
@@ -323,7 +317,6 @@ class HomeInventarApp extends HTMLElement {
         this.renderView();
       });
 
-      // Hover effect
       closeBtn?.addEventListener('mouseenter', () => {
         closeBtn.style.transform = 'translateY(-2px)';
         closeBtn.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
@@ -333,7 +326,6 @@ class HomeInventarApp extends HTMLElement {
         closeBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
       });
     } else {
-      // Modal de eroare
       content.innerHTML = `
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;text-align:center;min-height:400px;">
           <div style="width:100px;height:100px;margin-bottom:24px;background:var(--error-color);
@@ -373,7 +365,6 @@ class HomeInventarApp extends HTMLElement {
         </div>
       `;
 
-      // Error countdown
       let countdown = 6;
       const countdownElement = content.querySelector('#errorCountdown');
       const countdownInterval = setInterval(() => {
@@ -386,7 +377,6 @@ class HomeInventarApp extends HTMLElement {
         }
       }, 1000);
 
-      // Close button
       const closeBtn = content.querySelector('#closeErrorBtn');
       closeBtn?.addEventListener('click', () => {
         clearInterval(countdownInterval);

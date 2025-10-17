@@ -751,30 +751,70 @@ async function openMoveItemModal(item, app, closeEditModal, rerenderCallback) {
         console.warn('Could not check for existing items:', err);
       }
 
+      const normalizeAliases = (aliases) => {
+        if (!aliases) return '';
+        return aliases.toLowerCase().trim();
+      };
+
       const existingItem = existingItems.find(
         (existing) =>
-          existing.name === item.name &&
-          existing.aliases === item.aliases &&
+          existing.name.toLowerCase().trim() ===
+            item.name.toLowerCase().trim() &&
+          normalizeAliases(existing.aliases) ===
+            normalizeAliases(item.aliases) &&
           existing.track_quantity === item.track_quantity
       );
 
+      const isIntegral = integralCheckbox?.checked !== false;
+      const moveQty = isIntegral
+        ? item.quantity || null
+        : parseInt(quantityInput?.value) || null;
+      const hasQuantityTracking = item.track_quantity && item.quantity !== null;
+
+      if (hasQuantityTracking && !isIntegral) {
+        if (moveQty <= 0 || moveQty > item.quantity) {
+          moveStatus.textContent = '❌ Cantitate invalidă';
+          moveStatus.style.color = 'var(--error-color)';
+          return;
+        }
+      }
+
       if (isIntegral || !hasQuantityTracking) {
-        if (
-          existingItem &&
-          existingItem.track_quantity &&
-          existingItem.quantity !== null
-        ) {
-          const newQuantity =
-            (existingItem.quantity || 0) + (item.quantity || 0);
+        if (existingItem) {
+          if (
+            existingItem.track_quantity &&
+            existingItem.quantity !== null &&
+            item.track_quantity &&
+            item.quantity !== null
+          ) {
+            const newQuantity =
+              (existingItem.quantity || 0) + (item.quantity || 0);
 
-          await app.api.updateItem(existingItem.id, {
-            quantity: newQuantity,
-          });
+            await app.api.updateItem(existingItem.id, {
+              quantity: newQuantity,
+            });
 
-          await app.api.deleteItem(item.id);
+            await app.api.deleteItem(item.id);
 
-          moveStatus.textContent = `✅ Obiect combinat cu succes! Cantitate totală: ${newQuantity}`;
-          moveStatus.style.color = 'var(--success-color)';
+            moveStatus.textContent = `✅ Obiect combinat cu succes! Cantitate totală: ${newQuantity}`;
+            moveStatus.style.color = 'var(--success-color)';
+          } else if (!existingItem.track_quantity && !item.track_quantity) {
+            await app.api.deleteItem(item.id);
+
+            moveStatus.textContent =
+              '✅ Obiect combinat (fără tracking cantitate)';
+            moveStatus.style.color = 'var(--success-color)';
+          } else {
+            moveStatus.textContent =
+              '⚠️ Există deja un obiect similar dar cu setări diferite de tracking. Obiectul NU a fost mutat.';
+            moveStatus.style.color = 'var(--warning-color)';
+
+            setTimeout(() => {
+              document.body.removeChild(moveModal);
+              closeEditModal();
+            }, 3000);
+            return;
+          }
         } else {
           let oldImagePath = '';
           if (item.image && item.image.includes('/api/home_inventar/images/')) {
@@ -823,21 +863,23 @@ async function openMoveItemModal(item, app, closeEditModal, rerenderCallback) {
       } else {
         const remainingQty = item.quantity - moveQty;
 
-        const existingItem = existingItems.find(
+        const existingItemPartial = existingItems.find(
           (existing) =>
-            existing.name === item.name &&
-            existing.aliases === item.aliases &&
+            existing.name.toLowerCase().trim() ===
+              item.name.toLowerCase().trim() &&
+            normalizeAliases(existing.aliases) ===
+              normalizeAliases(item.aliases) &&
             existing.track_quantity === item.track_quantity
         );
 
         if (
-          existingItem &&
-          existingItem.track_quantity &&
-          existingItem.quantity !== null
+          existingItemPartial &&
+          existingItemPartial.track_quantity &&
+          existingItemPartial.quantity !== null
         ) {
-          const newQuantity = (existingItem.quantity || 0) + moveQty;
+          const newQuantity = (existingItemPartial.quantity || 0) + moveQty;
 
-          await app.api.updateItem(existingItem.id, {
+          await app.api.updateItem(existingItemPartial.id, {
             quantity: newQuantity,
           });
 

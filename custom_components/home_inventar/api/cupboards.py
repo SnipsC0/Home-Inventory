@@ -1,8 +1,8 @@
 import sqlite3, logging, os
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
+from ..const import DOMAIN
 
-DOMAIN = "home_inventar"
 _LOGGER = logging.getLogger(__name__)
 
 class HomeInventarCupboardsView(HomeAssistantView):

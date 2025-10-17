@@ -1,4 +1,7 @@
 import logging, os, time, random
+import voluptuous as vol
+from homeassistant.helpers import config_validation as cv
+
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.components.frontend import async_register_built_in_panel
 from homeassistant.core import HomeAssistant
@@ -18,13 +21,15 @@ from .api.upload import HomeInventarUpload, HomeInventarImageView
 from .api.config import HomeInventarConfigView
 from .api.consume import HomeInventarConsumeView, HomeInventarItemDeepLinkView
 
-DOMAIN = "home_inventar"
+from .const import DOMAIN
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
 _LOGGER = logging.getLogger(__name__)
 VERSION = f"2.0.{int(time.time())}{random.randint(1000, 9999)}"
 
 
 def ensure_data_folders(hass: HomeAssistant):
-    """Crează structura de directoare pentru datele integrării."""
     base_path = hass.config.path(f"data/{DOMAIN}")
     folders = ["db", "images", "exports", "config"]
     for folder in folders:
@@ -102,7 +107,6 @@ async def async_setup_entry(hass, entry):
 
 
 async def async_update_options(hass: HomeAssistant, entry):
-    """Actualizare când opțiunile se schimbă."""
     _LOGGER.info("[Home Inventar] Opțiuni actualizate")
 
 

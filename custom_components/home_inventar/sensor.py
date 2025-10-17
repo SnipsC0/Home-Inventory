@@ -3,8 +3,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import Entity
 from homeassistant.components.sensor import SensorEntity
 from datetime import timedelta
+from .const import DOMAIN
 
-DOMAIN = "home_inventar"
 _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(minutes=5)
 

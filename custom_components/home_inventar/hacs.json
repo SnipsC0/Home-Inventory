@@ -1,0 +1,7 @@
+{
+  "name": "Home Inventar",
+  "render_readme": true,
+  "country": "RO",
+  "domains": ["home_inventar"],
+  "iot_class": "Local Polling"
+}

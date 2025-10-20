@@ -3,7 +3,6 @@ import type {
   Room,
   Cupboard,
   Shelf,
-  Organizer,
   Item,
   OrganizersResponse,
   Config,
@@ -142,13 +141,15 @@ export class ApiService {
     room: string,
     cupboard: string,
     shelf: string,
-    name: string
+    name: string,
+    image?: string
   ): Promise<{ id: number; name: string }> {
     return this.hass.callApi('POST', 'home_inventar/organizers', {
       room,
       cupboard,
       shelf,
       name,
+      image: image || '',
     });
   }
 
@@ -204,8 +205,8 @@ export class ApiService {
       name: string;
       aliases?: string;
       image?: string;
-      quantity?: number;
-      min_quantity?: number;
+      quantity?: number | null;
+      min_quantity?: number | null;
       track_quantity: boolean;
     }
   ): Promise<{ id: number; name: string }> {

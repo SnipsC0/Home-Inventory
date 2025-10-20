@@ -1,8 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal, ModalHeader, ModalFooter } from './Modal';
-import { Button } from '../Button/Button';
-import type { Item } from '../../types';
+import {
+  useUpdateItemMutation,
+  useDeleteItemMutation,
+} from '../../hooks/useItems';
+import { useRooms } from '../../hooks/useRooms';
+import type { Item, Cupboard, Shelf, Organizer } from '../../types';
 import type { ApiService } from '../../services/api';
+import { useAppStore } from '../../store/useAppStore';
 
 interface EditItemModalProps {
   isOpen: boolean;
@@ -21,495 +26,442 @@ export function EditItemModal({
   organizer,
   onSuccess,
 }: EditItemModalProps) {
+  const updateItem = useUpdateItemMutation(api);
+  const deleteItem = useDeleteItemMutation(api);
+
+  const currentRoom = useAppStore((state) => state.selectedRoom);
+  const currentCupboard = useAppStore((state) => state.selectedCupboard);
+  const currentShelf = useAppStore((state) => state.selectedShelf);
+
   const [name, setName] = useState(item.name);
   const [aliases, setAliases] = useState(item.aliases || '');
-  const [trackQuantity, setTrackQuantity] = useState(item.track_quantity);
-  const [quantity, setQuantity] = useState(item.quantity?.toString() || '');
-  const [minQuantity, setMinQuantity] = useState(
-    item.min_quantity?.toString() || ''
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(item.image || null);
+  const [quantity, setQuantity] = useState<number | null>(
+    item.quantity ?? null
   );
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [uploadStatus, setUploadStatus] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [minQuantity, setMinQuantity] = useState<number | null>(
+    item.min_quantity ?? null
+  );
+  const [trackQuantity, setTrackQuantity] = useState(item.track_quantity);
+  const [loading, setLoading] = useState(false);
 
-  const consumeDeepLink = `homeassistant://navigate/home_inventar/consume/${item.id}`;
+  // Sistem de mutare
+  const [showMove, setShowMove] = useState(false);
+  const [moveRoom, setMoveRoom] = useState<string>('');
+  const [moveCupboard, setMoveCupboard] = useState<string>('');
+  const [moveShelf, setMoveShelf] = useState<string>('');
+  const [moveOrganizer, setMoveOrganizer] = useState<string>('');
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
+  // State pentru date încărcate dinamic
+  const [availableCupboards, setAvailableCupboards] = useState<Cupboard[]>([]);
+  const [availableShelves, setAvailableShelves] = useState<Shelf[]>([]);
+  const [availableOrganizers, setAvailableOrganizers] = useState<Organizer[]>(
+    []
+  );
+
+  // Queries pentru mutare
+  const { data: rooms = [] } = useRooms(api);
+
+  // Încarcă cupboards când se schimbă camera
+  useEffect(() => {
+    if (moveRoom) {
+      api.getCupboards(moveRoom).then(setAvailableCupboards);
+    } else {
+      setAvailableCupboards([]);
+    }
+  }, [moveRoom, api]);
+
+  // Încarcă shelves când se schimbă dulapul
+  useEffect(() => {
+    if (moveRoom && moveCupboard) {
+      api.getShelves(moveRoom, moveCupboard).then(setAvailableShelves);
+    } else {
+      setAvailableShelves([]);
+    }
+  }, [moveRoom, moveCupboard, api]);
+
+  // Încarcă organizers când se schimbă raftul
+  useEffect(() => {
+    if (moveRoom && moveCupboard && moveShelf) {
+      api
+        .getOrganizers(moveRoom, moveCupboard, moveShelf)
+        .then((data) => setAvailableOrganizers(data.organizers));
+    } else {
+      setAvailableOrganizers([]);
+    }
+  }, [moveRoom, moveCupboard, moveShelf, api]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFile = e.target.files?.[0] || null;
+    setFile(newFile);
+
+    if (newFile) {
       const reader = new FileReader();
-      reader.onload = (event) => {
-        setPreviewUrl(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+      reader.onload = () => setPreview(reader.result as string);
+      reader.readAsDataURL(newFile);
     }
   };
 
-  const handleCopyDeepLink = async () => {
-    try {
-      await navigator.clipboard.writeText(consumeDeepLink);
-      alert('✓ Link copiat!');
-    } catch (error) {
-      alert('Nu s-a putut copia: ' + (error as Error).message);
-    }
+  const handleStartMove = () => {
+    setShowMove(true);
+    // Setează valorile curente ca default
+    setMoveRoom(currentRoom || '');
+    setMoveCupboard(currentCupboard || '');
+    setMoveShelf(currentShelf || '');
+    setMoveOrganizer(organizer || '');
+  };
+
+  const handleCancelMove = () => {
+    setShowMove(false);
+    setMoveRoom('');
+    setMoveCupboard('');
+    setMoveShelf('');
+    setMoveOrganizer('');
   };
 
   const handleSave = async () => {
-    if (!name.trim()) {
-      alert('Numele obiectului este obligatoriu.');
-      return;
+    if (!name.trim()) return;
+
+    if (showMove && moveRoom && moveCupboard && moveShelf) {
+      const isSameLocation =
+        moveRoom === currentRoom &&
+        moveCupboard === currentCupboard &&
+        moveShelf === currentShelf &&
+        moveOrganizer === (organizer || '');
+
+      if (isSameLocation) {
+        alert('Obiectul este deja în această locație!');
+        return;
+      }
     }
 
-    setIsSaving(true);
+    setLoading(true);
     try {
-      let imagePath = item.image;
+      const updateData: any = {
+        name: name.trim(),
+        aliases: aliases.trim() || undefined,
+        track_quantity: trackQuantity,
+      };
 
-      if (imageFile) {
-        setUploadStatus('Se încarcă imaginea...');
-
-        const locationMatch = item.location?.match(/^(.+?) › (.+?) › (.+?)$/);
-        const room = locationMatch?.[1] || '';
-        const cupboard = locationMatch?.[2] || '';
-        const shelf = locationMatch?.[3] || '';
-
-        let oldImage = '';
-        if (item.image?.includes('/api/home_inventar/images/')) {
-          const parts = item.image.split('/');
-          oldImage = parts[parts.length - 1].split('?')[0];
-        } else if (item.image && !item.image.startsWith('/local/')) {
-          oldImage = item.image;
-        }
-
-        imagePath = await api.uploadImage(imageFile, {
-          room,
-          cupboard,
-          shelf,
-          organizer: organizer || undefined,
-          item: name,
-          old_image: oldImage,
-        });
-        setUploadStatus('✓ Imagine încărcată');
+      if (trackQuantity) {
+        updateData.quantity = quantity;
+        updateData.min_quantity = minQuantity;
       }
 
-      await api.updateItem(item.id, {
-        name,
-        aliases: aliases || undefined,
-        image: imagePath,
-        track_quantity: trackQuantity,
-        quantity: trackQuantity ? parseInt(quantity) || null : null,
-        min_quantity: trackQuantity ? parseInt(minQuantity) || null : null,
-      });
+      // Dacă se mută obiectul
+      if (showMove && moveRoom && moveCupboard && moveShelf) {
+        updateData.room = moveRoom;
+        updateData.cupboard = moveCupboard;
+        updateData.shelf = moveShelf;
+        updateData.organizer = moveOrganizer || null;
+      }
+
+      if (file) {
+        const imagePath = await api.uploadImage(file, {
+          room: moveRoom || item.location.split(' › ')[0],
+          cupboard: moveCupboard || item.location.split(' › ')[1],
+          shelf: moveShelf || item.location.split(' › ')[2],
+          organizer: moveOrganizer || organizer || undefined,
+          item: name,
+        });
+        updateData.image = imagePath;
+      }
+
+      await updateItem.mutateAsync({ id: item.id, data: updateData });
 
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Save error:', error);
-      alert(
-        `Eroare: ${error instanceof Error ? error.message : 'Salvare eșuată'}`
-      );
+      console.error('Error updating item:', error);
     } finally {
-      setIsSaving(false);
+      setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Ești sigur că vrei să ștergi obiectul "${item.name}"?`)) {
-      return;
-    }
+    if (!confirm(`Ești sigur că vrei să ștergi "${item.name}"?`)) return;
 
-    setIsDeleting(true);
+    setLoading(true);
     try {
-      await api.deleteItem(item.id);
+      await deleteItem.mutateAsync(item.id);
+
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Delete error:', error);
-      alert(
-        `Eroare: ${error instanceof Error ? error.message : 'Ștergere eșuată'}`
-      );
+      console.error('Error deleting item:', error);
     } finally {
-      setIsDeleting(false);
+      setLoading(false);
     }
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="600px">
-      <ModalHeader>✏️ Editare: {item.name}</ModalHeader>
+      <ModalHeader onClose={onClose}>✏️ Editează Obiect</ModalHeader>
 
-      {/* Locație */}
-      <div
-        style={{
-          background: 'var(--secondary-background-color)',
-          padding: '12px',
-          borderRadius: '6px',
-          marginBottom: '16px',
-        }}
-      >
-        <div
-          style={{
-            fontSize: '0.85em',
-            color: 'var(--secondary-text-color)',
-            marginBottom: '4px',
-          }}
-        >
-          📍 Locație:
-        </div>
-        <div style={{ fontWeight: 600 }}>{item.location}</div>
-      </div>
-
-      {/* Imagine curentă */}
-      <div style={{ marginBottom: '16px', textAlign: 'center' }}>
-        {previewUrl || item.image ? (
-          <img
-            src={previewUrl || item.image}
-            alt={item.name}
-            style={{
-              maxWidth: '400px',
-              maxHeight: '400px',
-              borderRadius: '8px',
-              objectFit: 'cover',
-            }}
+      <div className="space-y-4">
+        {/* Nume */}
+        <div>
+          <label className="text-ha-text text-sm block mb-1">Nume *</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
+            placeholder="Nume obiect"
           />
-        ) : (
-          <div
-            style={{
-              width: '120px',
-              height: '120px',
-              background: 'var(--divider-color)',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '3em',
-              margin: '0 auto',
-            }}
+        </div>
+
+        {/* Aliasuri */}
+        <div>
+          <label className="text-ha-text text-sm block mb-1">Aliasuri</label>
+          <input
+            type="text"
+            value={aliases}
+            onChange={(e) => setAliases(e.target.value)}
+            className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
+            placeholder="Ex: toner negru, cartus negru"
+          />
+        </div>
+
+        {/* Preview imagine */}
+        {preview && (
+          <img
+            src={preview}
+            alt="Preview"
+            className="max-w-full max-h-[20rem] object-cover rounded-sm m-auto"
+          />
+        )}
+
+        {/* Upload imagine */}
+        <div>
+          <label className="text-ha-text text-sm block mb-1">Imagine</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="w-full text-ha-text text-sm"
+          />
+        </div>
+
+        {/* Track Quantity */}
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="track-quantity-edit"
+            checked={trackQuantity}
+            onChange={(e) => setTrackQuantity(e.target.checked)}
+            className="w-4 h-4"
+          />
+          <label htmlFor="track-quantity-edit" className="text-ha-text text-sm">
+            Urmărește cantitatea
+          </label>
+        </div>
+
+        {/* Quantity fields */}
+        {trackQuantity && (
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-ha-text text-sm block mb-1">
+                Cantitate
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={quantity ?? ''}
+                onChange={(e) =>
+                  setQuantity(e.target.value ? parseInt(e.target.value) : null)
+                }
+                className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-ha-text text-sm block mb-1">
+                Cantitate minimă
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={minQuantity ?? ''}
+                onChange={(e) =>
+                  setMinQuantity(
+                    e.target.value ? parseInt(e.target.value) : null
+                  )
+                }
+                className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Locație curentă */}
+        <div className="bg-ha-secondary-bg p-3 rounded">
+          <div className="text-ha-text text-sm mb-1">📍 Locație curentă</div>
+          <div className="text-ha-text/70 text-xs">{item.location}</div>
+        </div>
+
+        {/* Buton mutare */}
+        {!showMove && (
+          <button
+            onClick={handleStartMove}
+            className="w-full py-2 bg-ha-card border border-ha-primary text-ha-primary rounded hover:bg-ha-secondary-bg transition"
           >
-            📦
+            🚚 Mută obiectul
+          </button>
+        )}
+
+        {/* Sistem de mutare */}
+        {showMove && (
+          <div className="border border-ha-primary rounded-lg p-4 space-y-3 bg-ha-card">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-ha-text font-semibold text-sm">
+                🚚 Mută în:
+              </span>
+              <button
+                onClick={handleCancelMove}
+                className="text-ha-error text-xs hover:underline"
+              >
+                Anulează mutarea
+              </button>
+            </div>
+
+            {/* Cameră */}
+            <div>
+              <label className="text-ha-text text-xs block mb-1">
+                Cameră *
+              </label>
+              <select
+                value={moveRoom}
+                onChange={(e) => {
+                  setMoveRoom(e.target.value);
+                  setMoveCupboard('');
+                  setMoveShelf('');
+                  setMoveOrganizer('');
+                }}
+                className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
+              >
+                <option value="">Selectează camera</option>
+                {rooms.map((r) => (
+                  <option key={r.id} value={r.name}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Dulap */}
+            {moveRoom && (
+              <div>
+                <label className="text-ha-text text-xs block mb-1">
+                  Dulap *
+                </label>
+                <select
+                  value={moveCupboard}
+                  onChange={(e) => {
+                    setMoveCupboard(e.target.value);
+                    setMoveShelf('');
+                    setMoveOrganizer('');
+                  }}
+                  className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
+                >
+                  <option value="">Selectează dulapul</option>
+                  {availableCupboards.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Raft */}
+            {moveCupboard && (
+              <div>
+                <label className="text-ha-text text-xs block mb-1">
+                  Raft *
+                </label>
+                <select
+                  value={moveShelf}
+                  onChange={(e) => {
+                    setMoveShelf(e.target.value);
+                    setMoveOrganizer('');
+                  }}
+                  className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
+                >
+                  <option value="">Selectează raftul</option>
+                  {availableShelves.map((s) => (
+                    <option key={s.id} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Organizator (opțional) */}
+            {moveShelf && (
+              <div>
+                <label className="text-ha-text text-xs block mb-1">
+                  Organizator (opțional)
+                </label>
+                <select
+                  value={moveOrganizer}
+                  onChange={(e) => setMoveOrganizer(e.target.value)}
+                  className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
+                >
+                  <option value="">Direct pe raft (fără organizator)</option>
+                  {availableOrganizers.map((o) => (
+                    <option key={o.id} value={o.name}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Preview locație nouă */}
+            {moveRoom && moveCupboard && moveShelf && (
+              <div className="bg-ha-secondary-bg p-2 rounded text-xs text-ha-text/70">
+                📍 Locație nouă:{' '}
+                <span className="font-semibold">
+                  {moveRoom} › {moveCupboard} › {moveShelf}
+                  {moveOrganizer && ` › ${moveOrganizer}`}
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Upload imagine nouă */}
-      <div style={{ marginBottom: '16px' }}>
-        <label
-          style={{
-            display: 'block',
-            fontSize: '0.9em',
-            marginBottom: '6px',
-            color: 'var(--secondary-text-color)',
-          }}
-        >
-          {item.image ? 'Schimbă' : 'Adaugă'} imagine
-        </label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleImageChange}
-          style={{
-            width: '100%',
-            padding: '8px',
-            border: '1px solid var(--divider-color)',
-            borderRadius: '4px',
-            boxSizing: 'border-box',
-          }}
-        />
-        <div
-          style={{
-            fontSize: '0.85em',
-            marginTop: '6px',
-            minHeight: '18px',
-            color: uploadStatus.includes('✓')
-              ? 'var(--success-color)'
-              : 'var(--primary-color)',
-          }}
-        >
-          {uploadStatus}
-        </div>
-      </div>
-
-      {/* Nume */}
-      <div style={{ marginBottom: '16px' }}>
-        <label
-          style={{
-            display: 'block',
-            fontSize: '0.9em',
-            marginBottom: '6px',
-            color: 'var(--secondary-text-color)',
-          }}
-        >
-          Nume obiect *
-        </label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '10px',
-            borderRadius: '4px',
-            border: '1px solid var(--divider-color)',
-            boxSizing: 'border-box',
-          }}
-        />
-      </div>
-
-      {/* Aliasuri */}
-      <div style={{ marginBottom: '16px' }}>
-        <label
-          style={{
-            display: 'block',
-            fontSize: '0.9em',
-            marginBottom: '6px',
-            color: 'var(--secondary-text-color)',
-          }}
-        >
-          Aliasuri (opțional)
-          <span
-            style={{ fontSize: '0.85em', color: 'var(--secondary-text-color)' }}
-          >
-            {' '}
-            - separate prin virgulă
-          </span>
-        </label>
-        <input
-          type="text"
-          value={aliases}
-          onChange={(e) => setAliases(e.target.value)}
-          placeholder="ex: cutie albastră, container mare"
-          style={{
-            width: '100%',
-            padding: '10px',
-            borderRadius: '4px',
-            border: '1px solid var(--divider-color)',
-            boxSizing: 'border-box',
-          }}
-        />
-      </div>
-
-      {/* Separator */}
-      <div
-        style={{
-          borderTop: '1px solid var(--divider-color)',
-          margin: '20px 0',
-        }}
-      />
-
-      {/* Tracking cantitate */}
-      <div style={{ marginBottom: '16px' }}>
-        <label
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer',
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={trackQuantity}
-            onChange={(e) => setTrackQuantity(e.target.checked)}
-            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-          />
-          <span style={{ fontWeight: 500 }}>
-            Urmărește cantitatea pentru acest obiect
-          </span>
-        </label>
-      </div>
-
-      {trackQuantity && (
-        <div style={{ marginBottom: '16px' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '12px',
-              marginBottom: '16px',
-            }}
-          >
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.9em',
-                  marginBottom: '6px',
-                  color: 'var(--secondary-text-color)',
-                }}
-              >
-                Cantitate curentă
-              </label>
-              <input
-                type="number"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                min="0"
-                placeholder="Ex: 5"
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '4px',
-                  border: '1px solid var(--divider-color)',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.9em',
-                  marginBottom: '6px',
-                  color: 'var(--secondary-text-color)',
-                }}
-              >
-                Cantitate minimă (alertă)
-              </label>
-              <input
-                type="number"
-                value={minQuantity}
-                onChange={(e) => setMinQuantity(e.target.value)}
-                min="0"
-                placeholder="Ex: 2"
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '4px',
-                  border: '1px solid var(--divider-color)',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Deep Link Section */}
-          <div
-            style={{
-              background: 'var(--info-color)',
-              color: 'white',
-              padding: '14px',
-              borderRadius: '8px',
-              marginBottom: '16px',
-            }}
-          >
-            <div
-              style={{
-                fontWeight: 600,
-                marginBottom: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <span style={{ fontSize: '1.2em' }}>📱</span>
-              <span>Deep Link pentru Scădere Cantitate</span>
-            </div>
-
-            <div
-              style={{
-                background: 'rgba(0,0,0,0.15)',
-                padding: '10px',
-                borderRadius: '6px',
-                marginBottom: '10px',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '0.85em',
-                  opacity: 0.9,
-                  marginBottom: '6px',
-                }}
-              >
-                🔗 Link aplicație:
-              </div>
-              <div
-                style={{
-                  fontFamily: 'monospace',
-                  fontSize: '0.75em',
-                  wordBreak: 'break-all',
-                  lineHeight: 1.4,
-                  userSelect: 'all',
-                }}
-              >
-                {consumeDeepLink}
-              </div>
-            </div>
-
-            <Button
-              variant="secondary"
-              onClick={handleCopyDeepLink}
-              style={{
-                width: '100%',
-                background: 'rgba(255,255,255,0.2)',
-                color: 'white',
-                border: '1px solid rgba(255,255,255,0.3)',
-                fontSize: '0.85em',
-              }}
-            >
-              📋 Copiază Link
-            </Button>
-
-            <div
-              style={{
-                fontSize: '0.8em',
-                opacity: 0.9,
-                marginTop: '10px',
-                lineHeight: 1.4,
-              }}
-            >
-              💡 <strong>Cum funcționează:</strong>
-              <br />• Generează un cod QR din acest link
-              <br />• Scanează QR-ul când folosești obiectul
-              <br />• Cantitatea se va scădea automat cu 1
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: 'var(--secondary-background-color)',
-              padding: '12px',
-              borderRadius: '6px',
-              fontSize: '0.9em',
-            }}
-          >
-            💡 <strong>Notă:</strong> Vei primi notificări automate când
-            cantitatea ajunge sub minimul setat.
-          </div>
-        </div>
-      )}
-
       <ModalFooter>
-        <Button
-          variant="primary"
+        <button
           onClick={handleSave}
-          disabled={isSaving}
-          style={{ flex: 1 }}
+          disabled={
+            loading ||
+            !name.trim() ||
+            (showMove && (!moveRoom || !moveCupboard || !moveShelf))
+          }
+          className="flex-1 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition disabled:opacity-50"
         >
-          {isSaving ? '⏳ Se salvează...' : '💾 Salvează Modificările'}
-        </Button>
-        <Button
-          variant="secondary"
+          {loading ? 'Se salvează...' : '💾 Salvează'}
+        </button>
+
+        <button
+          onClick={handleDelete}
+          disabled={loading}
+          className="flex-1 py-2 bg-ha-error text-white rounded hover:opacity-90 transition disabled:opacity-50"
+        >
+          {loading ? '...' : '🗑️ Șterge'}
+        </button>
+
+        <button
           onClick={onClose}
-          disabled={isSaving}
-          style={{ flex: 1 }}
+          disabled={loading}
+          className="flex-1 py-2 bg-ha-secondary-bg border border-ha-divider text-ha-text rounded hover:bg-ha-card transition"
         >
           Anulează
-        </Button>
+        </button>
       </ModalFooter>
-
-      {/* Move & Delete buttons */}
-      <div style={{ marginTop: '10px' }}>
-        <Button
-          variant="danger"
-          onClick={handleDelete}
-          disabled={isDeleting}
-          style={{ width: '100%' }}
-        >
-          {isDeleting ? '⏳ Se șterge...' : '🗑️ Șterge Obiect'}
-        </Button>
-      </div>
     </Modal>
   );
 }

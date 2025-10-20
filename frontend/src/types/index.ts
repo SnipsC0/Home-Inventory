@@ -50,8 +50,8 @@ export interface Item {
   name: string;
   aliases?: string;
   image?: string;
-  quantity?: number;
-  min_quantity?: number;
+  quantity?: number | null;
+  min_quantity?: number | null;
   track_quantity: boolean;
   location: string;
   room?: string;
@@ -94,3 +94,7 @@ export interface UploadContext {
   item?: string;
   old_image?: string;
 }
+
+export type ClickOrTouchEvent =
+  | React.MouseEvent<HTMLElement>
+  | React.TouchEvent<HTMLElement>;

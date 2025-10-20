@@ -46,7 +46,6 @@ export function createMockHass(): Hass {
         options.body = JSON.stringify(data);
       }
 
-      console.log(`📡 API Call: ${method} ${url}`);
       const response = await fetch(url, options);
 
       if (!response.ok) {

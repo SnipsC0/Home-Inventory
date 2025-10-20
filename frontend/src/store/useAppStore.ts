@@ -11,6 +11,39 @@ interface AppStore extends AppState {
   goBack: () => void;
 }
 
+const getStateFromURL = (): Partial<AppState> => {
+  if (typeof window === 'undefined') return {};
+
+  const params = new URLSearchParams(window.location.search);
+  return {
+    currentView: (params.get('view') as AppState['currentView']) || 'rooms',
+    selectedRoom: params.get('room'),
+    selectedCupboard: params.get('cupboard'),
+    selectedShelf: params.get('shelf'),
+    selectedOrganizer: params.get('organizer'),
+  };
+};
+
+const updateURL = (state: AppState) => {
+  if (typeof window === 'undefined') return;
+
+  const params = new URLSearchParams();
+
+  if (state.currentView && state.currentView !== 'rooms') {
+    params.set('view', state.currentView);
+  }
+  if (state.selectedRoom) params.set('room', state.selectedRoom);
+  if (state.selectedCupboard) params.set('cupboard', state.selectedCupboard);
+  if (state.selectedShelf) params.set('shelf', state.selectedShelf);
+  if (state.selectedOrganizer) params.set('organizer', state.selectedOrganizer);
+
+  const newURL = params.toString()
+    ? `${window.location.pathname}?${params.toString()}`
+    : window.location.pathname;
+
+  window.history.replaceState({}, '', newURL);
+};
+
 const initialState: AppState = {
   currentView: 'rooms',
   selectedRoom: null,
@@ -19,42 +52,74 @@ const initialState: AppState = {
   selectedOrganizer: null,
 };
 
-export const useAppStore = create<AppStore>((set, get) => ({
-  ...initialState,
+export const useAppStore = create<AppStore>((set, get) => {
+  const urlState = getStateFromURL();
+  const startState = { ...initialState, ...urlState };
 
-  setView: (view) => set({ currentView: view }),
+  return {
+    ...startState,
 
-  setSelectedRoom: (room) => set({ selectedRoom: room }),
+    setView: (view) => {
+      set({ currentView: view });
+      updateURL(get());
+    },
 
-  setSelectedCupboard: (cupboard) => set({ selectedCupboard: cupboard }),
+    setSelectedRoom: (room) => {
+      set({ selectedRoom: room });
+      updateURL(get());
+    },
 
-  setSelectedShelf: (shelf) => set({ selectedShelf: shelf }),
+    setSelectedCupboard: (cupboard) => {
+      set({ selectedCupboard: cupboard });
+      updateURL(get());
+    },
 
-  setSelectedOrganizer: (organizer) => set({ selectedOrganizer: organizer }),
+    setSelectedShelf: (shelf) => {
+      set({ selectedShelf: shelf });
+      updateURL(get());
+    },
 
-  reset: () => set(initialState),
+    setSelectedOrganizer: (organizer) => {
+      set({ selectedOrganizer: organizer });
+      updateURL(get());
+    },
 
-  goBack: () => {
-    const { currentView } = get();
+    reset: () => {
+      set(initialState);
+      updateURL(get());
+    },
 
-    switch (currentView) {
-      case 'cupboards':
-        set({ currentView: 'rooms', selectedRoom: null });
-        break;
-      case 'shelves':
-        set({ currentView: 'cupboards', selectedCupboard: null });
-        break;
-      case 'organizers':
-        set({ currentView: 'shelves', selectedShelf: null });
-        break;
-      case 'items':
-        set({ currentView: 'organizers', selectedOrganizer: null });
-        break;
-      case 'all-items':
-        set({ currentView: 'rooms' });
-        break;
-      default:
-        set({ currentView: 'rooms' });
-    }
-  },
-}));
+    goBack: () => {
+      const { currentView } = get();
+
+      switch (currentView) {
+        case 'cupboards':
+          set({ currentView: 'rooms', selectedRoom: null });
+          break;
+        case 'shelves':
+          set({ currentView: 'cupboards', selectedCupboard: null });
+          break;
+        case 'organizers':
+          set({ currentView: 'shelves', selectedShelf: null });
+          break;
+        case 'items':
+          set({ currentView: 'organizers', selectedOrganizer: null });
+          break;
+        case 'all-items':
+          set({ currentView: 'rooms' });
+          break;
+        default:
+          set({ currentView: 'rooms' });
+      }
+
+      updateURL(get());
+    },
+  };
+});
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', () => {
+    const urlState = getStateFromURL();
+    useAppStore.setState(urlState);
+  });
+}

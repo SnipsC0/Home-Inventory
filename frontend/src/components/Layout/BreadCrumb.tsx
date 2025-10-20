@@ -5,33 +5,15 @@ interface BreadcrumbProps {
 
 export function Breadcrumb({ onBack, currentLabel }: BreadcrumbProps) {
   return (
-    <div
-      style={{
-        marginBottom: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        color: 'var(--secondary-text-color)',
-        flexWrap: 'wrap',
-      }}
-    >
+    <div className="mb-4 flex items-center gap-2 text-ha-text flex-wrap">
       <button
         onClick={onBack}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: 'var(--primary-color)',
-          cursor: 'pointer',
-          fontSize: '1em',
-          padding: '4px 8px',
-        }}
+        className="text-ha-primary hover:underline px-1 py-1 transition"
       >
         ← Înapoi
       </button>
-      <span>/</span>
-      <span style={{ fontWeight: 600, color: 'var(--primary-text-color)' }}>
-        {currentLabel}
-      </span>
+      <span className="text-ha-text opacity-60">/</span>
+      <span className="font-semibold text-ha-text">{currentLabel}</span>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from './../node_modules/@tanstack/react-query-devtools/src/production';
 import { useHass } from './hooks/useHass';
 import { useAppStore } from './store/useAppStore';
 import { ApiService } from './services/api';
@@ -11,6 +12,7 @@ import OrganizersView from './views/OrganizersView';
 import ItemsView from './views/ItemsView';
 import AllItemsView from './views/AllItemsView';
 import CupboardsView from './views/CupboardView';
+import { isDev } from './config/dev';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,9 +23,16 @@ const queryClient = new QueryClient({
   },
 });
 
-export default function App() {
-  const { hass, loading, error } = useHass();
+interface AppProps {
+  hass?: any;
+  panel?: any;
+}
+
+function App({ hass: hassProp }: AppProps) {
+  const { hass: hassHook, loading, error } = useHass();
   const currentView = useAppStore((state) => state.currentView);
+
+  const hass = hassProp || hassHook;
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -37,7 +46,6 @@ export default function App() {
           useAppStore.getState().setSelectedCupboard(cupboard);
           useAppStore.getState().setView('shelves');
         }
-        // Clean URL
         window.history.replaceState({}, '', window.location.pathname);
       } catch (e) {
         console.warn('Invalid deep link');
@@ -45,54 +53,22 @@ export default function App() {
     }
   }, [hass]);
 
-  if (loading) {
+  if (loading && !hassProp) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '400px',
-          flexDirection: 'column',
-          gap: '16px',
-        }}
-      >
-        <div
-          style={{
-            width: '40px',
-            height: '40px',
-            border: '4px solid var(--divider-color)',
-            borderTopColor: 'var(--primary-color)',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-          }}
-        />
+      <div className="flex items-center justify-center min-h-[400px] flex-col gap-4 text-ha-text">
+        <div className="w-10 h-10 border-4 border-ha-divider border-t-ha-primary rounded-full animate-spin" />
         <div>Se conectează la Home Assistant...</div>
       </div>
     );
   }
 
-  if (error || !hass) {
+  if ((error && !hassProp) || !hass) {
     return (
-      <div
-        style={{
-          padding: '20px',
-          textAlign: 'center',
-          color: 'var(--error-color)',
-        }}
-      >
+      <div className="p-5 text-center text-ha-error">
         <p>{error?.message || 'Eroare la conectare'}</p>
         <button
           onClick={() => window.location.reload()}
-          style={{
-            marginTop: '16px',
-            padding: '10px 20px',
-            background: 'var(--primary-color)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }}
+          className="mt-4 px-5 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition"
         >
           Reîncarcă
         </button>
@@ -104,7 +80,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div style={{ padding: '16px' }}>
+      <div className="p-4 h-full box-border overflow-auto">
         {currentView === 'rooms' && <RoomsView api={api} />}
         {currentView === 'cupboards' && <CupboardsView api={api} />}
         {currentView === 'shelves' && <ShelvesView api={api} />}
@@ -113,11 +89,9 @@ export default function App() {
         {currentView === 'all-items' && <AllItemsView api={api} />}
       </div>
 
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+      {isDev && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   );
 }
+
+export default App;

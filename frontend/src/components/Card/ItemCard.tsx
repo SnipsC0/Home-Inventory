@@ -1,240 +1,161 @@
 import { useState } from 'react';
-import { Card } from './Card';
 import { ViewItemModal } from '../Modal/ViewItemModal';
 import { EditItemModal } from '../Modal/EditItemModal';
+import { useUpdateItemMutation } from '../../hooks/useItems';
 import type { Item } from '../../types';
 import type { ApiService } from '../../services/api';
 
 interface ItemCardProps {
   item: Item;
   api: ApiService;
-  onUpdate: () => void;
   organizer?: string | null;
+  variant?: 'normal' | 'compact';
 }
 
-export function ItemCard({ item, api, onUpdate, organizer }: ItemCardProps) {
+export function ItemCard({
+  item,
+  api,
+  organizer,
+  variant = 'normal',
+}: ItemCardProps) {
+  const updateItem = useUpdateItemMutation(api);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(
-    null
-  );
+  const [longPressTimer, setLongPressTimer] = useState<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   const isLowStock =
     item.track_quantity &&
     item.quantity !== null &&
+    item.quantity !== undefined &&
     item.min_quantity !== null &&
+    item.min_quantity !== undefined &&
     item.quantity <= item.min_quantity;
 
   const handleClick = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.qty-btn')) {
-      return;
-    }
+    if ((e.target as HTMLElement).closest('.qty-btn')) return;
     setShowViewModal(true);
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!(e.target as HTMLElement).closest('.qty-btn')) {
-      setShowEditModal(true);
-    }
+    if ((e.target as HTMLElement).closest('.qty-btn')) return;
+    setShowEditModal(true);
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if ((e.target as HTMLElement).closest('.qty-btn')) {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setShowEditModal(true);
-    }, 500);
+    if ((e.target as HTMLElement).closest('.qty-btn')) return;
+    const timer = setTimeout(() => setShowEditModal(true), 500);
     setLongPressTimer(timer);
   };
 
   const handleTouchEnd = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
+    if (longPressTimer) clearTimeout(longPressTimer);
+    setLongPressTimer(null);
   };
 
-  const handleQuantityChange = async (newQuantity: number) => {
-    try {
-      await api.updateItem(item.id, { quantity: newQuantity });
-      onUpdate();
-    } catch (error) {
-      console.error('Error updating quantity:', error);
-      alert('Eroare la actualizarea cantității');
-    }
+  const handleQuantityChange = (newQuantity: number) => {
+    updateItem.mutate({ id: item.id, data: { quantity: newQuantity } });
   };
 
-  let quantityDisplay = '';
-  if (item.track_quantity && item.quantity !== null) {
-    if (item.min_quantity !== null && item.min_quantity > 0) {
-      quantityDisplay = ` ${item.quantity}/${item.min_quantity}`;
-    } else {
-      quantityDisplay = ` ${item.quantity}`;
-    }
-  }
+  const quantityDisplay =
+    item.track_quantity && item.quantity !== null && item.quantity !== undefined
+      ? item.min_quantity !== null &&
+        item.min_quantity !== undefined &&
+        item.min_quantity > 0
+        ? ` ${item.quantity}/${item.min_quantity}`
+        : ` ${item.quantity}`
+      : '';
+
+  const isCompact = variant === 'compact';
 
   return (
     <>
-      <Card
+      <div
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-        style={{
-          cursor: 'pointer',
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-          WebkitTouchCallout: 'none',
-        }}
+        className={`bg-ha-card p-3 rounded-lg shadow-ha cursor-pointer select-none flex flex-col justify-between text-center
+        ${
+          isLowStock
+            ? 'border-l-4 border-ha-error'
+            : 'border-l-4 border-transparent'
+        }`}
       >
         <div
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
           onTouchMove={handleTouchEnd}
+          className={`${isCompact ? 'items-center gap-4' : ''}`}
         >
           {/* Image */}
           {item.image ? (
             <div
-              style={{
-                width: '100%',
-                height: '150px',
-                background: 'var(--secondary-background-color)',
-                position: 'relative',
-                overflow: 'hidden',
-                borderRadius: '6px',
-                marginBottom: '12px',
-              }}
+              className={`w-fit h-fit bg-ha-secondary-bg relative overflow-hidden rounded mb-3 m-auto`}
             >
               <img
                 src={item.image}
                 alt={item.name}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                }}
+                className="w-[8rem] h-[10rem] object-cover"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
-                  e.currentTarget.parentElement!.innerHTML =
-                    '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3em;">📦</div>';
+                  const parent = e.currentTarget.parentElement as HTMLElement;
+                  if (parent) {
+                    parent.innerHTML =
+                      '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3em;">📦</div>';
+                  }
                 }}
               />
             </div>
           ) : (
-            <div
-              style={{
-                width: '100%',
-                height: '150px',
-                background: 'var(--secondary-background-color)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '3em',
-                borderRadius: '6px',
-                marginBottom: '12px',
-              }}
-            >
+            <div className="w-full h-[150px] bg-ha-secondary-bg flex items-center justify-center text-4xl rounded mb-3">
               📦
             </div>
           )}
 
           {/* Content */}
-          <div style={{ padding: '12px' }}>
-            <div
-              style={{
-                fontWeight: 600,
-                fontSize: '1.05em',
-                marginBottom: '4px',
-              }}
-            >
-              {item.name}
+          <div className="flex flex-row justify-center">
+            <div className="font-semibold text-ha-text text-md mb-1 screen max-sm:max-w-[10rem]">
+              <div>{item.name}</div>
               {quantityDisplay && (
                 <span
-                  style={{
-                    color: isLowStock
-                      ? 'var(--error-color)'
-                      : 'var(--primary-color)',
-                    fontWeight: 600,
-                  }}
+                  className={`font-semibold ${
+                    isLowStock ? 'text-ha-error' : 'text-green-500'
+                  }`}
                 >
                   {quantityDisplay}
                 </span>
               )}
+              {item.aliases && (
+                <div className="text-xs text-ha-text/60 italic font-light mt-1">
+                  {item.aliases}
+                </div>
+              )}
             </div>
-
-            {item.aliases && (
-              <div
-                style={{
-                  fontSize: '0.8em',
-                  color: 'var(--secondary-text-color)',
-                  marginTop: '6px',
-                  fontStyle: 'italic',
-                }}
-              >
-                aka: {item.aliases}
-              </div>
-            )}
-
-            {/* Quantity buttons */}
-            {item.track_quantity && (
-              <div
-                className="qty-controls"
-                style={{
-                  display: 'flex',
-                  gap: '8px',
-                  marginTop: '12px',
-                  justifyContent: 'center',
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  className="qty-btn"
-                  onClick={() =>
-                    handleQuantityChange(Math.max(0, (item.quantity || 0) - 1))
-                  }
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    background: 'var(--error-color)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '1.2em',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  −
-                </button>
-                <button
-                  className="qty-btn"
-                  onClick={() => handleQuantityChange((item.quantity || 0) + 1)}
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    background: 'var(--success-color)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '1.2em',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  +
-                </button>
-              </div>
-            )}
           </div>
         </div>
-      </Card>
+        {item.track_quantity && (
+          <div
+            className="flex gap-7 justify-center items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="qty-btn w-11 h-11 bg-ha-error text-white rounded flex items-center justify-center text-lg font-bold hover:opacity-90 transition"
+              onClick={() =>
+                handleQuantityChange(Math.max(0, (item.quantity || 0) - 1))
+              }
+            >
+              -
+            </button>
+            <button
+              className="qty-btn w-11 h-11 bg-ha-primary text-white rounded flex items-center justify-center text-lg font-bold hover:opacity-90 transition"
+              onClick={() => handleQuantityChange((item.quantity || 0) + 1)}
+            >
+              +
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Modals */}
       {showViewModal && (
@@ -244,7 +165,6 @@ export function ItemCard({ item, api, onUpdate, organizer }: ItemCardProps) {
           item={item}
         />
       )}
-
       {showEditModal && (
         <EditItemModal
           isOpen={true}
@@ -252,7 +172,7 @@ export function ItemCard({ item, api, onUpdate, organizer }: ItemCardProps) {
           item={item}
           api={api}
           organizer={organizer}
-          onSuccess={onUpdate}
+          onSuccess={() => setShowEditModal(false)}
         />
       )}
     </>

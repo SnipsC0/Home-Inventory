@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Modal, ModalHeader, ModalFooter } from './Modal';
-import { Button } from '../Button/Button';
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -19,63 +18,46 @@ export function DeleteModal({
   itemType,
   itemCount = 0,
 }: DeleteModalProps) {
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
-    setIsDeleting(true);
+    setLoading(true);
     try {
       await onConfirm();
       onClose();
-    } catch (error) {
-      console.error('Delete error:', error);
-      alert(
-        `Eroare: ${error instanceof Error ? error.message : 'Ștergere eșuată'}`
-      );
     } finally {
-      setIsDeleting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} maxWidth="400px">
-      <ModalHeader>
-        <span style={{ color: 'var(--error-color)' }}>
-          ⚠️ Ștergere {itemType}
-        </span>
-      </ModalHeader>
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <ModalHeader onClose={onClose}>Ștergere {itemType}</ModalHeader>
 
-      <p style={{ marginBottom: '20px', lineHeight: 1.6 }}>
-        Ești sigur că vrei să ștergi {itemType.toLowerCase()}{' '}
-        <strong>{itemName}</strong>?
+      <div className="text-ha-text leading-relaxed mb-4">
+        Ești sigur că vrei să ștergi <strong>{itemName}</strong>?
         {itemCount > 0 && (
-          <>
-            <br />
-            <br />
-            <span style={{ color: 'var(--error-color)' }}>
-              ⚠️ Acest {itemType.toLowerCase()} conține {itemCount} obiecte care
-              vor fi șterse!
-            </span>
-          </>
+          <span className="block mt-2 text-ha-error">
+            ⚠ Acest {itemType.toLowerCase()} conține {itemCount} elemente care
+            vor fi șterse!
+          </span>
         )}
-      </p>
+      </div>
 
       <ModalFooter>
-        <Button
-          variant="danger"
+        <button
+          className="flex-1 py-2 bg-ha-error text-white rounded hover:opacity-90 transition disabled:opacity-50"
           onClick={handleConfirm}
-          disabled={isDeleting}
-          style={{ flex: 1 }}
+          disabled={loading}
         >
-          {isDeleting ? '⏳ Se șterge...' : '🗑️ Șterge Definitiv'}
-        </Button>
-        <Button
-          variant="secondary"
+          {loading ? 'Se șterge...' : '🗑️ Șterge'}
+        </button>
+        <button
+          className="flex-1 py-2 bg-ha-secondary-bg border border-ha-divider text-ha-text rounded hover:bg-ha-card transition"
           onClick={onClose}
-          disabled={isDeleting}
-          style={{ flex: 1 }}
         >
           Anulează
-        </Button>
+        </button>
       </ModalFooter>
     </Modal>
   );

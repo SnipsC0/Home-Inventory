@@ -40,7 +40,6 @@ export function useHass(maxAttempts = 100, delayMs = 100) {
 
   useEffect(() => {
     if (isDev && import.meta.env.VITE_HA_TOKEN) {
-      console.log('🔧 DEV MODE: Using mock Hass connection');
       const mockHass = createMockHass();
       setHass(mockHass);
       setLoading(false);
@@ -55,7 +54,6 @@ export function useHass(maxAttempts = 100, delayMs = 100) {
         const foundHass = findHass();
 
         if (foundHass?.auth) {
-          console.log('✅ Connected to Home Assistant');
           setHass(foundHass);
           setLoading(false);
           return;

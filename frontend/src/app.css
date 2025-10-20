@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-ha-text: var(--primary-text-color);
+  --color-ha-primary: var(--primary-color);
+  --color-ha-error: var(--error-color);
+  --color-ha-card: var(--card-background-color);
+  --color-ha-secondary-bg: var(--secondary-background-color);
+  --color-ha-divider: var(--divider-color);
+
+  --shadow-ha: 0 2px 4px rgba(0, 0, 0, 0.1);
+}

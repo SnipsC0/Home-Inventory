@@ -13,7 +13,7 @@ import type { Room } from '../types';
 export default function RoomsView({ api }: { api: ApiService }) {
   const { data: rooms = [], isLoading, error } = useRooms(api);
   const { data: config } = useHomeInventarConfig(api);
-  const { goToRoom, goToAllItems } = useRoomNavigation();
+  const { goToRoom, goToAllItems, goToTrackedItems } = useRoomNavigation();
   const { addRoom, updateRoom, deleteRoom } = useRoomMutations(api);
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -28,6 +28,7 @@ export default function RoomsView({ api }: { api: ApiService }) {
     <div className="space-y-4">
       <RoomsHeader
         allowEdit={config?.allow_structure_modification}
+        onTrackStock={goToTrackedItems}
         onAllItemsClick={goToAllItems}
         onAddRoom={() => setShowAddModal(true)}
       />

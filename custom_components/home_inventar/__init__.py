@@ -26,7 +26,7 @@ from .const import DOMAIN
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
-VERSION = f"1.4.0.{int(time.time())}{random.randint(1000, 9999)}"
+VERSION = f"2.0.0.{int(time.time())}{random.randint(1000, 9999)}"
 
 
 def ensure_data_folders(hass: HomeAssistant):
@@ -101,6 +101,9 @@ async def async_setup_entry(hass, entry):
         else:
             raise
     
+    await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
+    _LOGGER.info("[Home Inventar] ✅ Senzori înregistrați")
+    
     entry.async_on_unload(entry.add_update_listener(async_update_options))
     
     return True
@@ -112,5 +115,10 @@ async def async_update_options(hass: HomeAssistant, entry):
 
 async def async_unload_entry(hass, entry):
     _LOGGER.info("[Home Inventar] Integrare dezinstalată.")
-    hass.data[DOMAIN].pop("entry", None)
-    return True
+    
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, ["sensor"])
+    
+    if unload_ok:
+        hass.data[DOMAIN].pop("entry", None)
+    
+    return unload_ok

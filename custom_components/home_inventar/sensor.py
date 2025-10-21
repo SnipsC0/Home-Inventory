@@ -3,13 +3,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import Entity
 from homeassistant.components.sensor import SensorEntity
 from datetime import timedelta
-from .const import DOMAIN
+from .const import DOMAIN, DB_PATH, INTEGRATION_NAME
 
 _LOGGER = logging.getLogger(__name__)
-SCAN_INTERVAL = timedelta(minutes=5)
+SCAN_INTERVAL = timedelta(minutes=1)
 
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities):
-    db_path = hass.config.path(f"custom_components/{DOMAIN}/storage/inventar.db")
+    db_path = hass.config.path(DB_PATH)
     
     sensors = [
         InventoryTotalItemsSensor(hass, db_path),
@@ -26,7 +26,7 @@ class InventoryTotalItemsSensor(SensorEntity):
         self._hass = hass
         self._db_path = db_path
         self._state = 0
-        self._attr_name = "Inventar: Total Obiecte"
+        self._attr_name = f"{INTEGRATION_NAME} Total items"
         self._attr_unique_id = f"{DOMAIN}_total_items"
         self._attr_icon = "mdi:package-variant"
 
@@ -37,7 +37,7 @@ class InventoryTotalItemsSensor(SensorEntity):
     @property
     def extra_state_attributes(self):
         return {
-            "unit_of_measurement": "obiecte",
+            "unit_of_measurement": "items",
         }
 
     async def async_update(self):
@@ -59,7 +59,7 @@ class InventoryLowStockSensor(SensorEntity):
         self._db_path = db_path
         self._state = 0
         self._items = []
-        self._attr_name = "Inventar: Stoc Redus"
+        self._attr_name = f"{INTEGRATION_NAME}: Low stock"
         self._attr_unique_id = f"{DOMAIN}_low_stock"
         self._attr_icon = "mdi:alert-circle"
 
@@ -70,7 +70,7 @@ class InventoryLowStockSensor(SensorEntity):
     @property
     def extra_state_attributes(self):
         return {
-            "unit_of_measurement": "obiecte",
+            "unit_of_measurement": "items",
             "items": self._items,
         }
 
@@ -118,7 +118,7 @@ class InventoryTrackedItemsSensor(SensorEntity):
         self._db_path = db_path
         self._state = 0
         self._items = []
-        self._attr_name = "Inventar: Obiecte Urmărite"
+        self._attr_name = f"{INTEGRATION_NAME}: Tracked items"
         self._attr_unique_id = f"{DOMAIN}_tracked_items"
         self._attr_icon = "mdi:playlist-check"
 
@@ -129,7 +129,7 @@ class InventoryTrackedItemsSensor(SensorEntity):
     @property
     def extra_state_attributes(self):
         return {
-            "unit_of_measurement": "obiecte",
+            "unit_of_measurement": "items",
             "items": self._items,
         }
 
@@ -146,6 +146,7 @@ class InventoryTrackedItemsSensor(SensorEntity):
                 JOIN cupboards c ON s.cupboard_id = c.id
                 JOIN rooms r ON c.room_id = r.id
                 WHERE i.track_quantity = 1
+                    AND i.min_quantity IS NOT NULL
                 ORDER BY i.name
             ''')
             rows = cur.fetchall()

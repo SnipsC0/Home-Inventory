@@ -1,6 +1,7 @@
 ## 🏷️ 1.4.0
 
-- added sensors for tracked items & low stock
+- added sensors in HA for tracked items & low stock & all items count
+- added new view for tracked items
 - fixed bug for negative quantity
 - fixed updating rendering photos
 - fixed bugs modals for quantity

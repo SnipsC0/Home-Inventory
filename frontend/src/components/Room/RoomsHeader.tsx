@@ -2,12 +2,14 @@ interface Props {
   allowEdit?: boolean;
   onAllItemsClick: () => void;
   onAddRoom: () => void;
+  onTrackStock: () => void;
 }
 
 export default function RoomsHeader({
   allowEdit,
   onAddRoom,
   onAllItemsClick,
+  onTrackStock,
 }: Props) {
   return (
     <div className="flex flex-wrap gap-3 mb-4 justify-between items-center">
@@ -21,6 +23,12 @@ export default function RoomsHeader({
           className="px-3 py-2 bg-ha-secondary-bg border border-ha-divider text-ha-text rounded hover:bg-ha-card transition"
         >
           📦 Toate Obiectele
+        </button>
+        <button
+          onClick={onTrackStock}
+          className="px-3 py-2 bg-ha-secondary-bg border border-ha-divider text-ha-text rounded hover:bg-ha-card transition"
+        >
+          📦 Stoc
         </button>
 
         {allowEdit && (

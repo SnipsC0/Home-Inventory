@@ -9,9 +9,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class HomeInventarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-
-    VERSION = 1
-
     async def async_step_user(self, user_input=None):
         _LOGGER.debug("[HomeInventar] Config flow user step called")
         

@@ -78,7 +78,8 @@ export interface AppState {
     | 'shelves'
     | 'organizers'
     | 'items'
-    | 'all-items';
+    | 'all-items'
+    | 'tracked-items';
   selectedRoom: string | null;
   selectedCupboard: string | null;
   selectedShelf: string | null;

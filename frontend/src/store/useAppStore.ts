@@ -108,6 +108,9 @@ export const useAppStore = create<AppStore>((set, get) => {
         case 'all-items':
           set({ currentView: 'rooms' });
           break;
+        case 'tracked-items':
+          set({ currentView: 'rooms' });
+          break;
         default:
           set({ currentView: 'rooms' });
       }

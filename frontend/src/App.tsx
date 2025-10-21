@@ -13,6 +13,7 @@ import ItemsView from './views/ItemsView';
 import AllItemsView from './views/AllItemsView';
 import CupboardsView from './views/CupboardView';
 import { isDev } from './config/dev';
+import TrackedItemsView from './views/TrackedItemsView';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -87,6 +88,7 @@ function App({ hass: hassProp }: AppProps) {
         {currentView === 'organizers' && <OrganizersView api={api} />}
         {currentView === 'items' && <ItemsView api={api} />}
         {currentView === 'all-items' && <AllItemsView api={api} />}
+        {currentView === 'tracked-items' && <TrackedItemsView api={api} />}
       </div>
 
       {isDev && <ReactQueryDevtools initialIsOpen={false} />}

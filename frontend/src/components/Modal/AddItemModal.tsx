@@ -15,7 +15,7 @@ interface AddItemModalProps {
   organizerName?: string | null;
 }
 
-export function AddItemModal({
+export default function AddItemModal({
   isOpen,
   onClose,
   onSave,
@@ -45,12 +45,25 @@ export function AddItemModal({
     if (!name.trim()) return;
 
     setLoading(true);
+
+    let qty: number | null;
+
+    if (trackQuantity) {
+      if (quantity === null || quantity < 0) {
+        qty = 0;
+      } else {
+        qty = quantity;
+      }
+    } else {
+      qty = null;
+    }
+
     try {
       await onSave({
         name: name.trim(),
         aliases: aliases.trim() || undefined,
         imageFile,
-        quantity: trackQuantity ? quantity : null,
+        quantity: qty,
         min_quantity: trackQuantity ? minQuantity : null,
         track_quantity: trackQuantity,
       });

@@ -8,7 +8,7 @@ interface EditShelfModalProps {
   currentName: string;
 }
 
-export function EditShelfModal({
+export default function EditShelfModal({
   isOpen,
   onClose,
   onSave,

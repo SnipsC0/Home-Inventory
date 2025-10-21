@@ -28,11 +28,13 @@ class HomeInventarAllItemsView(HomeAssistantView):
                     i.aliases,
                     r.name as room_name,
                     c.name as cupboard_name,
-                    s.name as shelf_name
+                    s.name as shelf_name,
+                    o.name as organizer_name
                 FROM items i
                 JOIN shelves s ON i.shelf_id = s.id
                 JOIN cupboards c ON s.cupboard_id = c.id
                 JOIN rooms r ON c.room_id = r.id
+                LEFT JOIN organizers o ON i.organizer_id = o.id
                 ORDER BY i.created_at DESC
             ''')
             rows = cur.fetchall()
@@ -49,7 +51,7 @@ class HomeInventarAllItemsView(HomeAssistantView):
                 "room": r[7],
                 "cupboard": r[8],
                 "shelf": r[9],
-                "location": f"{r[7]} / {r[8]} / {r[9]}"
+                "location": f"{r[7]} / {r[8]} / {r[9]}" + (f" / {r[10]}" if r[10] else "")
             } for r in rows]
 
         data = await request.app["hass"].async_add_executor_job(fetch)
@@ -97,6 +99,7 @@ class HomeInventarUpdateItemQuantityView(HomeAssistantView):
             
             cur.execute(sql, params)
             conn.commit()
+
             count = cur.rowcount
             conn.close()
             return count
@@ -127,7 +130,9 @@ class HomeInventarUpdateItemQuantityView(HomeAssistantView):
             
             item_id_db, name, qty, min_qty, track_qty, aliases, room, cupboard, shelf = row
             
-            if track_qty and qty is not None and min_qty is not None and qty > 0:
+            # MODIFICARE: verificăm dacă track_quantity este activ și min_quantity NU este NULL
+            # Permitem min_quantity = 0 și verificăm qty <= min_qty (inclusiv 0 <= 0)
+            if track_qty and qty is not None and min_qty is not None:
                 if qty <= min_qty:
                     return {
                         "item_id": item_id_db,

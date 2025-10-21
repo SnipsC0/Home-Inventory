@@ -56,7 +56,8 @@ class HomeInventarItemsView(HomeAssistantView):
                     SELECT i.id, i.name, i.image, i.quantity, i.min_quantity, i.track_quantity, i.aliases,
                         r.name as room_name,
                         c.name as cupboard_name,
-                        s.name as shelf_name
+                        s.name as shelf_name,
+                        o.name as organizer_name
                     FROM items i
                     JOIN organizers o ON i.organizer_id = o.id
                     JOIN shelves s ON i.shelf_id = s.id
@@ -67,9 +68,11 @@ class HomeInventarItemsView(HomeAssistantView):
                 ''', (room, cupboard, shelf, organizer))
             else:
                 cur.execute('''
-                    SELECT i.id, i.name, i.image, i.quantity, i.min_quantity, i.track_quantity, i.aliases, r.name as room_name,
-                    c.name as cupboard_name,
-                    s.name as shelf_name
+                    SELECT i.id, i.name, i.image, i.quantity, i.min_quantity, i.track_quantity, i.aliases, 
+                        r.name as room_name,
+                        c.name as cupboard_name,
+                        s.name as shelf_name,
+                        NULL as organizer_name
                     FROM items i
                     JOIN shelves s ON i.shelf_id = s.id
                     JOIN cupboards c ON s.cupboard_id = c.id
@@ -84,6 +87,11 @@ class HomeInventarItemsView(HomeAssistantView):
             result = []
             for r in rows:
                 image = r[2] if r[2] else ""
+                # r[10] este organizer_name
+                location = f"{r[7]} / {r[8]} / {r[9]}"
+                if r[10]:  # dacă există organizer
+                    location += f" / {r[10]}"
+                
                 item = {
                     "id": r[0], 
                     "name": r[1], 
@@ -92,9 +100,9 @@ class HomeInventarItemsView(HomeAssistantView):
                     "min_quantity": r[4],
                     "track_quantity": bool(r[5]),
                     "aliases": r[6],
-                    "location": f"{r[7]} › {r[8]} › {r[9]}"
+                    "location": location
                 }
-                _LOGGER.debug(f"Item fetched - ID: {r[0]}, Name: {r[1]}, Image: '{image}'")
+                _LOGGER.debug(f"Item fetched - ID: {r[0]}, Name: {r[1]}, Location: '{location}'")
                 result.append(item)
             
             return result
@@ -215,8 +223,9 @@ class HomeInventarItemView(HomeAssistantView):
             name = data.get("name")
             aliases = data.get("aliases")
             new_image = data.get("image")
-            quantity = data.get("quantity")
-            min_quantity = data.get("min_quantity")
+            # MODIFICARE: Folosim "in data" pentru a detecta prezența cheii, nu doar valoarea
+            quantity = data.get("quantity") if "quantity" in data else None
+            min_quantity = data.get("min_quantity") if "min_quantity" in data else None
             track_quantity = data.get("track_quantity")
             
             new_room = data.get("room")
@@ -251,13 +260,16 @@ class HomeInventarItemView(HomeAssistantView):
                     params.append(new_image)
                     _LOGGER.debug(f"Updating item image to: '{new_image}'")
                 
-                if quantity is not None:
+                # MODIFICARE: Verificăm dacă cheia există în request, nu doar dacă valoarea e not None
+                if "quantity" in data:
                     updates.append("quantity = ?")
                     params.append(quantity)
+                    _LOGGER.debug(f"Updating quantity to: {quantity}")
                 
-                if min_quantity is not None:
+                if "min_quantity" in data:
                     updates.append("min_quantity = ?")
                     params.append(min_quantity)
+                    _LOGGER.debug(f"Updating min_quantity to: {min_quantity}")
                 
                 if track_quantity is not None:
                     updates.append("track_quantity = ?")
@@ -336,14 +348,15 @@ class HomeInventarItemView(HomeAssistantView):
                 self._delete_image_file(old_image)
                 _LOGGER.debug(f"Old image cleaned: {old_image}")
             
-            if quantity is not None:
+            # Verificare low stock doar dacă quantity a fost modificată
+            if "quantity" in data:
                 def check_low_stock():
                     conn = sqlite3.connect(self.db_path)
                     cur = conn.cursor()
                     
                     cur.execute('''
                         SELECT i.id, i.name, i.quantity, i.min_quantity, i.track_quantity, i.aliases,
-                               r.name as room_name, c.name as cupboard_name, s.name as shelf_name
+                            r.name as room_name, c.name as cupboard_name, s.name as shelf_name
                         FROM items i
                         JOIN shelves s ON i.shelf_id = s.id
                         JOIN cupboards c ON s.cupboard_id = c.id
@@ -359,7 +372,7 @@ class HomeInventarItemView(HomeAssistantView):
                     
                     item_id_db, name, qty, min_qty, track_qty, aliases, room, cupboard, shelf = row
                     
-                    if track_qty and qty is not None and min_qty is not None and qty > 0:
+                    if track_qty and qty is not None and min_qty is not None:
                         if qty <= min_qty:
                             return {
                                 "item_id": item_id_db,

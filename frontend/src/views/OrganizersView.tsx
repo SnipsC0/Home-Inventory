@@ -6,11 +6,11 @@ import { useOrganizerNavigation } from '../hooks/useOrganizerNavigation';
 import { useOrganizerActions } from '../hooks/useOrganizerActions';
 import { useItemActions } from '../hooks/useItemActions';
 import { useAppStore } from '../store/useAppStore';
-import { DeleteModal } from '../components/Modal/DeleteModal';
-import { EditOrganizerModal } from '../components/Modal/EditOrganizerModal';
-import { AddItemModal } from '../components/Modal/AddItemModal';
-import { ItemCard } from '../components/Card/ItemCard';
-import { Breadcrumb } from '../components/Layout/BreadCrumb';
+import DeleteModal from '../components/Modal/DeleteModal';
+import EditOrganizerModal from '../components/Modal/EditOrganizerModal';
+import AddItemModal from '../components/Modal/AddItemModal';
+import ItemCard from '../components/Item/ItemCard';
+import Breadcrumb from '../components/Layout/BreadCrumb';
 import OrganizersHeader from '../components/Organizer/OrganizersHeader';
 import type { ApiService } from '../services/api';
 import type { Organizer } from '../types';
@@ -48,15 +48,6 @@ export default function OrganizersView({ api }: { api: ApiService }) {
     null
   );
 
-  if (!selectedShelf) {
-    goBack();
-    return null;
-  }
-
-  if (organizersLoading || itemsLoading) {
-    return <div className="text-ha-text">Se încarcă...</div>;
-  }
-
   const organizers = organizersData?.organizers || [];
   const itemsWithoutOrganizer = directItems.length;
 
@@ -67,6 +58,15 @@ export default function OrganizersView({ api }: { api: ApiService }) {
   const sortedDirectItems = useMemo(() => {
     return [...directItems].sort((a, b) => a.name.localeCompare(b.name, 'ro'));
   }, [directItems]);
+
+  if (!selectedShelf) {
+    goBack();
+    return null;
+  }
+
+  if (organizersLoading || itemsLoading) {
+    return <div className="text-ha-text">Se încarcă...</div>;
+  }
 
   return (
     <div className="space-y-4">

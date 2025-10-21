@@ -10,7 +10,7 @@ interface DeleteModalProps {
   itemCount?: number;
 }
 
-export function DeleteModal({
+export default function DeleteModal({
   isOpen,
   onClose,
   onConfirm,

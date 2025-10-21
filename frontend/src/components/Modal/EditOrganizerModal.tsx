@@ -18,7 +18,7 @@ interface EditOrganizerModalProps {
   api?: ApiService;
 }
 
-export function EditOrganizerModal({
+export default function EditOrganizerModal({
   isOpen,
   onClose,
   onSave,
@@ -41,15 +41,12 @@ export function EditOrganizerModal({
   const [moveCupboard, setMoveCupboard] = useState<string>('');
   const [moveShelf, setMoveShelf] = useState<string>('');
 
-  // Queries pentru mutare (doar dacă este editare, nu adăugare)
   const { data: rooms = [] } =
     api && currentName ? useRooms(api) : { data: [] };
 
-  // State pentru date încărcate dinamic
   const [availableCupboards, setAvailableCupboards] = useState<Cupboard[]>([]);
   const [availableShelves, setAvailableShelves] = useState<Shelf[]>([]);
 
-  // Încarcă cupboards când se schimbă camera
   useEffect(() => {
     if (moveRoom && api) {
       api.getCupboards(moveRoom).then(setAvailableCupboards);
@@ -58,7 +55,6 @@ export function EditOrganizerModal({
     }
   }, [moveRoom, api]);
 
-  // Încarcă shelves când se schimbă dulapul
   useEffect(() => {
     if (moveRoom && moveCupboard && api) {
       api.getShelves(moveRoom, moveCupboard).then(setAvailableShelves);
@@ -80,7 +76,6 @@ export function EditOrganizerModal({
 
   const handleStartMove = () => {
     setShowMove(true);
-    // Setează valorile curente ca default
     setMoveRoom(currentRoom || '');
     setMoveCupboard(currentCupboard || '');
     setMoveShelf(currentShelf || '');
@@ -165,7 +160,6 @@ export function EditOrganizerModal({
           />
         </div>
 
-        {/* Locație curentă (doar în modul editare) */}
         {isEditMode && (
           <div className="bg-ha-secondary-bg p-3 rounded">
             <div className="text-ha-text text-sm mb-1">📍 Locație curentă</div>
@@ -175,7 +169,6 @@ export function EditOrganizerModal({
           </div>
         )}
 
-        {/* Buton mutare (doar în modul editare) */}
         {isEditMode && !showMove && (
           <button
             onClick={handleStartMove}

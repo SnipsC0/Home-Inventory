@@ -146,6 +146,10 @@ class HomeInventarOrganizersView(HomeAssistantView):
             organizer_id = data.get("id")
             name = data.get("name")
             new_image = data.get("image")
+            
+            new_room = data.get("room")
+            new_cupboard = data.get("cupboard")
+            new_shelf = data.get("shelf")
 
             if not organizer_id:
                 _LOGGER.error("PATCH organizers - missing organizer ID")
@@ -174,9 +178,37 @@ class HomeInventarOrganizersView(HomeAssistantView):
                     params.append(new_image)
                     _LOGGER.info(f"Updating organizer image to: '{new_image}'")
                 
+                if new_room and new_cupboard and new_shelf:
+                    _LOGGER.info(f"Moving organizer {organizer_id} to: {new_room}/{new_cupboard}/{new_shelf}")
+                    
+                    cur.execute('''
+                        SELECT s.id FROM shelves s
+                        JOIN cupboards c ON s.cupboard_id = c.id
+                        JOIN rooms r ON c.room_id = r.id
+                        WHERE r.name = ? AND c.name = ? AND s.name = ?
+                    ''', (new_room, new_cupboard, new_shelf))
+                    
+                    shelf_row = cur.fetchone()
+                    if not shelf_row:
+                        conn.close()
+                        return 0, None, "Destination shelf not found"
+                    
+                    new_shelf_id = shelf_row[0]
+                    updates.append("shelf_id = ?")
+                    params.append(new_shelf_id)
+                    
+                    _LOGGER.info(f"Moving all items from organizer {organizer_id} to shelf_id {new_shelf_id}")
+                    cur.execute('''
+                        UPDATE items 
+                        SET shelf_id = ? 
+                        WHERE organizer_id = ?
+                    ''', (new_shelf_id, organizer_id))
+                    items_moved = cur.rowcount
+                    _LOGGER.info(f"Moved {items_moved} items to new shelf")
+
                 if not updates:
                     conn.close()
-                    return 0, None
+                    return 0, None, None
                 
                 params.append(organizer_id)
                 sql = f"UPDATE organizers SET {', '.join(updates)} WHERE id = ?"
@@ -187,9 +219,12 @@ class HomeInventarOrganizersView(HomeAssistantView):
                 count = cur.rowcount
                 conn.close()
                 
-                return count, old_image if (new_image is not None and old_image and old_image != new_image) else None
+                return count, old_image if (new_image is not None and old_image and old_image != new_image) else None, None
 
-            count, old_image = await request.app["hass"].async_add_executor_job(update_organizer)
+            count, old_image, error = await request.app["hass"].async_add_executor_job(update_organizer)
+            
+            if error:
+                return web.json_response({"error": error}, status=404)
             
             if count == 0:
                 _LOGGER.error(f"Organizer not found with ID: {organizer_id}")

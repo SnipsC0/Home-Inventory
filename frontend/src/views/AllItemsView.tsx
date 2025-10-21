@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Breadcrumb } from '../components/Layout/BreadCrumb';
+import Breadcrumb from '../components/Layout/BreadCrumb';
 import { useGlobalItems } from '../hooks/useItems';
-import { ItemCard } from '../components/Card/ItemCard';
+import ItemCard from '../components/Item/ItemCard';
 import type { ApiService } from '../services/api';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useAppStore } from '../store/useAppStore';
@@ -42,7 +42,6 @@ export default function AllItemsView({ api }: Props) {
     });
   }, [allItems, search]);
 
-  // Paginare locală
   const displayedItems = useMemo(() => {
     return filteredItems.slice(0, (currentPage + 1) * itemsPerPage);
   }, [filteredItems, currentPage]);

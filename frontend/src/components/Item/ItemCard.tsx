@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { ViewItemModal } from '../Modal/ViewItemModal';
-import { EditItemModal } from '../Modal/EditItemModal';
+import ViewItemModal from '../Modal/ViewItemModal';
+import EditItemModal from '../Modal/EditItemModal/EditItemModal';
 import { useUpdateItemMutation } from '../../hooks/useItems';
 import type { Item } from '../../types';
 import type { ApiService } from '../../services/api';
@@ -12,7 +12,7 @@ interface ItemCardProps {
   variant?: 'normal' | 'compact';
 }
 
-export function ItemCard({
+export default function ItemCard({
   item,
   api,
   organizer,
@@ -56,14 +56,13 @@ export function ItemCard({
   };
 
   const handleQuantityChange = (newQuantity: number) => {
+    if (newQuantity < 0) return;
     updateItem.mutate({ id: item.id, data: { quantity: newQuantity } });
   };
 
   const quantityDisplay =
     item.track_quantity && item.quantity !== null && item.quantity !== undefined
-      ? item.min_quantity !== null &&
-        item.min_quantity !== undefined &&
-        item.min_quantity > 0
+      ? item.min_quantity !== null && item.min_quantity !== undefined
         ? ` ${item.quantity}/${item.min_quantity}`
         : ` ${item.quantity}`
       : '';
@@ -140,6 +139,7 @@ export function ItemCard({
             onClick={(e) => e.stopPropagation()}
           >
             <button
+              disabled={item.quantity === 0}
               className="qty-btn w-11 h-11 bg-ha-error text-white rounded flex items-center justify-center text-lg font-bold hover:opacity-90 transition"
               onClick={() =>
                 handleQuantityChange(Math.max(0, (item.quantity || 0) - 1))

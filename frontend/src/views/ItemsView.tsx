@@ -3,9 +3,9 @@ import { useFilteredItems, useGlobalItems } from '../hooks/useItems';
 import { useHomeInventarConfig } from '../hooks/useHomeInventarConfig';
 import { useItemActions } from '../hooks/useItemActions';
 import { useAppStore } from '../store/useAppStore';
-import { AddItemModal } from '../components/Modal/AddItemModal';
-import { ItemCard } from '../components/Card/ItemCard';
-import { Breadcrumb } from '../components/Layout/BreadCrumb';
+import AddItemModal from '../components/Modal/AddItemModal';
+import ItemCard from '../components/Item/ItemCard';
+import Breadcrumb from '../components/Layout/BreadCrumb';
 import type { ApiService } from '../services/api';
 
 export default function ItemsView({ api }: { api: ApiService }) {

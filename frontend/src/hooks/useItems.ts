@@ -9,7 +9,7 @@ export function useGlobalItems(api: ApiService) {
       const items = await api.getAllItems();
       return items;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -64,27 +64,37 @@ export function useUpdateItemMutation(api: ApiService) {
     mutationFn: ({ id, data }: { id: number; data: Partial<Item> }) =>
       api.updateItem(id, data),
     onMutate: async ({ id, data }) => {
+      if (data.image) {
+        return { previousItems: undefined };
+      }
+
       await queryClient.cancelQueries({ queryKey: ['global-items'] });
 
       const previousItems = queryClient.getQueryData<Item[]>(['global-items']);
 
       queryClient.setQueryData<Item[]>(['global-items'], (old = []) =>
-        old.map((item) =>
-          item.id === id
-            ? JSON.parse(JSON.stringify({ ...item, ...data }))
-            : item
-        )
+        old.map((item) => {
+          if (item.id === id) {
+            return { ...item, ...data };
+          }
+          return item;
+        })
       );
 
       return { previousItems };
     },
     onSuccess: (_, variables) => {
+      if (variables.data.image) {
+        queryClient.refetchQueries({ queryKey: ['global-items'] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['global-items'] });
+      }
+
       if (
         variables.data.room ||
         variables.data.cupboard ||
         variables.data.shelf
       ) {
-        queryClient.invalidateQueries({ queryKey: ['global-items'] });
         queryClient.invalidateQueries({ queryKey: ['organizers'] });
       }
     },

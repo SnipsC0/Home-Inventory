@@ -7,7 +7,11 @@ interface ViewItemModalProps {
   item: Item;
 }
 
-export function ViewItemModal({ isOpen, onClose, item }: ViewItemModalProps) {
+export default function ViewItemModal({
+  isOpen,
+  onClose,
+  item,
+}: ViewItemModalProps) {
   const isLowStock =
     item.quantity &&
     item.min_quantity &&
@@ -89,7 +93,7 @@ export function ViewItemModal({ isOpen, onClose, item }: ViewItemModalProps) {
 
           {isLowStock && (
             <div className="p-3 bg-ha-error text-white rounded text-center text-sm">
-              ⚠️ <strong>Stoc redus!</strong> Recomandăm reaprovizionare.
+              ⚠️ <strong>Stoc redus!</strong> Necesită reaprovizionare.
             </div>
           )}
         </div>
@@ -104,7 +108,7 @@ export function ViewItemModal({ isOpen, onClose, item }: ViewItemModalProps) {
       {/* Footer */}
       <div className="text-center pt-4 border-t border-ha-divider">
         <div className="text-[0.85em] text-ha-text/70">
-          💡 Apă lungă sau click dreapta pentru editare
+          💡 Apasă lungă sau click dreapta pentru editare
         </div>
       </div>
     </Modal>

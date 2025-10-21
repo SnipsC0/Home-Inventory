@@ -26,7 +26,7 @@ from .const import DOMAIN
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
-VERSION = f"2.0.{int(time.time())}{random.randint(1000, 9999)}"
+VERSION = f"1.4.0.{int(time.time())}{random.randint(1000, 9999)}"
 
 
 def ensure_data_folders(hass: HomeAssistant):
@@ -89,7 +89,7 @@ async def async_setup_entry(hass, entry):
             config={
                 "_panel_custom": {
                     "name": "home-inventar-app",
-                    "module_url": f"/{DOMAIN}_static/app.js?v={VERSION}",
+                    "module_url": f"/{DOMAIN}_static/panel-wrapper.js?v={VERSION}",
                 }
             },
             require_admin=False,

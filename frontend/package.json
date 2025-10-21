@@ -1,7 +1,7 @@
 {
   "name": "home-inventar-frontend",
   "private": true,
-  "version": "1.2.2",
+  "version": "1.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

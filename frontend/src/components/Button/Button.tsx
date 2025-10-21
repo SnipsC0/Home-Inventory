@@ -9,7 +9,7 @@ interface ButtonProps {
   style?: CSSProperties;
 }
 
-export function Button({
+export default function Button({
   children,
   onClick,
   variant = 'primary',

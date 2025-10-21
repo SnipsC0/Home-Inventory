@@ -3,7 +3,7 @@ interface BreadcrumbProps {
   currentLabel: string;
 }
 
-export function Breadcrumb({ onBack, currentLabel }: BreadcrumbProps) {
+export default function Breadcrumb({ onBack, currentLabel }: BreadcrumbProps) {
   return (
     <div className="mb-4 flex items-center gap-2 text-ha-text flex-wrap">
       <button

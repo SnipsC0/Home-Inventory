@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Breadcrumb } from '../components/Layout/BreadCrumb';
+import Breadcrumb from '../components/Layout/BreadCrumb';
 import ShelvesHeader from '../components/Shelf/ShelvesHeader';
 import { useShelves } from '../hooks/useShelves';
 import { useHomeInventarConfig } from '../hooks/useHomeInventarConfig';
 import { useShelfNavigation } from '../hooks/useShelfNavigation';
 import { useShelfActions } from '../hooks/useShelfActions';
 import { useAppStore } from '../store/useAppStore';
-import { DeleteModal } from '../components/Modal/DeleteModal';
-import { EditShelfModal } from '../components/Modal/EditShelfModal';
+import DeleteModal from '../components/Modal/DeleteModal';
+import EditShelfModal from '../components/Modal/EditShelfModal';
 import type { ApiService } from '../services/api';
 import { Shelf } from '../types';
 

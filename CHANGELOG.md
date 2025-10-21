@@ -1,3 +1,31 @@
+## 🏷️ 1.4.0
+
+- added sensors for tracked items & low stock
+- fixed bug for negative quantity
+- fixed updating rendering photos
+- fixed bugs modals for quantity
+- fixed backend quantity confusion when min quantity 0 similar with null.
+
+## 🏷️ 1.3.0 - React frontend migration + UI/UX polish
+
+### Added
+
+- Migrated frontend architecture to **React** for improved maintainability and reactivity
+- **Persistent history tracking** for quantity changes and item interactions
+- **Smart search with diacritic normalization** — "paine" found and "pâine", "mar" can find "măr"
+- All items are now **auto-sorted alphabetically** for cleaner browsing
+
+### Improved
+
+- General UI consistency and more fluid interaction animations
+- Better touch interaction handling on mobile (long press / editable areas)
+- Cleaner layout alignment for cards and stock controls
+
+### Fixed
+
+- Minor glitches in interaction events not triggering correctly on repeated clicks/taps
+- Various small UI inconsistencies and rendering sync issues after optimistic updates
+
 ## 🏷️ 1.2.1 - Move objects + HA low stock event
 
 ### Fixed

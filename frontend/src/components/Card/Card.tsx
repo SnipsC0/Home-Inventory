@@ -55,7 +55,10 @@ interface CardContentProps {
   style?: CSSProperties;
 }
 
-export function CardContent({ children, style = {} }: CardContentProps) {
+export default function CardContent({
+  children,
+  style = {},
+}: CardContentProps) {
   return (
     <div
       style={{

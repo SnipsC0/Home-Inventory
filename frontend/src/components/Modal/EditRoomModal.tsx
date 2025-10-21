@@ -8,7 +8,7 @@ interface EditRoomModalProps {
   currentName: string;
 }
 
-export function EditRoomModal({
+export default function EditRoomModal({
   isOpen,
   onClose,
   onSave,

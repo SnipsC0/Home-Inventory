@@ -85,7 +85,6 @@ export function useOrganizerActions(api: ApiService) {
       if (name !== undefined) updateData.name = name;
       if (imagePath !== undefined) updateData.image = imagePath;
 
-      // Adaugă datele de mutare dacă există
       if (moveData) {
         updateData.room = moveData.room;
         updateData.cupboard = moveData.cupboard;

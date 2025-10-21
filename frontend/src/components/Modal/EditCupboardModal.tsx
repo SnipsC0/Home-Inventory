@@ -9,7 +9,7 @@ interface EditCupboardModalProps {
   cupboard: Cupboard;
 }
 
-export function EditCupboardModal({
+export default function EditCupboardModal({
   isOpen,
   onClose,
   onSave,

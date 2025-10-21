@@ -1,8 +1,25 @@
 import sqlite3
+import logging
+
+_LOGGER = logging.getLogger(__name__)
 
 def initialize_db(db_path: str):
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
+
+    # Setează PRAGMA-uri
+    pragmas = {
+        "journal_mode": "WAL",
+        "synchronous": "NORMAL",
+        "cache_size": "-64000",
+        "temp_store": "MEMORY",
+        "mmap_size": "268435456"
+    }
+    
+    for pragma, value in pragmas.items():
+        cur.execute(f"PRAGMA {pragma}={value}")
+        result = cur.execute(f"PRAGMA {pragma}").fetchone()
+        _LOGGER.debug(f"[DB] {pragma} = {result[0]}")
 
     cur.executescript('''
         CREATE TABLE IF NOT EXISTS rooms (

@@ -1,5 +1,6 @@
-## 🏷️ 1.4.0
+## 🏷️ 2.0.0 - Translations + new sensors + new view
 
+- added translations for en and ro
 - added sensors in HA for tracked items & low stock & all items count
 - added new view for tracked items
 - fixed bug for negative quantity

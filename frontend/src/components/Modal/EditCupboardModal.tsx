@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal, ModalHeader, ModalFooter } from './Modal';
 import type { Cupboard } from '../../types';
+import { useTranslation } from '../../i18n/I18nContext';
 
 interface EditCupboardModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export default function EditCupboardModal({
   onSave,
   cupboard,
 }: EditCupboardModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState(cupboard.name);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(cupboard.image || null);
@@ -40,7 +42,9 @@ export default function EditCupboardModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <ModalHeader onClose={onClose}>✏️ Editează Dulap</ModalHeader>
+      <ModalHeader onClose={onClose}>
+        ✏️ {t.common.edit} {t.cupboards.cupboard}
+      </ModalHeader>
 
       <div className="space-y-4">
         <input
@@ -48,7 +52,7 @@ export default function EditCupboardModal({
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
-          placeholder="Nume dulap"
+          placeholder={t.cupboards.cupboardName}
         />
 
         {/* Preview imagine */}
@@ -74,14 +78,14 @@ export default function EditCupboardModal({
           className="flex-1 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition disabled:opacity-50"
           disabled={loading}
         >
-          {loading ? 'Se salvează...' : '💾 Salvează'}
+          {loading ? t.common.saving : `💾 ${t.common.save}`}
         </button>
 
         <button
           onClick={onClose}
           className="flex-1 py-2 bg-ha-secondary-bg border border-ha-divider text-ha-text rounded hover:bg-ha-card transition"
         >
-          Anulează
+          {t.common.cancel}
         </button>
       </ModalFooter>
     </Modal>

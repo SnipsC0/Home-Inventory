@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal, ModalHeader, ModalFooter } from './Modal';
+import { useTranslation } from '../../i18n/I18nContext';
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export default function DeleteModal({
   itemCount = 0,
 }: DeleteModalProps) {
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
 
   const handleConfirm = async () => {
     setLoading(true);
@@ -35,11 +37,11 @@ export default function DeleteModal({
       <ModalHeader onClose={onClose}>Ștergere {itemType}</ModalHeader>
 
       <div className="text-ha-text leading-relaxed mb-4">
-        Ești sigur că vrei să ștergi <strong>{itemName}</strong>?
+        {t.rooms.deleteConfirm} <strong>{itemName}</strong>?
         {itemCount > 0 && (
           <span className="block mt-2 text-ha-error">
-            ⚠ Acest {itemType.toLowerCase()} conține {itemCount} elemente care
-            vor fi șterse!
+            ⚠ {t.rooms.this} {itemType.toLowerCase()} {t.rooms.contain}{' '}
+            {itemCount} {t.rooms.containItems}!
           </span>
         )}
       </div>
@@ -50,13 +52,13 @@ export default function DeleteModal({
           onClick={handleConfirm}
           disabled={loading}
         >
-          {loading ? 'Se șterge...' : '🗑️ Șterge'}
+          {loading ? t.common.deleting : `🗑️ ${t.common.delete}`}
         </button>
         <button
           className="flex-1 py-2 bg-ha-secondary-bg border border-ha-divider text-ha-text rounded hover:bg-ha-card transition"
           onClick={onClose}
         >
-          Anulează
+          {t.common.cancel}
         </button>
       </ModalFooter>
     </Modal>

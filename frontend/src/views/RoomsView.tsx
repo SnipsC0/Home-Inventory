@@ -9,9 +9,11 @@ import DeleteModal from '../components/Modal/DeleteModal';
 import { useState } from 'react';
 import type { ApiService } from '../services/api';
 import type { Room } from '../types';
+import { useTranslation } from '../i18n/I18nContext';
 
 export default function RoomsView({ api }: { api: ApiService }) {
   const { data: rooms = [], isLoading, error } = useRooms(api);
+  const { t } = useTranslation();
   const { data: config } = useHomeInventarConfig(api);
   const { goToRoom, goToAllItems, goToTrackedItems } = useRoomNavigation();
   const { addRoom, updateRoom, deleteRoom } = useRoomMutations(api);
@@ -36,7 +38,7 @@ export default function RoomsView({ api }: { api: ApiService }) {
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
         {rooms.length === 0 ? (
           <p className="text-center text-ha-text py-10">
-            Nu există camere.
+            {t.rooms.noExist}
             {config?.allow_structure_modification && ' Adaugă prima cameră!'}
           </p>
         ) : (
@@ -82,7 +84,7 @@ export default function RoomsView({ api }: { api: ApiService }) {
         <DeleteModal
           isOpen={true}
           itemName={roomToDelete.name}
-          itemType="Cameră"
+          itemType={t.rooms.room}
           itemCount={roomToDelete.itemCount}
           onClose={() => setRoomToDelete(null)}
           onConfirm={async () => {

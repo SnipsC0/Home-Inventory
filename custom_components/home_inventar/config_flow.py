@@ -1,4 +1,3 @@
-
 import logging
 import voluptuous as vol
 from homeassistant import config_entries
@@ -6,7 +5,6 @@ from homeassistant.core import callback
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-
 
 class HomeInventarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
@@ -28,25 +26,21 @@ class HomeInventarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema({
                 vol.Optional("allow_structure_modification", default=True): bool,
+                vol.Optional("language", default="en"): vol.In(["en", "ro"]),
             })
         )
 
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        """Get the options flow."""
         return HomeInventarOptionsFlow(config_entry)
 
 
 class HomeInventarOptionsFlow(config_entries.OptionsFlow):
-    """Handle options."""
-
     def __init__(self, config_entry):
-        """Initialize options flow."""
         self.config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
-        """Manage the options."""
         _LOGGER.debug("[HomeInventar] Options flow init step called")
         
         if user_input is not None:
@@ -54,7 +48,9 @@ class HomeInventarOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
 
         current_allow = self.config_entry.options.get("allow_structure_modification", True)
-        _LOGGER.debug("[HomeInventar] Current allow_structure_modification: %s", current_allow)
+        current_language = self.config_entry.options.get("language", "en")
+        _LOGGER.debug("[HomeInventar] Current settings - allow: %s, language: %s", 
+                     current_allow, current_language)
 
         return self.async_show_form(
             step_id="init",
@@ -63,5 +59,9 @@ class HomeInventarOptionsFlow(config_entries.OptionsFlow):
                     "allow_structure_modification",
                     default=current_allow
                 ): bool,
+                vol.Optional(
+                    "language",
+                    default=current_language
+                ): vol.In(["en", "ro"]),
             })
         )

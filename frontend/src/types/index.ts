@@ -68,6 +68,7 @@ export interface OrganizersResponse {
 export interface Config {
   allow_structure_modification: boolean;
   qr_redirect_url?: string;
+  language: 'ro' | 'en';
 }
 
 // State Types

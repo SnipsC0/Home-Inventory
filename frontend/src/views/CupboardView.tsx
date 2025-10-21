@@ -13,6 +13,7 @@ import Breadcrumb from '../components/Layout/BreadCrumb';
 import type { ApiService } from '../services/api';
 import type { ClickOrTouchEvent, Cupboard } from '../types';
 import { useAppStore } from '../store/useAppStore';
+import { useTranslation } from '../i18n/I18nContext';
 
 interface Props {
   api: ApiService;
@@ -33,16 +34,21 @@ export default function CupboardsView({ api }: Props) {
     null
   );
 
+  const { t } = useTranslation();
+
   if (!selectedRoom) {
     goBack();
     return null;
   }
 
-  if (isLoading) return <div className="text-ha-text">Se încarcă...</div>;
+  if (isLoading) return <div className="text-ha-text">{t.common.loading}</div>;
 
   return (
     <div className="space-y-4">
-      <Breadcrumb currentLabel={`Dulapuri (${selectedRoom})`} onBack={goBack} />
+      <Breadcrumb
+        currentLabel={`${t.cupboards.title} (${selectedRoom})`}
+        onBack={goBack}
+      />
 
       <CupboardHeader
         allowEdit={config?.allow_structure_modification}
@@ -63,8 +69,8 @@ export default function CupboardsView({ api }: Props) {
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
         {cupboards.length === 0 ? (
           <p className="text-center text-ha-text py-10">
-            Nu există dulapuri.
-            {config?.allow_structure_modification && ' Adaugă primul dulap!'}
+            {t.cupboards.noCupboards}
+            {config?.allow_structure_modification && ` ${t.cupboards.addFirst}`}
           </p>
         ) : (
           cupboards.map((cupboard) => (
@@ -107,7 +113,7 @@ export default function CupboardsView({ api }: Props) {
         <DeleteModal
           isOpen={true}
           itemName={deletingCupboard.name}
-          itemType="Dulap"
+          itemType={t.cupboards.cupboard}
           itemCount={deletingCupboard.itemCount}
           onClose={() => setDeletingCupboard(null)}
           onConfirm={async () => {

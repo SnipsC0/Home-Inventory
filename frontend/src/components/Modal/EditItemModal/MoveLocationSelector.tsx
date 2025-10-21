@@ -38,7 +38,6 @@ export default function MoveLocationSelector({
 
   const [rooms, setRooms] = useState<Room[]>([]); // ✅ local state pentru camere
 
-  // 🔹 Încarcă camerele o singură dată la montare
   useEffect(() => {
     (async () => {
       try {

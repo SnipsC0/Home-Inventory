@@ -14,6 +14,8 @@ import AllItemsView from './views/AllItemsView';
 import CupboardsView from './views/CupboardView';
 import { isDev } from './config/dev';
 import TrackedItemsView from './views/TrackedItemsView';
+import { I18nProvider } from './i18n/I18nContext';
+import { useHomeInventarConfig } from './hooks/useHomeInventarConfig';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,10 +31,29 @@ interface AppProps {
   panel?: any;
 }
 
+function AppContent({ api }: { api: ApiService }) {
+  const currentView = useAppStore((state) => state.currentView);
+  const { data: config } = useHomeInventarConfig(api);
+
+  return (
+    <I18nProvider configLanguage={config?.language}>
+      <div className="p-4 h-full box-border overflow-auto">
+        {currentView === 'rooms' && <RoomsView api={api} />}
+        {currentView === 'cupboards' && <CupboardsView api={api} />}
+        {currentView === 'shelves' && <ShelvesView api={api} />}
+        {currentView === 'organizers' && <OrganizersView api={api} />}
+        {currentView === 'items' && <ItemsView api={api} />}
+        {currentView === 'all-items' && <AllItemsView api={api} />}
+        {currentView === 'tracked-items' && <TrackedItemsView api={api} />}
+      </div>
+
+      {isDev && <ReactQueryDevtools initialIsOpen={false} />}
+    </I18nProvider>
+  );
+}
+
 function App({ hass: hassProp }: AppProps) {
   const { hass: hassHook, loading, error } = useHass();
-  const currentView = useAppStore((state) => state.currentView);
-
   const hass = hassProp || hassHook;
 
   useEffect(() => {
@@ -81,17 +102,7 @@ function App({ hass: hassProp }: AppProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="p-4 h-full box-border overflow-auto">
-        {currentView === 'rooms' && <RoomsView api={api} />}
-        {currentView === 'cupboards' && <CupboardsView api={api} />}
-        {currentView === 'shelves' && <ShelvesView api={api} />}
-        {currentView === 'organizers' && <OrganizersView api={api} />}
-        {currentView === 'items' && <ItemsView api={api} />}
-        {currentView === 'all-items' && <AllItemsView api={api} />}
-        {currentView === 'tracked-items' && <TrackedItemsView api={api} />}
-      </div>
-
-      {isDev && <ReactQueryDevtools initialIsOpen={false} />}
+      <AppContent api={api} />
     </QueryClientProvider>
   );
 }

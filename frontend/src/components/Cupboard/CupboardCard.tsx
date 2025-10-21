@@ -1,3 +1,4 @@
+import { useTranslation } from '../../i18n/I18nContext';
 import type { ClickOrTouchEvent } from '../../types';
 
 interface Props {
@@ -21,6 +22,7 @@ export default function CupboardCard({
   onDelete,
   onQR,
 }: Props) {
+  const { t } = useTranslation();
   return (
     <div className="bg-ha-card p-3 rounded-4xl shadow-ha" onClick={onClick}>
       {/* Imagine */}
@@ -39,7 +41,9 @@ export default function CupboardCard({
       {/* Click open */}
       <div className="cursor-pointer p-3 rounded text-center hover:bg-ha-secondary-bg transition">
         <div className="font-semibold text-ha-text mb-1">{name}</div>
-        <div className="text-ha-primary text-sm">{count} obiecte</div>
+        <div className="text-ha-primary text-sm">
+          {count} {t.items.title.toLowerCase()}
+        </div>
       </div>
 
       {/* Actiuni */}
@@ -50,7 +54,7 @@ export default function CupboardCard({
               onClick={onEdit}
               className="flex-1 py-2 bg-ha-primary text-white text-sm rounded hover:opacity-90 transition"
             >
-              ✏️ Edit
+              ✏️ {t.common.edit}
             </button>
             <button
               onClick={onQR}
@@ -63,7 +67,7 @@ export default function CupboardCard({
             onClick={onDelete}
             className="w-full py-2 bg-ha-error text-white rounded text-sm hover:opacity-90 transition"
           >
-            🗑️ Șterge
+            🗑️ {t.common.delete}
           </button>
         </div>
       )}

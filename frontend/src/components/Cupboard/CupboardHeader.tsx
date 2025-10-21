@@ -1,12 +1,17 @@
+import { useTranslation } from '../../i18n/I18nContext';
+
 interface Props {
   allowEdit?: boolean;
   onToggleForm: () => void;
 }
 
 export default function CupboardHeader({ allowEdit, onToggleForm }: Props) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-wrap gap-3 mb-4 justify-between items-center">
-      <h3 className="m-0 text-ha-text text-lg font-semibold">🗄️ Dulapuri</h3>
+      <h3 className="m-0 text-ha-text text-lg font-semibold">
+        🗄️ {t.cupboards.title}
+      </h3>
 
       {allowEdit && (
         <button

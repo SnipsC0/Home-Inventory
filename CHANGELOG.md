@@ -1,12 +1,22 @@
 ## 🏷️ 2.0.0 - Translations + new sensors + new view
 
-- added translations for en and ro
-- added sensors in HA for tracked items & low stock & all items count
-- added new view for tracked items
-- fixed bug for negative quantity
-- fixed updating rendering photos
-- fixed bugs modals for quantity
-- fixed backend quantity confusion when min quantity 0 similar with null.
+### Added
+
+- Added translations for English (en) and Romanian (ro)
+- Added Home Assistant sensors for:
+
+  - Tracked items count
+  - Low stock items count
+  - Total items count
+
+- Added new “Tracked Items” view in frontend
+
+### Fixed
+
+- Fixed bug allowing negative quantities
+- Fixed photo rendering updates after item modification
+- Fixed modal bugs for quantity editing
+- Fixed backend confusion when min_quantity = 0 was treated like null
 
 ## 🏷️ 1.3.0 - React frontend migration + UI/UX polish
 

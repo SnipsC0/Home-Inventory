@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal, ModalHeader, ModalFooter } from './Modal';
+import { useTranslation } from '../../i18n/I18nContext';
 
 interface AddItemModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export default function AddItemModal({
   onSave,
   organizerName,
 }: AddItemModalProps) {
+  const { t, language } = useTranslation();
   const [name, setName] = useState('');
   const [aliases, setAliases] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -76,27 +78,32 @@ export default function AddItemModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="600px">
       <ModalHeader onClose={onClose}>
-        ➕ Adaugă Obiect{' '}
-        {organizerName ? `în ${organizerName}` : 'Direct pe Raft'}
+        {`➕ ${t.common.add} ${
+          organizerName
+            ? `${language === 'en' ? 'in' : 'în'} ${organizerName}`
+            : t.items.addItemWithoutOrganizer
+        }`}
       </ModalHeader>
 
       <div className="space-y-4">
         {/* Nume */}
         <div>
-          <label className="text-ha-text text-sm block mb-1">Nume *</label>
+          <label className="text-ha-text text-sm block mb-1">
+            {t.items.itemName} *
+          </label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
-            placeholder="Nume obiect"
+            placeholder={`${t.common.name}`}
           />
         </div>
 
         {/* Aliasuri */}
         <div>
           <label className="text-ha-text text-sm block mb-1">
-            Aliasuri (opțional)
+            {t.items.aliases} ({t.common.optional})
           </label>
           <input
             type="text"
@@ -119,7 +126,7 @@ export default function AddItemModal({
         {/* Upload imagine */}
         <div>
           <label className="text-ha-text text-sm block mb-1">
-            Imagine (opțional)
+            {t.items.image} ({t.common.optional})
           </label>
           <input
             type="file"
@@ -139,7 +146,7 @@ export default function AddItemModal({
             className="w-4 h-4"
           />
           <label htmlFor="track-quantity-add" className="text-ha-text text-sm">
-            Urmărește cantitatea
+            {t.items.trackQuantity}
           </label>
         </div>
 
@@ -148,7 +155,7 @@ export default function AddItemModal({
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="text-ha-text text-sm block mb-1">
-                Cantitate
+                {t.items.quantity} *
               </label>
               <input
                 type="number"
@@ -162,7 +169,7 @@ export default function AddItemModal({
             </div>
             <div className="flex-1">
               <label className="text-ha-text text-sm block mb-1">
-                Cantitate minimă
+                {t.items.minQuantity}
               </label>
               <input
                 type="number"
@@ -186,7 +193,7 @@ export default function AddItemModal({
           disabled={loading || !name.trim()}
           className="flex-1 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition disabled:opacity-50"
         >
-          {loading ? 'Se salvează...' : '💾 Adaugă'}
+          {loading ? t.common.saving : `💾 ${t.common.add}`}
         </button>
 
         <button
@@ -194,7 +201,7 @@ export default function AddItemModal({
           disabled={loading}
           className="flex-1 py-2 bg-ha-secondary-bg border border-ha-divider text-ha-text rounded hover:bg-ha-card transition"
         >
-          Anulează
+          {t.common.cancel}
         </button>
       </ModalFooter>
     </Modal>

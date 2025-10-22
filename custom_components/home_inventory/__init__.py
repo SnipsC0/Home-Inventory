@@ -35,7 +35,7 @@ def ensure_data_folders(hass: HomeAssistant):
     for folder in folders:
         path = os.path.join(base_path, folder)
         os.makedirs(path, exist_ok=True)
-        _LOGGER.debug(f"[HomeInventar] Verified data folder: {path}")
+        _LOGGER.debug(f"[Home Inventory] Verified data folder: {path}")
     return base_path
 
 
@@ -44,13 +44,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType):
 
 
 async def async_setup_entry(hass, entry):
-    _LOGGER.info("[Home Inventar] Inițializare integrare...")
+    _LOGGER.info("[Home Inventory] Inițializare integrare...")
 
     base_path = ensure_data_folders(hass)
     db_path = os.path.join(base_path, "db", "inventar.db")
 
     await hass.async_add_executor_job(initialize_db, db_path)
-    _LOGGER.info(f"[Home Inventar] ✅ Baza de date inițializată la {db_path}")
+    _LOGGER.info(f"[Home Inventory] ✅ Baza de date inițializată la {db_path}")
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["entry"] = entry
@@ -71,38 +71,38 @@ async def async_setup_entry(hass, entry):
         HomeInventarItemDeepLinkView(hass),
     ]:
         hass.http.register_view(view)
-    _LOGGER.info("[Home Inventar] ✅ API-uri înregistrate")
+    _LOGGER.info("[Home Inventory] ✅ API-uri înregistrate")
 
     panel_dir = os.path.join(os.path.dirname(__file__), "panel")
     await hass.http.async_register_static_paths([
         StaticPathConfig(url_path=f"/{DOMAIN}_static", path=panel_dir, cache_headers=False)
     ])
-    _LOGGER.info("[Home Inventar] ✅ Static path înregistrat")
+    _LOGGER.info("[Home Inventory] ✅ Static path înregistrat")
 
     try:
         async_register_built_in_panel(
             hass,
             component_name="custom",
-            sidebar_title="Home Inventar",
+            sidebar_title="Home Inventory",
             sidebar_icon="mdi:archive",
             frontend_url_path=DOMAIN,
             config={
                 "_panel_custom": {
-                    "name": "home-inventar-app",
+                    "name": "home-inventory-app",
                     "module_url": f"/{DOMAIN}_static/panel-wrapper.js?v={VERSION}",
                 }
             },
             require_admin=False,
         )
-        _LOGGER.info(f"[Home Inventar] ✅ Panou frontend v{VERSION}")
+        _LOGGER.info(f"[Home Inventory] ✅ Panou frontend v{VERSION}")
     except ValueError as e:
         if "Overwriting panel" in str(e):
-            _LOGGER.warning(f"[Home Inventar] Panou deja înregistrat, se ignoră: {e}")
+            _LOGGER.warning(f"[Home Inventory] Panou deja înregistrat, se ignoră: {e}")
         else:
             raise
     
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
-    _LOGGER.info("[Home Inventar] ✅ Senzori înregistrați")
+    _LOGGER.info("[Home Inventory] ✅ Senzori înregistrați")
     
     entry.async_on_unload(entry.add_update_listener(async_update_options))
     
@@ -110,11 +110,11 @@ async def async_setup_entry(hass, entry):
 
 
 async def async_update_options(hass: HomeAssistant, entry):
-    _LOGGER.info("[Home Inventar] Opțiuni actualizate")
+    _LOGGER.info("[Home Inventory] Opțiuni actualizate")
 
 
 async def async_unload_entry(hass, entry):
-    _LOGGER.info("[Home Inventar] Integrare dezinstalată.")
+    _LOGGER.info("[Home Inventory] Integrare dezinstalată.")
     
     unload_ok = await hass.config_entries.async_unload_platforms(entry, ["sensor"])
     

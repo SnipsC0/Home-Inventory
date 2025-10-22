@@ -126,7 +126,7 @@ class HomeInventarUpload(HomeAssistantView):
             original_size = len(image_data) / 1024
             final_size = len(resized_data) / 1024
             _LOGGER.debug(
-                f"[HomeInventar] 📸 Image uploaded: {filename} "
+                f"[Home Inventory] 📸 Image uploaded: {filename} "
                 f"(original: {original_size:.1f}KB, final: {final_size:.1f}KB)"
             )
             
@@ -136,7 +136,7 @@ class HomeInventarUpload(HomeAssistantView):
             return web.json_response({"path": filename})
 
         except Exception as e:
-            _LOGGER.error(f"[HomeInventar] Upload error: {e}", exc_info=True)
+            _LOGGER.error(f"[Home Inventory] Upload error: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
 
     def _delete_old_image(self, image_path: str):
@@ -144,7 +144,7 @@ class HomeInventarUpload(HomeAssistantView):
             return
         
         try:
-            if image_path.startswith('/api/home_inventar/images/'):
+            if image_path.startswith(f'/api/{DOMAIN}/images/'):
                 filename = image_path.split('/')[-1].split('?')[0]
             elif image_path.startswith('/local/'):
                 return
@@ -155,10 +155,10 @@ class HomeInventarUpload(HomeAssistantView):
             
             if os.path.exists(full_path):
                 os.remove(full_path)
-                _LOGGER.debug(f"[HomeInventar] 🗑️ Deleted old image: {filename}")
+                _LOGGER.debug(f"[Home Inventory] 🗑️ Deleted old image: {filename}")
             
         except Exception as e:
-            _LOGGER.error(f"[HomeInventar] Error deleting old image: {e}", exc_info=True)
+            _LOGGER.error(f"[Home Inventory] Error deleting old image: {e}", exc_info=True)
 
 
 class HomeInventarImageView(HomeAssistantView):
@@ -207,20 +207,20 @@ class HomeInventarImageView(HomeAssistantView):
 
     async def get(self, request: web.Request, filename: str) -> web.Response:
         try:
-            _LOGGER.debug(f"[HomeInventar] Image request for: {filename}")
+            _LOGGER.debug(f"[Home Inventory] Image request for: {filename}")
 
             if not self._authenticate(request):
-                _LOGGER.warning(f"[HomeInventar] ❌ Unauthorized: {filename}")
+                _LOGGER.warning(f"[Home Inventory] ❌ Unauthorized: {filename}")
                 return web.Response(status=401, text="Unauthorized")
 
             if not filename or ".." in filename or "/" in filename:
-                _LOGGER.warning(f"[HomeInventar] Invalid filename: {filename}")
+                _LOGGER.warning(f"[Home Inventory] Invalid filename: {filename}")
                 return web.Response(status=400, text="Invalid filename")
 
             image_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
 
             if not os.path.exists(image_path):
-                _LOGGER.warning(f"[HomeInventar] Image not found: {image_path}")
+                _LOGGER.warning(f"[Home Inventory] Image not found: {image_path}")
                 return web.Response(status=404, text="Image not found")
 
             def _read_file(path):
@@ -236,5 +236,5 @@ class HomeInventarImageView(HomeAssistantView):
             )
 
         except Exception as e:
-            _LOGGER.error(f"[HomeInventar] Error serving image {filename}: {e}", exc_info=True)
+            _LOGGER.error(f"[Home Inventory] Error serving image {filename}: {e}", exc_info=True)
             return web.Response(status=500, text="Internal error")

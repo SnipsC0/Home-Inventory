@@ -1,3 +1,5 @@
+import { useTranslation } from '../../i18n/I18nContext';
+
 interface Props {
   cupboardName: string;
   allowEdit?: boolean;
@@ -9,10 +11,11 @@ export default function ShelvesHeader({
   allowEdit,
   onAddShelf,
 }: Props) {
+  const { t, language } = useTranslation();
   return (
     <div className="flex flex-wrap gap-3 mb-4 justify-between items-center">
       <h3 className="m-0 text-ha-text text-lg font-semibold">
-        📚 Rafturi din {cupboardName}
+        📚 {t.shelves.title} {language === 'en' ? 'from' : 'din'} {cupboardName}
       </h3>
 
       {allowEdit && (
@@ -20,7 +23,7 @@ export default function ShelvesHeader({
           onClick={onAddShelf}
           className="px-3 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition"
         >
-          + Adaugă Raft
+          + {t.common.add} {t.shelves.shelf}
         </button>
       )}
     </div>

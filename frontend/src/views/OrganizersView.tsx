@@ -14,8 +14,10 @@ import Breadcrumb from '../components/Layout/BreadCrumb';
 import OrganizersHeader from '../components/Organizer/OrganizersHeader';
 import type { ApiService } from '../services/api';
 import type { Organizer } from '../types';
+import { useTranslation } from '../i18n/I18nContext';
 
 export default function OrganizersView({ api }: { api: ApiService }) {
+  const { t } = useTranslation();
   const selectedShelf = useAppStore((state) => state.selectedShelf);
   const selectedRoom = useAppStore((state) => state.selectedRoom);
   const selectedCupboard = useAppStore((state) => state.selectedCupboard);
@@ -71,27 +73,23 @@ export default function OrganizersView({ api }: { api: ApiService }) {
   return (
     <div className="space-y-4">
       <Breadcrumb
-        currentLabel={`Organizatoare (${selectedShelf})`}
+        currentLabel={`${t.organizers.title} (${selectedShelf})`}
         onBack={goBack}
       />
 
       <OrganizersHeader
-        shelfName={selectedShelf}
         allowEdit={config?.allow_structure_modification}
         onAddOrganizer={() => setShowAddOrganizerModal(true)}
         onAddDirectItem={() => setShowAddItemModal(true)}
       />
 
-      {/* Organizatoare */}
       <div>
-        <h3 className="text-ha-text font-semibold mb-3 text-lg">
-          🗂️ Organizatoare
-        </h3>
         <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
           {organizers.length === 0 ? (
             <p className="text-center text-ha-text py-10">
-              Nu există organizatoare.
-              {config?.allow_structure_modification && ' Adaugă prima!'}
+              {t.organizers.noOrganizers}.
+              {config?.allow_structure_modification &&
+                ` ${t.organizers.addFirst}!`}
             </p>
           ) : (
             sortedOrganizers.map((item) => (
@@ -116,7 +114,7 @@ export default function OrganizersView({ api }: { api: ApiService }) {
                     {item.name}
                   </div>
                   <div className="text-ha-primary text-sm">
-                    {item.itemCount} obiecte
+                    {item.itemCount} {t.items.title.toLowerCase()}
                   </div>
                 </div>
 
@@ -129,7 +127,7 @@ export default function OrganizersView({ api }: { api: ApiService }) {
                       }}
                       className="flex-1 py-2 bg-ha-primary text-white text-sm rounded hover:opacity-90 transition"
                     >
-                      ✏️ Edit
+                      ✏️ {t.common.edit}
                     </button>
                     <button
                       onClick={(e) => {
@@ -138,7 +136,7 @@ export default function OrganizersView({ api }: { api: ApiService }) {
                       }}
                       className="flex-1 py-2 bg-ha-error text-white text-sm rounded hover:opacity-90 transition"
                     >
-                      🗑️ Șterge
+                      🗑️ {t.common.delete}
                     </button>
                   </div>
                 )}
@@ -148,11 +146,12 @@ export default function OrganizersView({ api }: { api: ApiService }) {
         </div>
       </div>
 
-      {/* Items fără organizator */}
       {itemsWithoutOrganizer > 0 && (
         <div className="bg-ha-secondary-bg border-ha-primary rounded-lg p-4">
           <h3 className="text-ha-text font-semibold mb-3 text-lg">
-            📦 Obiecte fără organizator ({itemsWithoutOrganizer})
+            📦{' '}
+            {`${t.items.title} ${t.organizers.withoutOrganizer.toLowerCase()} `}
+            ({itemsWithoutOrganizer})
           </h3>
           <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(140px,1fr))]">
             {sortedDirectItems.map((item) => (
@@ -162,7 +161,6 @@ export default function OrganizersView({ api }: { api: ApiService }) {
         </div>
       )}
 
-      {/* Modal adăugare organizator */}
       {showAddOrganizerModal && (
         <EditOrganizerModal
           isOpen={true}
@@ -175,7 +173,6 @@ export default function OrganizersView({ api }: { api: ApiService }) {
         />
       )}
 
-      {/* Modal adăugare item direct */}
       {showAddItemModal && (
         <AddItemModal
           isOpen={true}
@@ -188,7 +185,6 @@ export default function OrganizersView({ api }: { api: ApiService }) {
         />
       )}
 
-      {/* Modal editare organizator */}
       {editingOrganizer && (
         <EditOrganizerModal
           isOpen={true}
@@ -208,12 +204,11 @@ export default function OrganizersView({ api }: { api: ApiService }) {
         />
       )}
 
-      {/* Modal ștergere organizator */}
       {deletingOrganizer && (
         <DeleteModal
           isOpen={true}
           itemName={deletingOrganizer.name}
-          itemType="Organizator"
+          itemType={t.organizers.organizer}
           itemCount={deletingOrganizer.itemCount}
           onClose={() => setDeletingOrganizer(null)}
           onConfirm={async () => {

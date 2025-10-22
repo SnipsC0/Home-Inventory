@@ -10,8 +10,10 @@ import DeleteModal from '../components/Modal/DeleteModal';
 import EditShelfModal from '../components/Modal/EditShelfModal';
 import type { ApiService } from '../services/api';
 import { Shelf } from '../types';
+import { useTranslation } from '../i18n/I18nContext';
 
 export default function ShelvesView({ api }: { api: ApiService }) {
+  const { t } = useTranslation();
   const selectedCupboard = useAppStore((state) => state.selectedCupboard);
   const goBack = useAppStore((state) => state.goBack);
 
@@ -29,12 +31,12 @@ export default function ShelvesView({ api }: { api: ApiService }) {
     return null;
   }
 
-  if (isLoading) return <div className="text-ha-text">Se încarcă...</div>;
+  if (isLoading) return <div className="text-ha-text">{t.common.loading}</div>;
 
   return (
     <div className="space-y-4">
       <Breadcrumb
-        currentLabel={`Rafturi (${selectedCupboard})`}
+        currentLabel={`${t.shelves.title} (${selectedCupboard})`}
         onBack={goBack}
       />
 
@@ -47,8 +49,8 @@ export default function ShelvesView({ api }: { api: ApiService }) {
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
         {shelves.length === 0 ? (
           <p className="text-center text-ha-text py-10">
-            Nu există rafturi.
-            {config?.allow_structure_modification && ' Adaugă primul raft!'}
+            {t.shelves.noShelves}.
+            {config?.allow_structure_modification && ` ${t.shelves.addFirst}!`}
           </p>
         ) : (
           shelves.map((shelf) => (
@@ -62,7 +64,7 @@ export default function ShelvesView({ api }: { api: ApiService }) {
                   {shelf.name}
                 </div>
                 <div className="text-ha-primary text-sm">
-                  {shelf.itemCount} obiecte
+                  {shelf.itemCount} {t.items.title.toLowerCase()}
                 </div>
               </div>
 
@@ -75,7 +77,7 @@ export default function ShelvesView({ api }: { api: ApiService }) {
                     }}
                     className="flex-1 py-2 bg-ha-primary text-white text-sm rounded hover:opacity-90 transition"
                   >
-                    ✏️ Edit
+                    ✏️ {t.common.edit}
                   </button>
                   <button
                     onClick={(e) => {
@@ -84,7 +86,7 @@ export default function ShelvesView({ api }: { api: ApiService }) {
                     }}
                     className="flex-1 py-2 bg-ha-error text-white text-sm rounded hover:opacity-90 transition"
                   >
-                    🗑️ Șterge
+                    🗑️ {t.common.delete}
                   </button>
                 </div>
               )}
@@ -124,7 +126,7 @@ export default function ShelvesView({ api }: { api: ApiService }) {
         <DeleteModal
           isOpen={true}
           itemName={deletingShelf.name}
-          itemType="Raft"
+          itemType={t.shelves.shelf}
           itemCount={deletingShelf.itemCount}
           onClose={() => setDeletingShelf(null)}
           onConfirm={async () => {

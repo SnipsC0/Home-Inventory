@@ -7,7 +7,6 @@ def initialize_db(db_path: str):
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
 
-    # Setează PRAGMA-uri
     pragmas = {
         "journal_mode": "WAL",
         "synchronous": "NORMAL",

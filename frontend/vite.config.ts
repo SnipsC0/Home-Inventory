@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [tailwindcss(), react()].filter(Boolean),
     build: {
-      outDir: '../custom_components/home_inventar/panel',
+      outDir: '../custom_components/home_inventory/panel',
       cssCodeSplit: false,
       emptyOutDir: true,
       rollupOptions: {

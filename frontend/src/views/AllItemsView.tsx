@@ -5,12 +5,14 @@ import ItemCard from '../components/Item/ItemCard';
 import type { ApiService } from '../services/api';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useAppStore } from '../store/useAppStore';
+import { useTranslation } from '../i18n/I18nContext';
 
 interface Props {
   api: ApiService;
 }
 
 export default function AllItemsView({ api }: Props) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
   const itemsPerPage = 20;
@@ -61,12 +63,12 @@ export default function AllItemsView({ api }: Props) {
 
   return (
     <div className="space-y-4">
-      <Breadcrumb currentLabel="Toate Obiectele" onBack={goBack} />
+      <Breadcrumb currentLabel={t.rooms.allItems} onBack={goBack} />
 
       <div className="flex gap-2">
         <input
           type="text"
-          placeholder="Caută obiect..."
+          placeholder={t.trackedItems.searchPlaceholder}
           className="flex-1 px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -76,7 +78,7 @@ export default function AllItemsView({ api }: Props) {
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(140px,1fr))]">
         {!displayedItems.length ? (
           <p className="text-center text-ha-text py-10">
-            Nu s-au găsit obiecte.
+            {t.trackedItems.noItemsFiltered}.
           </p>
         ) : (
           sortedItems.map((item) => (
@@ -95,7 +97,7 @@ export default function AllItemsView({ api }: Props) {
         ref={loaderRef}
         className="h-12 flex items-center justify-center text-ha-text"
       >
-        {isLoading && <span>Se încarcă...</span>}
+        {isLoading && <span>{t.common.loading}</span>}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-# Home Inventar
+# Home Inventory
 
 ![Status](https://img.shields.io/badge/status-production--ready-brightgreen)
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Integration-41BDF5)
@@ -6,7 +6,7 @@
 ![Privacy](https://img.shields.io/badge/data-local_only-important)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-**Home Inventar** este o integrare custom pentru **Home Assistant**, destinată organizării inventarului casnic printr-o structură logică:
+**Home Inventory** este o integrare custom pentru **Home Assistant**, destinată organizării inventarului casnic printr-o structură logică:
 **Camere → Dulapuri → Rafturi → Organizatoare → Obiecte**, cu suport pentru **poze locale securizate, cantități, prag minim, eveniment automat pentru stoc redus, UI dedicat și automatizări inteligente**.
 
 ---
@@ -20,7 +20,7 @@
 - [🟣 Instalare prin HACS (Custom Repository)](#-instalare-prin-hacs-custom-repository)
 - [🖥 Panou UI dedicat](#-panou-ui-dedicat)
 - [📊 Senzori disponibili](#-senzori-disponibili)
-- [📢 Eveniment automat: home_inventar_low_stock](#-eveniment-automat-home_inventar_low_stock)
+- [📢 Eveniment automat: home_inventory_low_stock](#-eveniment-automat-home_inventory_low_stock)
 - [🔔 Exemplu notificare push](#-exemplu-notificare-push)
 - [🧪 Test eveniment manual](#-test-eveniment-manual)
 - [🔐 Securitate & confidențialitate](#-securitate--confidențialitate)
@@ -38,7 +38,7 @@
 | ✅ Poze securizate             | Servite prin API local, **NU prin `/local` public**               |
 | ✅ Stocare locală 100%         | Fără cloud, fără trimiteri externe                                |
 | ✅ Track cantitate             | Afișare badge stoc + reglare rapidă (+/-)                         |
-| ✅ Prag minim alertă           | Eveniment Home Assistant: `home_inventar_low_stock`               |
+| ✅ Prag minim alertă           | Eveniment Home Assistant: `home_inventory_low_stock`              |
 | ✅ HACS compatibil             | Instalabil ca **HACS Custom Repository**                          |
 | ✅ Lazy Loading                | UI eficient cu sute de obiecte (scroll infinit)                   |
 | ✅ Automations Ready           | Suport pentru notificări, Discord, To-Do, Google Sheets, LED etc. |
@@ -50,12 +50,12 @@
 
 ### 🔹 Instalare Manuală
 
-1. Copiază folderul `home_inventar` în:
-   → `/config/custom_components/home_inventar`
+1. Copiază folderul `home_inventory` în:
+   → `/config/custom_components/home_inventory`
 2. Repornește Home Assistant:
    → `Settings → System → Restart`
 3. Adaugă integrarea:
-   → `Settings → Devices & Services → Add Integration → "Home Inventar"`
+   → `Settings → Devices & Services → Add Integration → "Home Inventory"`
 
 ---
 
@@ -72,16 +72,16 @@ Tip: **Integration** 4. Confirmă → apare în HACS → Instalează 5. Reporne�
 
 ## 🖥 Panou UI dedicat
 
-După instalare, în bara laterală Home Assistant apare **"Home Inventar"**.  
+După instalare, în bara laterală Home Assistant apare **"Home Inventory"**.  
 Panoul este servit prin API securizat, NU prin `/local`, ceea ce înseamnă:
 
 > ✅ **Imaginile și datele NU sunt accesibile public** prin URL direct sau Cloudflare Proxy — se încarcă doar dacă ești autentificat în HA.
 
 ---
 
-## 📢 Eveniment automat: `home_inventar_low_stock`
+## 📢 Eveniment automat: `home_inventory_low_stock`
 
-Integrarea generează automat evenimentul **`home_inventar_low_stock`** când un obiect intră în **stoc redus**.
+Integrarea generează automat evenimentul **`home_inventory_low_stock`** când un obiect intră în **stoc redus**.
 
 ### 🎯 Condiții pentru declanșare
 
@@ -95,7 +95,7 @@ Integrarea generează automat evenimentul **`home_inventar_low_stock`** când un
 ### 🔍 Structură eveniment
 
 ```yaml
-event_type: home_inventar_low_stock
+event_type: home_inventory_low_stock
   event_data:
     item_id: 123
     name: 'Orez Basmati'
@@ -116,7 +116,7 @@ automation:
 - alias: '📱 Notificare Stoc Redus - Inventar'
   trigger:
     - platform: event
-      event_type: home_inventar_low_stock
+      event_type: home_inventory_low_stock
   action:
     - service: notify.mobile_app_telefonul_tau
       data:
@@ -130,12 +130,12 @@ automation:
 ### Test eveniment manual
 
 ```yaml
-event_type: home_inventar_low_stock
+event_type: home_inventory_low_stock
 event_data:
   name: 'Test'
   quantity: 1
   min_quantity: 2
-  location: 'Test › Test › Test'
+  location: 'Room / Cupboard / Shelf *(/ Organizer)*'
 ```
 
 ---

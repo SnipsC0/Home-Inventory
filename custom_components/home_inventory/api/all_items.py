@@ -130,8 +130,6 @@ class HomeInventarUpdateItemQuantityView(HomeAssistantView):
             
             item_id_db, name, qty, min_qty, track_qty, aliases, room, cupboard, shelf = row
             
-            # MODIFICARE: verificăm dacă track_quantity este activ și min_quantity NU este NULL
-            # Permitem min_quantity = 0 și verificăm qty <= min_qty (inclusiv 0 <= 0)
             if track_qty and qty is not None and min_qty is not None:
                 if qty <= min_qty:
                     return {
@@ -143,20 +141,20 @@ class HomeInventarUpdateItemQuantityView(HomeAssistantView):
                         "room": room,
                         "cupboard": cupboard,
                         "shelf": shelf,
-                        "location": f"{room} › {cupboard} › {shelf}"
+                        "location": f"{room} / {cupboard} / {shelf}"
                     }
             return None
         
         low_stock_data = await request.app["hass"].async_add_executor_job(check_low_stock)
         
         if low_stock_data:
-            _LOGGER.warning(
+            _LOGGER.debug(
                 f"🔔 Low stock detected for item {low_stock_data['item_id']}: "
                 f"{low_stock_data['name']} ({low_stock_data['quantity']}/{low_stock_data['min_quantity']}) "
                 f"at {low_stock_data['location']}"
             )
             request.app["hass"].bus.async_fire(
-                "home_inventar_low_stock",
+                "home_inventory_low_stock",
                 low_stock_data
             )
         

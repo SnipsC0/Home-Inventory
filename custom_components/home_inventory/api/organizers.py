@@ -19,7 +19,7 @@ class HomeInventarOrganizersView(HomeAssistantView):
             return
         
         try:
-            if image_path.startswith('/api/home_inventar/images/'):
+            if image_path.startswith(f'/api/{DOMAIN}/images/'):
                 filename = image_path.split('/')[-1].split('?')[0]
             elif image_path.startswith('/local/'):
                 return

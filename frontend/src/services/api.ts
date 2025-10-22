@@ -20,40 +20,40 @@ export class ApiService {
       return imagePath;
     }
 
-    const filename = imagePath.startsWith('/api/home_inventar/images/')
+    const filename = imagePath.startsWith('/api/home_inventory/images/')
       ? imagePath.split('/').pop()?.split('?')[0]
       : imagePath;
 
     const token = this.hass.auth.data.access_token;
-    return `/api/home_inventar/images/${filename}?access_token=${token}`;
+    return `/api/home_inventory/images/${filename}?access_token=${token}`;
   }
 
   async getConfig(): Promise<Config> {
-    return this.hass.callApi('GET', 'home_inventar/config');
+    return this.hass.callApi('GET', 'home_inventory/config');
   }
 
   // Rooms
   async getRooms(): Promise<Room[]> {
-    return this.hass.callApi('GET', 'home_inventar/rooms');
+    return this.hass.callApi('GET', 'home_inventory/rooms');
   }
 
   async addRoom(name: string): Promise<{ id: number; name: string }> {
-    return this.hass.callApi('POST', 'home_inventar/rooms', { name });
+    return this.hass.callApi('POST', 'home_inventory/rooms', { name });
   }
 
   async updateRoom(id: number, data: { name: string }): Promise<void> {
-    return this.hass.callApi('PATCH', 'home_inventar/rooms', { id, ...data });
+    return this.hass.callApi('PATCH', 'home_inventory/rooms', { id, ...data });
   }
 
   async deleteRoom(id: number): Promise<void> {
-    return this.hass.callApi('DELETE', 'home_inventar/rooms', { id });
+    return this.hass.callApi('DELETE', 'home_inventory/rooms', { id });
   }
 
   // Cupboards
   async getCupboards(room: string): Promise<Cupboard[]> {
     const data = await this.hass.callApi<Cupboard[]>(
       'GET',
-      `home_inventar/cupboards?room=${encodeURIComponent(room)}`
+      `home_inventory/cupboards?room=${encodeURIComponent(room)}`
     );
     return data.map((c) => ({ ...c, image: this.getImageUrl(c.image) }));
   }
@@ -63,7 +63,7 @@ export class ApiService {
     name: string,
     image?: string
   ): Promise<{ id: number; name: string }> {
-    return this.hass.callApi('POST', 'home_inventar/cupboards', {
+    return this.hass.callApi('POST', 'home_inventory/cupboards', {
       room,
       name,
       image: image || '',
@@ -74,14 +74,14 @@ export class ApiService {
     id: number,
     data: { name?: string; image?: string }
   ): Promise<void> {
-    return this.hass.callApi('PATCH', 'home_inventar/cupboards', {
+    return this.hass.callApi('PATCH', 'home_inventory/cupboards', {
       id,
       ...data,
     });
   }
 
   async deleteCupboard(id: number): Promise<void> {
-    return this.hass.callApi('DELETE', 'home_inventar/cupboards', { id });
+    return this.hass.callApi('DELETE', 'home_inventory/cupboards', { id });
   }
 
   // Shelves
@@ -89,7 +89,7 @@ export class ApiService {
     const query = `room=${encodeURIComponent(
       room
     )}&cupboard=${encodeURIComponent(cupboard)}`;
-    return this.hass.callApi('GET', `home_inventar/shelves?${query}`);
+    return this.hass.callApi('GET', `home_inventory/shelves?${query}`);
   }
 
   async addShelf(
@@ -97,7 +97,7 @@ export class ApiService {
     cupboard: string,
     name: string
   ): Promise<{ id: number; name: string }> {
-    return this.hass.callApi('POST', 'home_inventar/shelves', {
+    return this.hass.callApi('POST', 'home_inventory/shelves', {
       room,
       cupboard,
       name,
@@ -105,11 +105,14 @@ export class ApiService {
   }
 
   async updateShelf(id: number, data: { name: string }): Promise<void> {
-    return this.hass.callApi('PATCH', 'home_inventar/shelves', { id, ...data });
+    return this.hass.callApi('PATCH', 'home_inventory/shelves', {
+      id,
+      ...data,
+    });
   }
 
   async deleteShelf(id: number): Promise<void> {
-    return this.hass.callApi('DELETE', 'home_inventar/shelves', { id });
+    return this.hass.callApi('DELETE', 'home_inventory/shelves', { id });
   }
 
   // Organizers
@@ -125,7 +128,7 @@ export class ApiService {
     )}`;
     const data = await this.hass.callApi<OrganizersResponse>(
       'GET',
-      `home_inventar/organizers?${query}`
+      `home_inventory/organizers?${query}`
     );
 
     return {
@@ -144,7 +147,7 @@ export class ApiService {
     name: string,
     image?: string
   ): Promise<{ id: number; name: string }> {
-    return this.hass.callApi('POST', 'home_inventar/organizers', {
+    return this.hass.callApi('POST', 'home_inventory/organizers', {
       room,
       cupboard,
       shelf,
@@ -157,14 +160,14 @@ export class ApiService {
     id: number,
     data: { name?: string; image?: string }
   ): Promise<void> {
-    return this.hass.callApi('PATCH', 'home_inventar/organizers', {
+    return this.hass.callApi('PATCH', 'home_inventory/organizers', {
       id,
       ...data,
     });
   }
 
   async deleteOrganizer(id: number): Promise<void> {
-    return this.hass.callApi('DELETE', 'home_inventar/organizers', { id });
+    return this.hass.callApi('DELETE', 'home_inventory/organizers', { id });
   }
 
   // Items
@@ -183,7 +186,7 @@ export class ApiService {
 
     const data = await this.hass.callApi<Item[]>(
       'GET',
-      `home_inventar/items?${query}`
+      `home_inventory/items?${query}`
     );
     return data.map((i) => ({ ...i, image: this.getImageUrl(i.image) }));
   }
@@ -191,7 +194,7 @@ export class ApiService {
   async getAllItems(): Promise<Item[]> {
     const data = await this.hass.callApi<Item[]>(
       'GET',
-      'home_inventar/all_items'
+      'home_inventory/all_items'
     );
     return data.map((i) => ({ ...i, image: this.getImageUrl(i.image) }));
   }
@@ -213,11 +216,11 @@ export class ApiService {
     const body: any = { room, cupboard, shelf, ...itemData };
     if (organizer) body.organizer = organizer;
 
-    return this.hass.callApi('POST', 'home_inventar/items', body);
+    return this.hass.callApi('POST', 'home_inventory/items', body);
   }
 
   async updateItem(id: number, data: any): Promise<void> {
-    return this.hass.callApi('PATCH', `home_inventar/items/${id}`, data);
+    return this.hass.callApi('PATCH', `home_inventory/items/${id}`, data);
   }
 
   async updateItemQuantity(
@@ -226,13 +229,13 @@ export class ApiService {
   ): Promise<void> {
     return this.hass.callApi(
       'PATCH',
-      `home_inventar/items/${id}/quantity`,
+      `home_inventory/items/${id}/quantity`,
       data
     );
   }
 
   async deleteItem(id: number): Promise<void> {
-    return this.hass.callApi('DELETE', `home_inventar/items/${id}`);
+    return this.hass.callApi('DELETE', `home_inventory/items/${id}`);
   }
 
   // Upload
@@ -249,7 +252,7 @@ export class ApiService {
     if (context.old_image) params.append('old_image', context.old_image);
 
     const queryString = params.toString();
-    const url = `/api/home_inventar/upload${
+    const url = `/api/home_inventory/upload${
       queryString ? '?' + queryString : ''
     }`;
 

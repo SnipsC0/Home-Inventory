@@ -104,7 +104,7 @@ export default function useEditItemModal({
           item: name,
           old_image: item.image?.split('/').pop()?.split('?')[0],
         });
-        data.image = `/api/home_inventar/images/${imagePath}`;
+        data.image = `/api/home_inventory/images/${imagePath}`;
       }
 
       await updateItem.mutateAsync({ id: item.id, data });

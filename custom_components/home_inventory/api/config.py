@@ -7,8 +7,8 @@ _LOGGER = logging.getLogger(__name__)
 
 class HomeInventarConfigView(HomeAssistantView):
 
-    url = "/api/home_inventar/config"
-    name = "api:home_inventar:config"
+    url = f"/api/{DOMAIN}/config"
+    name = f"api:{DOMAIN}:config"
     requires_auth = True
 
     def __init__(self, hass):
@@ -44,4 +44,4 @@ class HomeInventarConfigView(HomeAssistantView):
             )
     
     def _get_qr_redirect_url(self):
-        return "homeassistant://navigate/home_inventar"
+        return "homeassistant://navigate/home_inventory"

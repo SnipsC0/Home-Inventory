@@ -50,8 +50,8 @@ export interface Item {
   name: string;
   aliases?: string;
   image?: string;
-  quantity?: number | null;
-  min_quantity?: number | null;
+  quantity: number | null;
+  min_quantity: number | null;
   track_quantity: boolean;
   location: string;
   room?: string;

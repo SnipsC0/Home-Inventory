@@ -7,7 +7,7 @@ import {
 } from 'react';
 import { Language, Translations, translations } from './translations';
 
-const STORAGE_KEY = 'home_inventar_language';
+const STORAGE_KEY = 'home_inventory_language';
 
 interface I18nContextType {
   language: Language;

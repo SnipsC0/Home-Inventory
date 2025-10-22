@@ -1,8 +1,8 @@
 import sqlite3, logging, os
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
+from ..const import DOMAIN
 
-DOMAIN = "home_inventar"
 _LOGGER = logging.getLogger(__name__)
 
 class HomeInventarRoomsView(HomeAssistantView):
@@ -19,7 +19,7 @@ class HomeInventarRoomsView(HomeAssistantView):
             return
         
         try:
-            if image_path.startswith('/api/home_inventar/images/'):
+            if image_path.startswith(f'/api/{DOMAIN}/images/'):
                 filename = image_path.split('/')[-1].split('?')[0]
             elif image_path.startswith('/local/'):
                 return

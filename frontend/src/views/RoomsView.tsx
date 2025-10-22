@@ -39,7 +39,7 @@ export default function RoomsView({ api }: { api: ApiService }) {
         {rooms.length === 0 ? (
           <p className="text-center text-ha-text py-10">
             {t.rooms.noExist}
-            {config?.allow_structure_modification && ' Adaugă prima cameră!'}
+            {config?.allow_structure_modification && ` ${t.rooms.addFirst}`}
           </p>
         ) : (
           rooms.map((room) => (
@@ -84,7 +84,7 @@ export default function RoomsView({ api }: { api: ApiService }) {
         <DeleteModal
           isOpen={true}
           itemName={roomToDelete.name}
-          itemType={t.rooms.room}
+          itemType={t.rooms.room.toLowerCase()}
           itemCount={roomToDelete.itemCount}
           onClose={() => setRoomToDelete(null)}
           onConfirm={async () => {

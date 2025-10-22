@@ -40,7 +40,7 @@
 ### Added
 
 - Move objects between organizers for existing items
-- Home Assistant event: `home_inventar_low_stock` (for automations & alerts)
+- Home Assistant event: `home_inventory_low_stock` (for automations & alerts)
 - Deep-link support for direct item consumption (`consume view`)
 
 ### Fixed

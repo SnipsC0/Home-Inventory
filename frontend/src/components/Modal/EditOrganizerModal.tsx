@@ -4,6 +4,7 @@ import { useRooms } from '../../hooks/useRooms';
 import type { ApiService } from '../../services/api';
 import { useAppStore } from '../../store/useAppStore';
 import { Cupboard, Shelf } from '../../types';
+import { useTranslation } from '../../i18n/I18nContext';
 
 interface EditOrganizerModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export default function EditOrganizerModal({
   currentImage,
   api,
 }: EditOrganizerModalProps) {
+  const { t, language } = useTranslation();
   const currentRoom = useAppStore((state) => state.selectedRoom);
   const currentCupboard = useAppStore((state) => state.selectedCupboard);
   const currentShelf = useAppStore((state) => state.selectedShelf);
@@ -35,7 +37,6 @@ export default function EditOrganizerModal({
   const [preview, setPreview] = useState<string | null>(currentImage || null);
   const [loading, setLoading] = useState(false);
 
-  // Sistem de mutare
   const [showMove, setShowMove] = useState(false);
   const [moveRoom, setMoveRoom] = useState<string>('');
   const [moveCupboard, setMoveCupboard] = useState<string>('');
@@ -98,7 +99,7 @@ export default function EditOrganizerModal({
         moveShelf === currentShelf;
 
       if (isSameLocation) {
-        alert('Organizatorul este deja în această locație!');
+        alert(t.errors.sameLocationOrganizer);
         return;
       }
     }
@@ -122,19 +123,22 @@ export default function EditOrganizerModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <ModalHeader onClose={onClose}>
-        {isEditMode ? '✏️ Editează Organizator' : '➕ Adaugă Organizator'}
+        {isEditMode
+          ? `✏️ ${t.common.edit} ${t.organizers.organizer}`
+          : `➕ ${t.common.add} ${t.organizers.organizer}`}
       </ModalHeader>
 
       <div className="space-y-4">
-        {/* Nume */}
         <div>
-          <label className="text-ha-text text-sm block mb-1">Nume *</label>
+          <label className="text-ha-text text-sm block mb-1">
+            {language === 'en' ? 'Name' : 'Nume'} *
+          </label>
           <input
             type="text"
             className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Nume organizator"
+            placeholder={t.organizers.organizerName}
           />
         </div>
 
@@ -150,7 +154,7 @@ export default function EditOrganizerModal({
         {/* Upload imagine */}
         <div>
           <label className="text-ha-text text-sm block mb-1">
-            Imagine (opțional)
+            {t.items.image} ({t.common.optional})
           </label>
           <input
             type="file"
@@ -162,7 +166,9 @@ export default function EditOrganizerModal({
 
         {isEditMode && (
           <div className="bg-ha-secondary-bg p-3 rounded">
-            <div className="text-ha-text text-sm mb-1">📍 Locație curentă</div>
+            <div className="text-ha-text text-sm mb-1">
+              📍 {t.trackedItems.locationLabel}
+            </div>
             <div className="text-ha-text/70 text-xs">
               {currentRoom} › {currentCupboard} › {currentShelf}
             </div>
@@ -174,7 +180,7 @@ export default function EditOrganizerModal({
             onClick={handleStartMove}
             className="w-full py-2 bg-ha-card border border-ha-primary text-ha-primary rounded hover:bg-ha-secondary-bg transition"
           >
-            🚚 Mută organizatorul
+            🚚 {t.organizers.moveOrganizer}
           </button>
         )}
 
@@ -183,20 +189,23 @@ export default function EditOrganizerModal({
           <div className="border border-ha-primary rounded-lg p-4 space-y-3 bg-ha-card">
             <div className="flex items-center justify-between mb-2">
               <span className="text-ha-text font-semibold text-sm">
-                🚚 Mută în:
+                🚚{' '}
+                {`${t.organizers.moveOrganizer.split(' ')[0]} ${
+                  language === 'en' ? 'in' : 'în'
+                }:`}
               </span>
               <button
                 onClick={handleCancelMove}
                 className="text-ha-error text-xs hover:underline"
               >
-                Anulează mutarea
+                {t.common.cancel} {language === 'en' ? 'move' : 'mutarea'}
               </button>
             </div>
 
             {/* Cameră */}
             <div>
               <label className="text-ha-text text-xs block mb-1">
-                Cameră *
+                {t.rooms.room} *
               </label>
               <select
                 value={moveRoom}
@@ -207,7 +216,9 @@ export default function EditOrganizerModal({
                 }}
                 className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
               >
-                <option value="">Selectează camera</option>
+                <option value="">
+                  {t.common.select} {t.rooms.room.toLowerCase()}
+                </option>
                 {rooms.map((r) => (
                   <option key={r.id} value={r.name}>
                     {r.name}
@@ -220,7 +231,7 @@ export default function EditOrganizerModal({
             {moveRoom && (
               <div>
                 <label className="text-ha-text text-xs block mb-1">
-                  Dulap *
+                  {t.cupboards.cupboard} *
                 </label>
                 <select
                   value={moveCupboard}
@@ -230,7 +241,9 @@ export default function EditOrganizerModal({
                   }}
                   className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
                 >
-                  <option value="">Selectează dulapul</option>
+                  <option value="">
+                    {t.common.select} {t.cupboards.cupboard.toLowerCase()}
+                  </option>
                   {availableCupboards.map((c) => (
                     <option key={c.id} value={c.name}>
                       {c.name}
@@ -244,14 +257,16 @@ export default function EditOrganizerModal({
             {moveCupboard && (
               <div>
                 <label className="text-ha-text text-xs block mb-1">
-                  Raft *
+                  {t.shelves.shelf} *
                 </label>
                 <select
                   value={moveShelf}
                   onChange={(e) => setMoveShelf(e.target.value)}
                   className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
                 >
-                  <option value="">Selectează raftul</option>
+                  <option value="">
+                    {t.common.select} {t.shelves.shelf.toLowerCase()}
+                  </option>
                   {availableShelves.map((s) => (
                     <option key={s.id} value={s.name}>
                       {s.name}
@@ -264,7 +279,8 @@ export default function EditOrganizerModal({
             {/* Preview locație nouă */}
             {moveRoom && moveCupboard && moveShelf && (
               <div className="bg-ha-secondary-bg p-2 rounded text-xs text-ha-text/70">
-                📍 Locație nouă:{' '}
+                📍 {language === 'en' ? 'New' : 'Noua'}{' '}
+                {t.trackedItems.locationLabel}{' '}
                 <span className="font-semibold">
                   {moveRoom} › {moveCupboard} › {moveShelf}
                 </span>
@@ -284,14 +300,14 @@ export default function EditOrganizerModal({
           }
           className="flex-1 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition disabled:opacity-50"
         >
-          {loading ? 'Se salvează...' : '💾 Salvează'}
+          {loading ? t.common.saving : `💾 ${t.common.save}`}
         </button>
         <button
           onClick={onClose}
           disabled={loading}
           className="flex-1 py-2 bg-ha-secondary-bg border border-ha-divider text-ha-text rounded hover:bg-ha-card transition"
         >
-          Anulează
+          {t.common.cancel}
         </button>
       </ModalFooter>
     </Modal>

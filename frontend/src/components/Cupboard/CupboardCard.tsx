@@ -6,10 +6,10 @@ interface Props {
   count: number;
   image?: string | null;
   editable?: boolean;
-  onClick: () => void;
+  onClick?: () => void;
   onEdit?: (e: ClickOrTouchEvent) => void;
-  onDelete?: () => void;
-  onQR?: () => void;
+  onDelete?: (e: ClickOrTouchEvent) => void;
+  onQR?: (e: ClickOrTouchEvent) => void;
 }
 
 export default function CupboardCard({

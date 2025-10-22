@@ -20,7 +20,7 @@ class HomeInventarCupboardsView(HomeAssistantView):
             return
         
         try:
-            if image_path.startswith('/api/home_inventar/images/'):
+            if image_path.startswith(f'/api/{DOMAIN}/images/'):
                 filename = image_path.split('/')[-1].split('?')[0]
             elif image_path.startswith('/local/'):
                 return
@@ -31,12 +31,12 @@ class HomeInventarCupboardsView(HomeAssistantView):
             
             if os.path.exists(full_path):
                 os.remove(full_path)
-                _LOGGER.info(f"[HomeInventar] 🗑️ Deleted image file: {full_path}")
+                _LOGGER.info(f"[Home Inventory] 🗑️ Deleted image file: {full_path}")
             else:
-                _LOGGER.debug(f"[HomeInventar] Image file not found: {full_path}")
+                _LOGGER.debug(f"[Home Inventory] Image file not found: {full_path}")
                 
         except Exception as e:
-            _LOGGER.error(f"[HomeInventar] Error deleting image file: {e}", exc_info=True)
+            _LOGGER.error(f"[Home Inventory] Error deleting image file: {e}", exc_info=True)
 
     async def get(self, request):
         room = request.query.get("room")

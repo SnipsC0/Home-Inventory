@@ -20,7 +20,7 @@ class HomeInventarItemsView(HomeAssistantView):
             return
         
         try:
-            if image_path.startswith('/api/home_inventar/images/'):
+            if image_path.startswith(f'/api/{DOMAIN}/images/'):
                 filename = image_path.split('/')[-1].split('?')[0]
             elif image_path.startswith('/local/'):
                 return
@@ -87,9 +87,8 @@ class HomeInventarItemsView(HomeAssistantView):
             result = []
             for r in rows:
                 image = r[2] if r[2] else ""
-                # r[10] este organizer_name
                 location = f"{r[7]} / {r[8]} / {r[9]}"
-                if r[10]:  # dacă există organizer
+                if r[10]:
                     location += f" / {r[10]}"
                 
                 item = {
@@ -196,7 +195,7 @@ class HomeInventarItemView(HomeAssistantView):
             return
         
         try:
-            if image_path.startswith('/api/home_inventar/images/'):
+            if image_path.startswith(f'/api/{DOMAIN}/images/'):
                 filename = image_path.split('/')[-1].split('?')[0]
             elif image_path.startswith('/local/'):
                 return
@@ -223,7 +222,6 @@ class HomeInventarItemView(HomeAssistantView):
             name = data.get("name")
             aliases = data.get("aliases")
             new_image = data.get("image")
-            # MODIFICARE: Folosim "in data" pentru a detecta prezența cheii, nu doar valoarea
             quantity = data.get("quantity") if "quantity" in data else None
             min_quantity = data.get("min_quantity") if "min_quantity" in data else None
             track_quantity = data.get("track_quantity")
@@ -260,7 +258,6 @@ class HomeInventarItemView(HomeAssistantView):
                     params.append(new_image)
                     _LOGGER.debug(f"Updating item image to: '{new_image}'")
                 
-                # MODIFICARE: Verificăm dacă cheia există în request, nu doar dacă valoarea e not None
                 if "quantity" in data:
                     updates.append("quantity = ?")
                     params.append(quantity)
@@ -348,7 +345,6 @@ class HomeInventarItemView(HomeAssistantView):
                 self._delete_image_file(old_image)
                 _LOGGER.debug(f"Old image cleaned: {old_image}")
             
-            # Verificare low stock doar dacă quantity a fost modificată
             if "quantity" in data:
                 def check_low_stock():
                     conn = sqlite3.connect(self.db_path)
@@ -383,20 +379,20 @@ class HomeInventarItemView(HomeAssistantView):
                                 "room": room,
                                 "cupboard": cupboard,
                                 "shelf": shelf,
-                                "location": f"{room} › {cupboard} › {shelf}"
+                                "location": f"{room} / {cupboard} / {shelf}"
                             }
                     return None
                 
                 low_stock_data = await request.app["hass"].async_add_executor_job(check_low_stock)
                 
                 if low_stock_data:
-                    _LOGGER.warning(
+                    _LOGGER.debug(
                         f"🔔 Low stock detected for item {low_stock_data['item_id']}: "
                         f"{low_stock_data['name']} ({low_stock_data['quantity']}/{low_stock_data['min_quantity']}) "
                         f"at {low_stock_data['location']}"
                     )
                     request.app["hass"].bus.async_fire(
-                        "home_inventar_low_stock",
+                        "home_inventory_low_stock",
                         low_stock_data
                     )
             

@@ -1,4 +1,3 @@
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import App from './App';
@@ -92,4 +91,4 @@ class HomeInventarApp extends HTMLElement {
   }
 }
 
-customElements.define('home-inventar-app', HomeInventarApp);
+customElements.define('home-inventory-app', HomeInventarApp);

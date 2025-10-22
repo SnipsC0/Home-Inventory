@@ -2,14 +2,15 @@ from homeassistant.components.http import HomeAssistantView
 from aiohttp import web
 import sqlite3
 import logging
+from ..const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class HomeInventarConsumeView(HomeAssistantView):
 
-    url = "/api/home_inventar/consume/{item_id}"
-    name = "api:home_inventar:consume"
+    url = f"/api/{DOMAIN}/consume/{'{item_id}'}"
+    name = f"api:{DOMAIN}:consume"
     requires_auth = True
 
     def __init__(self, hass, db_path):
@@ -63,7 +64,7 @@ class HomeInventarConsumeView(HomeAssistantView):
                     new_quantity <= item['min_quantity']
                 )
                 
-                location = f"{item['room_name']} › {item['cupboard_name']} › {item['shelf_name']}"
+                location = f"{item['room_name']} / {item['cupboard_name']} / {item['shelf_name']}"
                 
                 result = {
                     'id': item['id'],
@@ -91,13 +92,13 @@ class HomeInventarConsumeView(HomeAssistantView):
                 )
             
             if result['is_low_stock']:
-                _LOGGER.warning(
+                _LOGGER.debug(
                     f"🔔 Low stock detected (consume) for item {result['id']}: "
                     f"{result['name']} ({result['new_quantity']}/{result['min_quantity']}) "
                     f"at {result['location']}"
                 )
                 self.hass.bus.async_fire(
-                    "home_inventar_low_stock",
+                    "home_inventory_low_stock",
                     {
                         "item_id": result['id'],
                         "name": result['name'],
@@ -112,7 +113,7 @@ class HomeInventarConsumeView(HomeAssistantView):
                 )
             
             self.hass.bus.async_fire(
-                "home_inventar_item_consumed",
+                "home_inventory_item_consumed",
                 {
                     "item_id": result['id'],
                     "name": result['name'],
@@ -123,7 +124,7 @@ class HomeInventarConsumeView(HomeAssistantView):
             )
             
             _LOGGER.info(
-                f"[Home Inventar] Item consumed: {result['name']} "
+                f"[Home Inventory] Item consumed: {result['name']} "
                 f"({result['old_quantity']} -> {result['new_quantity']}) "
                 f"at {result['location']}"
             )
@@ -140,8 +141,8 @@ class HomeInventarConsumeView(HomeAssistantView):
 
 class HomeInventarItemDeepLinkView(HomeAssistantView):
 
-    url = "/api/home_inventar/items/{item_id}/consume_link"
-    name = "api:home_inventar:item_consume_link"
+    url = f"/api/{DOMAIN}/items/{'{item_id}'}/consume_link"
+    name = f"api:{DOMAIN}:item_consume_link"
     requires_auth = True
 
     def __init__(self, hass):
@@ -149,9 +150,9 @@ class HomeInventarItemDeepLinkView(HomeAssistantView):
 
     async def get(self, request, item_id):
         try:
-            deep_link = f"homeassistant://navigate/home_inventar/consume/{item_id}"
+            deep_link = f"homeassistant://navigate/{DOMAIN}/consume/{item_id}"
             
-            webhook_url = f"{self._get_base_url()}/api/home_inventar/consume/{item_id}"
+            webhook_url = f"{self._get_base_url()}/api/{DOMAIN}/consume/{item_id}"
             
             return web.json_response({
                 "deep_link": deep_link,

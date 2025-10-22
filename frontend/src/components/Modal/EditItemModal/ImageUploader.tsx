@@ -1,3 +1,5 @@
+import { useTranslation } from '../../../i18n/I18nContext';
+
 interface ImageUploaderProps {
   preview: string | null;
   onChange: (file: File | null) => void;
@@ -7,6 +9,7 @@ export default function ImageUploader({
   preview,
   onChange,
 }: ImageUploaderProps) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-2">
       {preview && (
@@ -18,7 +21,9 @@ export default function ImageUploader({
       )}
 
       <div>
-        <label className="text-ha-text text-sm block mb-1">Imagine</label>
+        <label className="text-ha-text text-sm block mb-1">
+          {t.items.image} ({t.common.optional})
+        </label>
         <input
           type="file"
           accept="image/*"

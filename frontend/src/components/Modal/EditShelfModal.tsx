@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal, ModalHeader, ModalFooter } from './Modal';
+import { useTranslation } from '../../i18n/I18nContext';
 
 interface EditShelfModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ export default function EditShelfModal({
   onSave,
   currentName,
 }: EditShelfModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState(currentName);
   const [loading, setLoading] = useState(false);
 
@@ -30,7 +32,9 @@ export default function EditShelfModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <ModalHeader onClose={onClose}>✏️ Editează Raft</ModalHeader>
+      <ModalHeader onClose={onClose}>
+        ✏️ {t.common.edit} {t.shelves.shelf}
+      </ModalHeader>
 
       <div className="space-y-4">
         <input
@@ -38,7 +42,7 @@ export default function EditShelfModal({
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
-          placeholder="Nume raft"
+          placeholder={t.shelves.shelfName}
         />
       </div>
 
@@ -48,14 +52,14 @@ export default function EditShelfModal({
           disabled={loading || !name.trim()}
           className="flex-1 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition disabled:opacity-50"
         >
-          {loading ? 'Se salvează...' : '💾 Salvează'}
+          {loading ? t.common.saving : `💾 ${t.common.save}`}
         </button>
 
         <button
           onClick={onClose}
           className="flex-1 py-2 bg-ha-secondary-bg border border-ha-divider text-ha-text rounded hover:bg-ha-card transition"
         >
-          Anulează
+          {t.common.cancel}
         </button>
       </ModalFooter>
     </Modal>

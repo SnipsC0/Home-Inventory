@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Cupboard, Shelf, Organizer, Room } from '../../../types';
 import { ApiService } from '../../../services/api';
+import { useTranslation } from '../../../i18n/I18nContext';
 
 interface MoveLocationSelectorProps {
   api: ApiService;
@@ -36,7 +37,9 @@ export default function MoveLocationSelector({
   const { room, cupboard, shelf, organizer, cupboards, shelves, organizers } =
     state;
 
-  const [rooms, setRooms] = useState<Room[]>([]); // ✅ local state pentru camere
+  const [rooms, setRooms] = useState<Room[]>([]);
+
+  const { t, language } = useTranslation();
 
   useEffect(() => {
     (async () => {
@@ -99,13 +102,15 @@ export default function MoveLocationSelector({
           onClick={onCancel}
           className="text-ha-error text-xs hover:underline"
         >
-          Anulează
+          {t.common.cancel}
         </button>
       </div>
 
       {/* Cameră */}
       <div>
-        <label className="text-ha-text text-xs block mb-1">Cameră *</label>
+        <label className="text-ha-text text-xs block mb-1">
+          {t.rooms.room} *
+        </label>
         <select
           value={room}
           onChange={(e) =>
@@ -119,7 +124,9 @@ export default function MoveLocationSelector({
           }
           className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
         >
-          <option value="">Selectează camera</option>
+          <option value="">
+            {t.common.select} {t.rooms.room.toLowerCase()}
+          </option>
           {rooms.map((r) => (
             <option key={r.id} value={r.name}>
               {r.name}
@@ -131,7 +138,9 @@ export default function MoveLocationSelector({
       {/* Dulap */}
       {room && (
         <div>
-          <label className="text-ha-text text-xs block mb-1">Dulap *</label>
+          <label className="text-ha-text text-xs block mb-1">
+            {t.cupboards.cupboard} *
+          </label>
           <select
             value={cupboard}
             onChange={(e) =>
@@ -144,7 +153,9 @@ export default function MoveLocationSelector({
             }
             className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
           >
-            <option value="">Selectează dulapul</option>
+            <option value="">
+              {t.common.select} {t.cupboards.cupboard.toLowerCase()}
+            </option>
             {cupboards.map((c) => (
               <option key={c.id} value={c.name}>
                 {c.name}
@@ -157,7 +168,9 @@ export default function MoveLocationSelector({
       {/* Raft */}
       {cupboard && (
         <div>
-          <label className="text-ha-text text-xs block mb-1">Raft *</label>
+          <label className="text-ha-text text-xs block mb-1">
+            {t.shelves.shelf} *
+          </label>
           <select
             value={shelf}
             onChange={(e) =>
@@ -169,7 +182,9 @@ export default function MoveLocationSelector({
             }
             className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
           >
-            <option value="">Selectează raftul</option>
+            <option value="">
+              {t.common.select} {t.shelves.shelf.toLowerCase()}
+            </option>
             {shelves.map((s) => (
               <option key={s.id} value={s.name}>
                 {s.name}
@@ -192,7 +207,10 @@ export default function MoveLocationSelector({
             }
             className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
           >
-            <option value="">Direct pe raft (fără organizator)</option>
+            <option value="">
+              {t.items.addItemWithoutOrganizer} (
+              {t.organizers.withoutOrganizer.toLowerCase()})
+            </option>
             {organizers.map((o) => (
               <option key={o.id} value={o.name}>
                 {o.name}
@@ -205,7 +223,7 @@ export default function MoveLocationSelector({
       {/* Preview locație nouă */}
       {room && cupboard && shelf && (
         <div className="bg-ha-secondary-bg p-2 rounded text-xs text-ha-text/70">
-          📍 Locație nouă:{' '}
+          📍 {language === 'en' ? 'New' : 'Noua'} {t.items.location}:{' '}
           <span className="font-semibold">
             {room} › {cupboard} › {shelf}
             {organizer && ` › ${organizer}`}

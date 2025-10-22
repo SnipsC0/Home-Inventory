@@ -1,5 +1,6 @@
 import { Modal, ModalHeader } from './Modal';
 import type { Item } from '../../types';
+import { useTranslation } from '../../i18n/I18nContext';
 
 interface ViewItemModalProps {
   isOpen: boolean;
@@ -12,15 +13,17 @@ export default function ViewItemModal({
   onClose,
   item,
 }: ViewItemModalProps) {
-  const isLowStock =
-    item.quantity &&
-    item.min_quantity &&
+  const { t } = useTranslation();
+
+  const isLowStock = !!(
     item.track_quantity &&
     item.quantity !== null &&
     item.min_quantity !== null &&
     item.quantity > 0 &&
-    item.quantity <= item.min_quantity;
+    item.quantity <= item.min_quantity
+  );
 
+  console.log(item.min_quantity);
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <ModalHeader onClose={onClose}>{item.name}</ModalHeader>
@@ -45,7 +48,7 @@ export default function ViewItemModal({
       {/* Locatie */}
       <div className="bg-ha-secondary-bg p-4 rounded-lg mb-4">
         <div className="text-[0.85em] text-ha-text/70 font-medium mb-2">
-          📍 Locație
+          📍 {t.items.location}:
         </div>
         <div className="font-semibold text-ha-text text-base">
           {item.location}
@@ -56,7 +59,7 @@ export default function ViewItemModal({
       {item.aliases && (
         <div className="bg-ha-secondary-bg p-4 rounded-lg mb-4">
           <div className="text-[0.85em] text-ha-text/70 font-medium mb-2">
-            🏷️ Aliasuri
+            🏷️ {t.items.aliases}
           </div>
           <div className="italic text-ha-text">{item.aliases}</div>
         </div>
@@ -66,7 +69,7 @@ export default function ViewItemModal({
       {item.track_quantity ? (
         <div className="bg-ha-secondary-bg p-4 rounded-lg mb-4">
           <div className="text-[0.85em] text-ha-text/70 font-medium mb-3">
-            📊 Urmărire Cantitate
+            📊 {t.items.trackQuantity}
           </div>
 
           <div className="flex gap-3 mb-3">
@@ -76,39 +79,39 @@ export default function ViewItemModal({
               }`}
             >
               <div className="text-[0.8em] opacity-80 mb-1">
-                Cantitate Curentă
+                {t.items.quantity}
               </div>
               <div className="text-xl font-bold">{item.quantity ?? '?'}</div>
             </div>
 
-            {item.min_quantity && (
+            {item.min_quantity !== null && item.min_quantity >= 0 ? (
               <div className="flex-1 bg-ha-primary text-white p-3 rounded text-center">
                 <div className="text-[0.8em] opacity-80 mb-1">
-                  Cantitate Minimă
+                  {t.items.minQuantity}
                 </div>
                 <div className="text-xl font-bold">{item.min_quantity}</div>
               </div>
+            ) : (
+              ''
             )}
           </div>
 
           {isLowStock && (
             <div className="p-3 bg-ha-error text-white rounded text-center text-sm">
-              ⚠️ <strong>Stoc redus!</strong> Necesită reaprovizionare.
+              ⚠️ <strong>{t.items.lowStock}!</strong> {t.items.needsRestock}.
             </div>
           )}
         </div>
       ) : (
         <div className="bg-ha-secondary-bg p-4 rounded-lg mb-4 text-center">
-          <div className="text-sm text-ha-text/70">
-            📊 Cantitatea nu este urmărită pentru acest obiect
-          </div>
+          <div className="text-sm text-ha-text/70">📊 {t.items.noTrack}</div>
         </div>
       )}
 
       {/* Footer */}
       <div className="text-center pt-4 border-t border-ha-divider">
         <div className="text-[0.85em] text-ha-text/70">
-          💡 Apasă lungă sau click dreapta pentru editare
+          💡 {t.common.infoViewPress}
         </div>
       </div>
     </Modal>

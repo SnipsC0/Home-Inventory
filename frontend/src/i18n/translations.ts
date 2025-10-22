@@ -16,13 +16,18 @@ export interface Translations {
     confirm: string;
     back: string;
     reload: string;
+    deleteConfirm: string;
+    deleteConfirm2?: string;
+    optional: string;
+    select: string;
+    name: string;
+    infoViewPress: string;
   };
   rooms: {
     title: string;
     room: string;
     addRoom: string;
     roomName: string;
-    deleteConfirm: string;
     allItems: string;
     trackedItems: string;
     noExist: string;
@@ -44,19 +49,28 @@ export interface Translations {
   shelves: {
     title: string;
     addShelf: string;
+    shelf: string;
     shelfName: string;
     deleteConfirm: string;
+    noShelves: string;
+    addFirst: string;
   };
   organizers: {
     title: string;
+    organizer: string;
     addOrganizer: string;
     organizerName: string;
     deleteConfirm: string;
     withoutOrganizer: string;
+    noOrganizers: string;
+    addFirst: string;
+    moveOrganizer: string;
   };
   items: {
     title: string;
     addItem: string;
+    addFirst: string;
+    addItemWithoutOrganizer: string;
     itemName: string;
     aliases: string;
     quantity: string;
@@ -69,6 +83,8 @@ export interface Translations {
     lowStock: string;
     needsRestock: string;
     pieces: string;
+    moveItem: string;
+    noTrack: string;
   };
   trackedItems: {
     title: string;
@@ -89,6 +105,8 @@ export interface Translations {
     connectionError: string;
     uploadFailed: string;
     generalError: string;
+    sameLocationOrganizer: string;
+    sameLocationItem: string;
   };
 }
 
@@ -109,47 +127,61 @@ export const translations: Record<Language, Translations> = {
       confirm: 'Confirmă',
       back: 'Înapoi',
       reload: 'Reîncarcă',
+      deleteConfirm: 'Sigur vrei să ștergi această',
+      deleteConfirm2: 'Sigur vrei să ștergi acest',
+      optional: 'opțional',
+      select: 'Selectează',
+      name: 'Nume',
+      infoViewPress: 'Apasă lungă sau click dreapta pentru editare',
     },
     rooms: {
       title: 'Camere',
-      room: 'camera',
+      room: 'Camera',
       addRoom: 'Adaugă Cameră',
       roomName: 'Nume cameră',
-      deleteConfirm: 'Sigur vrei să ștergi această cameră,',
       allItems: 'Toate Articolele',
       trackedItems: 'Articole Urmărite',
       noExist: 'Nu există camere.',
-      addFirst: 'Adaugă prima cameră.',
+      addFirst: 'Adaugă prima cameră',
       this: 'Această',
       contain: 'conține',
-      containItems: 'elemente care vor fi sterse',
+      containItems: 'elemente care vor fi șterse',
     },
     cupboards: {
       title: 'Dulapuri',
-      cupboard: 'dulap',
+      cupboard: 'Dulap',
       addCupboard: 'Adaugă Dulap',
       cupboardName: 'Nume dulap',
       deleteConfirm: 'Sigur vrei să ștergi acest dulap?',
       noCupboards: 'Nu există dulapuri',
-      addFirst: 'Adaugă primul dulap.',
+      addFirst: 'Adaugă primul dulap',
       example: 'ex: Dulap mare',
     },
     shelves: {
       title: 'Rafturi',
+      shelf: 'Raft',
       addShelf: 'Adaugă Raft',
       shelfName: 'Nume raft',
       deleteConfirm: 'Sigur vrei să ștergi acest raft?',
+      noShelves: 'Nu există rafturi',
+      addFirst: 'Adaugă primul raft',
     },
     organizers: {
       title: 'Organizatoare',
+      organizer: 'Organizator',
       addOrganizer: 'Adaugă Organizator',
       organizerName: 'Nume organizator',
       deleteConfirm: 'Sigur vrei să ștergi acest organizator?',
       withoutOrganizer: 'Fără Organizator',
+      noOrganizers: 'Nu există organizatoare',
+      addFirst: 'Adaugă primul organizator',
+      moveOrganizer: 'Mută organizatorul',
     },
     items: {
       title: 'Articole',
       addItem: 'Adaugă Articol',
+      addFirst: 'Adaugă primul articol',
+      addItemWithoutOrganizer: 'Obiect direct pe raft',
       itemName: 'Nume articol',
       aliases: 'Aliasuri',
       quantity: 'Cantitate',
@@ -162,6 +194,8 @@ export const translations: Record<Language, Translations> = {
       lowStock: 'Stoc scăzut',
       needsRestock: 'Necesită reaprovizionare',
       pieces: 'bucăți',
+      moveItem: 'Mută articolul',
+      noTrack: 'Cantitatea nu este urmărită pentru acest obiect',
     },
     trackedItems: {
       title: 'Articole Urmărite',
@@ -182,6 +216,8 @@ export const translations: Record<Language, Translations> = {
       connectionError: 'Eroare la conectare',
       uploadFailed: 'Upload eșuat',
       generalError: 'A apărut o eroare',
+      sameLocationOrganizer: 'Organizatorul este în aceeași locație',
+      sameLocationItem: 'Articolul este în aceeași locație',
     },
   },
   en: {
@@ -200,13 +236,17 @@ export const translations: Record<Language, Translations> = {
       confirm: 'Confirm',
       back: 'Back',
       reload: 'Reload',
+      deleteConfirm: 'Are you sure you want to delete this',
+      optional: 'optional',
+      select: 'Select',
+      name: 'Name',
+      infoViewPress: 'Touch longer or right click to edit',
     },
     rooms: {
       title: 'Rooms',
       room: 'Room',
       addRoom: 'Add Room',
       roomName: 'Room name',
-      deleteConfirm: 'Are you sure you want to delete this room,',
       allItems: 'All Items',
       trackedItems: 'Tracked Items',
       noExist: "There's no room.",
@@ -217,7 +257,7 @@ export const translations: Record<Language, Translations> = {
     },
     cupboards: {
       title: 'Cupboards',
-      cupboard: 'cupboard',
+      cupboard: 'Cupboard',
       addCupboard: 'Add Cupboard',
       cupboardName: 'Cupboard name',
       deleteConfirm: 'Are you sure you want to delete this cupboard?',
@@ -227,20 +267,29 @@ export const translations: Record<Language, Translations> = {
     },
     shelves: {
       title: 'Shelves',
+      shelf: 'Shelf',
       addShelf: 'Add Shelf',
       shelfName: 'Shelf name',
       deleteConfirm: 'Are you sure you want to delete this shelf?',
+      noShelves: "There's no shelves",
+      addFirst: 'Add first shelf',
     },
     organizers: {
       title: 'Organizers',
+      organizer: 'Organizer',
       addOrganizer: 'Add Organizer',
       organizerName: 'Organizer name',
       deleteConfirm: 'Are you sure you want to delete this organizer?',
       withoutOrganizer: 'Without Organizer',
+      noOrganizers: "There's no organizers",
+      addFirst: 'Add first organizer',
+      moveOrganizer: 'Move the organizer',
     },
     items: {
       title: 'Items',
       addItem: 'Add Item',
+      addFirst: 'Add first item',
+      addItemWithoutOrganizer: 'Item on shelf',
       itemName: 'Item name',
       aliases: 'Aliases',
       quantity: 'Quantity',
@@ -253,6 +302,8 @@ export const translations: Record<Language, Translations> = {
       lowStock: 'Low stock',
       needsRestock: 'Needs restock',
       pieces: 'pieces',
+      moveItem: 'Move the item',
+      noTrack: 'The quantity is not tracked for this item',
     },
     trackedItems: {
       title: 'Tracked Items',
@@ -273,6 +324,8 @@ export const translations: Record<Language, Translations> = {
       connectionError: 'Connection error',
       uploadFailed: 'Upload failed',
       generalError: 'An error occurred',
+      sameLocationOrganizer: 'The organizer is in the same location',
+      sameLocationItem: 'The item is in the same location',
     },
   },
 };

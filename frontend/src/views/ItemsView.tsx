@@ -7,8 +7,10 @@ import AddItemModal from '../components/Modal/AddItemModal';
 import ItemCard from '../components/Item/ItemCard';
 import Breadcrumb from '../components/Layout/BreadCrumb';
 import type { ApiService } from '../services/api';
+import { useTranslation } from '../i18n/I18nContext';
 
 export default function ItemsView({ api }: { api: ApiService }) {
+  const { t } = useTranslation();
   const selectedOrganizer = useAppStore((state) => state.selectedOrganizer);
   const selectedRoom = useAppStore((state) => state.selectedRoom);
   const selectedCupboard = useAppStore((state) => state.selectedCupboard);
@@ -42,7 +44,7 @@ export default function ItemsView({ api }: { api: ApiService }) {
   return (
     <div className="space-y-4">
       <Breadcrumb
-        currentLabel={`Obiecte (${selectedOrganizer})`}
+        currentLabel={`${t.items.title} (${selectedOrganizer})`}
         onBack={goBack}
       />
 
@@ -51,15 +53,15 @@ export default function ItemsView({ api }: { api: ApiService }) {
           onClick={() => setShowAddModal(true)}
           className="px-3 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition"
         >
-          + Adaugă Obiect
+          + {t.items.addItem}
         </button>
       )}
 
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(140px,1fr))]">
         {items.length === 0 ? (
           <p className="text-center text-ha-text py-10">
-            Nu există obiecte.
-            {config?.allow_structure_modification && ' Adaugă unul!'}
+            {t.items.noItems}.
+            {config?.allow_structure_modification && ` ${t.items.addFirst}!`}
           </p>
         ) : (
           sortedItems.map((item) => (

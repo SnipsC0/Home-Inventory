@@ -86,8 +86,16 @@ export default function CupboardsView({ api }: Props) {
                 e.stopPropagation();
                 setEditingCupboard(cupboard);
               }}
-              onDelete={() => setDeletingCupboard(cupboard)}
-              onQR={() => downloadQRCode(selectedRoom, cupboard.name)}
+              onDelete={(e: ClickOrTouchEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDeletingCupboard(cupboard);
+              }}
+              onQR={(e: ClickOrTouchEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                downloadQRCode(selectedRoom, cupboard.name);
+              }}
             />
           ))
         )}

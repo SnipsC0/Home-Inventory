@@ -13,12 +13,14 @@ import ViewItemModal from '../components/Modal/ViewItemModal';
 import EditItemModal from '../components/Modal/EditItemModal/EditItemModal';
 import Breadcrumb from '../components/Layout/BreadCrumb';
 import { useAppStore } from '../store/useAppStore';
+import { useTranslation } from '../i18n/I18nContext';
 
 interface Props {
   api: ApiService;
 }
 
 const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
+  const { t } = useTranslation();
   const { data: allItems = [], isLoading } = useGlobalItems(api);
   const goBack = useAppStore((state) => state.goBack);
 
@@ -56,7 +58,9 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
     }
 
     if (filterStatus === 'low') {
-      items = items.filter((item: Item) => item.quantity! < item.min_quantity!);
+      items = items.filter(
+        (item: Item) => item.quantity! <= item.min_quantity!
+      );
     } else if (filterStatus === 'ok') {
       items = items.filter(
         (item: Item) => item.quantity! >= item.min_quantity!
@@ -74,19 +78,19 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
 
   const lowStockCount = useMemo(() => {
     return trackedItems.filter(
-      (item: Item) => item.quantity! < item.min_quantity!
+      (item: Item) => item.quantity! <= item.min_quantity!
     ).length;
   }, [trackedItems]);
 
   const getStatusColor = (item: Item) => {
-    if (item.quantity! < item.min_quantity!) {
+    if (item.quantity! <= item.min_quantity!) {
       return 'border-l-4 border-ha-error';
     }
     return 'border-l-4 border-transparent';
   };
 
   const getStatusIcon = (item: Item) => {
-    if (item.quantity! < item.min_quantity!) {
+    if (item.quantity! <= item.min_quantity!) {
       return <AlertCircle className="w-5 h-5 text-red-500" />;
     }
     return <CheckCircle className="w-5 h-5 text-green-500" />;
@@ -133,7 +137,7 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
     return (
       <div className="flex items-center justify-center min-h-[400px] flex-col gap-4 text-ha-text">
         <div className="w-10 h-10 border-4 border-ha-divider border-t-ha-primary rounded-full animate-spin" />
-        <div>Se încarcă articolele urmărite...</div>
+        <div>{t.trackedItems.loading}</div>
       </div>
     );
   }
@@ -144,12 +148,12 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-ha-text flex items-center gap-2">
             <Package className="w-6 h-6" />
-            <Breadcrumb onBack={goBack} currentLabel="Articole Urmărite" />
+            <Breadcrumb onBack={goBack} currentLabel={t.trackedItems.title} />
           </h1>
           {lowStockCount > 0 && (
             <div className="flex items-center gap-2 px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
               <TrendingDown className="w-4 h-4" />
-              {lowStockCount} sub stoc
+              {lowStockCount} {t.trackedItems.belowStock.toLowerCase()}
             </div>
           )}
         </div>
@@ -159,7 +163,7 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ha-secondary" />
             <input
               type="text"
-              placeholder="Caută articole..."
+              placeholder={t.trackedItems.searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-ha-card border border-ha-divider rounded-lg text-ha-text placeholder-ha-secondary focus:outline-none focus:ring-2 focus:ring-ha-primary"
@@ -175,7 +179,7 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
                   : 'bg-ha-card text-ha-text border border-ha-divider hover:bg-ha-divider'
               }`}
             >
-              Toate ({trackedItems.length})
+              {t.trackedItems.all} ({trackedItems.length})
             </button>
             <button
               onClick={() => setFilterStatus('low')}
@@ -185,7 +189,7 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
                   : 'bg-ha-card text-ha-text border border-ha-divider hover:bg-ha-divider'
               }`}
             >
-              Sub stoc ({lowStockCount})
+              {t.trackedItems.belowStock} ({lowStockCount})
             </button>
             <button
               onClick={() => setFilterStatus('ok')}
@@ -205,13 +209,13 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
             <Package className="w-12 h-12 text-ha-secondary mx-auto mb-3" />
             <p className="text-ha-text font-medium mb-1">
               {searchTerm || filterStatus !== 'all'
-                ? 'Nu s-au găsit articole'
-                : 'Niciun articol urmărit'}
+                ? t.trackedItems.noItemsFiltered
+                : t.trackedItems.noItems}
             </p>
             <p className="text-ha-secondary text-sm">
               {searchTerm || filterStatus !== 'all'
-                ? 'Încearcă să modifici filtrele'
-                : 'Activează urmărirea cantității pentru articole'}
+                ? t.trackedItems.tryModifyFilters
+                : t.trackedItems.enableTracking}
             </p>
           </div>
         ) : (
@@ -268,14 +272,16 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
                     </div>
 
                     <div className="text-sm text-ha-secondary mb-3 truncate flex flex-col">
-                      <span className="font-semibold">Locație:</span>
+                      <span className="font-semibold">
+                        {t.trackedItems.locationLabel}
+                      </span>
                       <span className="italic">{item.location}</span>
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-ha-secondary">
-                          Cantitate:{' '}
+                          {`${t.trackedItems.quantityLabel} `}
                           <span className="font-semibold text-ha-text">
                             {item.quantity}
                           </span>{' '}
@@ -283,11 +289,10 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
                         </span>
                       </div>
 
-                      {item.quantity! < item.min_quantity! && (
+                      {item.quantity! <= item.min_quantity! && (
                         <div className="flex items-center gap-1 text-xs text-red-600 font-medium">
                           <AlertCircle className="w-3 h-3" />
-                          Necesită reaprovizionare (
-                          {item.min_quantity! - item.quantity!} bucăți)
+                          {t.trackedItems.needsRestockLabel}
                         </div>
                       )}
                     </div>

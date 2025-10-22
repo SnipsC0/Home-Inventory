@@ -20,7 +20,7 @@ export default function DeleteModal({
   itemCount = 0,
 }: DeleteModalProps) {
   const [loading, setLoading] = useState(false);
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const handleConfirm = async () => {
     setLoading(true);
@@ -34,10 +34,17 @@ export default function DeleteModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <ModalHeader onClose={onClose}>Ștergere {itemType}</ModalHeader>
+      <ModalHeader onClose={onClose}>
+        {t.common.delete} {itemType}
+      </ModalHeader>
 
       <div className="text-ha-text leading-relaxed mb-4">
-        {t.rooms.deleteConfirm} <strong>{itemName}</strong>?
+        {language === 'en'
+          ? t.common.deleteConfirm
+          : itemType === 'camera'
+          ? t.common.deleteConfirm
+          : t.common.deleteConfirm2}{' '}
+        {itemType.toLowerCase()},<strong> {itemName}</strong>?
         {itemCount > 0 && (
           <span className="block mt-2 text-ha-error">
             ⚠ {t.rooms.this} {itemType.toLowerCase()} {t.rooms.contain}{' '}

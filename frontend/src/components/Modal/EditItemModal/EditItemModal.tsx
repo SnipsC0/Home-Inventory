@@ -4,6 +4,7 @@ import MoveLocationSelector from './MoveLocationSelector';
 import type { Item } from '../../../types';
 import { ApiService } from '../../../services/api';
 import useEditItemModal from '../../../hooks/useEditItemModal';
+import { useTranslation } from '../../../i18n/I18nContext';
 
 interface Props {
   isOpen: boolean;
@@ -45,13 +46,17 @@ export default function EditItemModal({
     handleDelete,
   } = useEditItemModal({ api, item, organizer, onSuccess, onClose });
 
+  const { t } = useTranslation();
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="600px">
-      <ModalHeader onClose={onClose}>✏️ Editează Obiect</ModalHeader>
+      <ModalHeader onClose={onClose}>
+        ✏️ {t.common.edit} {t.items.title.toLowerCase().slice(0, -1)}
+      </ModalHeader>
 
       <div className="space-y-4">
         <label className="block">
-          <span className="text-ha-text text-sm">Nume *</span>
+          <span className="text-ha-text text-sm">{t.common.name} *</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -60,7 +65,7 @@ export default function EditItemModal({
         </label>
 
         <label className="block">
-          <span className="text-ha-text text-sm">Aliasuri</span>
+          <span className="text-ha-text text-sm">{t.items.aliases}</span>
           <input
             value={aliases}
             onChange={(e) => setAliases(e.target.value)}
@@ -78,7 +83,7 @@ export default function EditItemModal({
             id="track-item"
           />
           <label htmlFor="track-item" className="text-ha-text text-sm">
-            Urmărește cantitatea
+            {t.items.trackQuantity}
           </label>
         </div>
 
@@ -87,7 +92,7 @@ export default function EditItemModal({
             <input
               type="number"
               value={quantity ?? ''}
-              placeholder="Cantitate"
+              placeholder={t.items.quantity}
               onChange={(e) =>
                 setQuantity(e.target.value ? +e.target.value : null)
               }
@@ -96,7 +101,7 @@ export default function EditItemModal({
             <input
               type="number"
               value={minQuantity ?? ''}
-              placeholder="Cantitate minimă"
+              placeholder={t.items.minQuantity}
               onChange={(e) =>
                 setMinQuantity(e.target.value ? +e.target.value : null)
               }
@@ -106,7 +111,7 @@ export default function EditItemModal({
         )}
 
         <div className="bg-ha-secondary-bg p-3 rounded text-sm text-ha-text/80">
-          📍 {item.location}
+          📍 {t.items.location}: {item.location}
         </div>
 
         {!showMove ? (
@@ -114,7 +119,7 @@ export default function EditItemModal({
             onClick={startMove}
             className="w-full py-2 border border-ha-primary text-ha-primary rounded hover:bg-ha-secondary-bg"
           >
-            🚚 Mută obiectul
+            🚚 {t.items.moveItem}
           </button>
         ) : (
           <MoveLocationSelector
@@ -132,21 +137,21 @@ export default function EditItemModal({
           disabled={loading || !name.trim()}
           className="flex-1 py-2 bg-ha-primary text-white rounded disabled:opacity-50"
         >
-          {loading ? 'Se salvează...' : '💾 Salvează'}
+          {loading ? t.common.saving : `💾 ${t.common.save}`}
         </button>
         <button
           onClick={handleDelete}
           disabled={loading}
           className="flex-1 py-2 bg-ha-error text-white rounded disabled:opacity-50"
         >
-          🗑️ Șterge
+          🗑️ {t.common.delete}
         </button>
         <button
           onClick={onClose}
           disabled={loading}
           className="flex-1 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
         >
-          Anulează
+          {t.common.cancel}
         </button>
       </ModalFooter>
     </Modal>

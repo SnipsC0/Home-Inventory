@@ -1,7 +1,7 @@
 {
   "domain": "home_inventory",
   "name": "Home Inventory",
-  "codeowners": ["@emilianpetrovici"],
+  "codeowners": ["@SnipsC0"],
   "config_flow": true,
   "dependencies": ["http"],
   "documentation": "https://github.com/SnipsC0/Home-Inventory#readme",

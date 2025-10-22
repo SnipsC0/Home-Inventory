@@ -1,3 +1,6 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/SnipsC0/Home-Inventory/main/logo.png" width="200" alt="Home Inventory Logo">
+</p>
 # Home Inventory
 
 ![Status](https://img.shields.io/badge/status-production--ready-brightgreen)

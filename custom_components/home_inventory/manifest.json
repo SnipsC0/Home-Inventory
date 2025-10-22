@@ -9,7 +9,6 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/SnipsC0/Home-Inventory/issues",
   "loggers": ["custom_components.home_inventory"],
-  "platforms": ["sensor"],
   "requirements": ["Pillow>=10.0.0"],
   "version": "2.0.0"
 }

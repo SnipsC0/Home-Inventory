@@ -1,165 +1,478 @@
 <p align="center">
   <img src="https://raw.githubusercontent.com/SnipsC0/Home-Inventory/main/logo.png" width="200" alt="Home Inventory Logo">
 </p>
-# Home Inventory
 
-![Status](https://img.shields.io/badge/status-production--ready-brightgreen)
-![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Integration-41BDF5)
-![HACS](https://img.shields.io/badge/HACS-Custom-blue)
-![Privacy](https://img.shields.io/badge/data-local_only-important)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
+# 🏠 Home Inventory
 
-**Home Inventory** este o integrare custom pentru **Home Assistant**, destinată organizării inventarului casnic printr-o structură logică:
-**Camere → Dulapuri → Rafturi → Organizatoare → Obiecte**, cu suport pentru **poze locale securizate, cantități, prag minim, eveniment automat pentru stoc redus, UI dedicat și automatizări inteligente**.
+A custom integration for Home Assistant designed to organize your domestic inventory through a logical structure: **Rooms → Cupboards → Shelves → Organizers → Items**, with support for secure local images, quantity tracking, minimum threshold alerts, automatic low stock events, dedicated UI, and smart automations.
+
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
-## 📌 Cuprins
+## ✨ Features
 
-- [✨ Funcționalități](#-funcționalități)
-- [📁 Structură proiect](#-structură-proiect)
-- [🚀 Instalare](#-instalare)
-- [🔹 Instalare Manuală](#-instalare-manuală)
-- [🟣 Instalare prin HACS (Custom Repository)](#-instalare-prin-hacs-custom-repository)
-- [🖥 Panou UI dedicat](#-panou-ui-dedicat)
-- [📊 Senzori disponibili](#-senzori-disponibili)
-- [📢 Eveniment automat: home_inventory_low_stock](#-eveniment-automat-home_inventory_low_stock)
-- [🔔 Exemplu notificare push](#-exemplu-notificare-push)
-- [🧪 Test eveniment manual](#-test-eveniment-manual)
-- [🔐 Securitate & confidențialitate](#-securitate--confidențialitate)
-- [🖼 Screenshot-uri (opțional)](#-screenshot-uri-opțional)
-- [📜 Licență](#-licență)
-
----
-
-## ✨ Funcționalități
-
-| Funcție                        | Detalii                                                           |
-| ------------------------------ | ----------------------------------------------------------------- |
-| ✅ Ierarhie logică             | Camere → Dulapuri → Rafturi → Organizatoare → Obiecte             |
-| ✅ UI dedicat                  | Panou în Home Assistant Sidebar, interfață rapidă și fluentă      |
-| ✅ Poze securizate             | Servite prin API local, **NU prin `/local` public**               |
-| ✅ Stocare locală 100%         | Fără cloud, fără trimiteri externe                                |
-| ✅ Track cantitate             | Afișare badge stoc + reglare rapidă (+/-)                         |
-| ✅ Prag minim alertă           | Eveniment Home Assistant: `home_inventory_low_stock`              |
-| ✅ HACS compatibil             | Instalabil ca **HACS Custom Repository**                          |
-| ✅ Lazy Loading                | UI eficient cu sute de obiecte (scroll infinit)                   |
-| ✅ Automations Ready           | Suport pentru notificări, Discord, To-Do, Google Sheets, LED etc. |
-| ✅ Compatibil cu Companion App | Perfect pentru mobil + scanare coduri/poze                        |
+| Feature                     | Details                                                                          |
+| --------------------------- | -------------------------------------------------------------------------------- |
+| ✅ Logical Hierarchy        | Rooms → Cupboards → Shelves → Organizers → Items                                 |
+| ✅ Dedicated UI             | Panel in Home Assistant Sidebar with fast, fluid interface                       |
+| ✅ Secure Images            | Served via local API, NOT through public `/local` directory                      |
+| ✅ 100% Local Storage       | No cloud, no external data transmission                                          |
+| ✅ Quantity Tracking        | Stock badge display with quick adjustment (+/-) buttons                          |
+| ✅ Minimum Threshold Alert  | Home Assistant event: `home_inventory_low_stock`                                 |
+| ✅ HACS Compatible          | Installable as HACS Custom Repository                                            |
+| ✅ Lazy Loading             | Efficient UI handling hundreds of items (infinite scroll)                        |
+| ✅ Automations Ready        | Support for notifications, Discord, To-Do lists, Google Sheets, LED alerts, etc. |
+| ✅ Companion App Compatible | Perfect for mobile use with barcode scanning and photo capture                   |
 
 ---
 
-## 🚀 Instalare
+## 📁 Project Structure
 
-### 🔹 Instalare Manuală
-
-1. Copiază folderul `home_inventory` în:
-   → `/config/custom_components/home_inventory`
-2. Repornește Home Assistant:
-   → `Settings → System → Restart`
-3. Adaugă integrarea:
-   → `Settings → Devices & Services → Add Integration → "Home Inventory"`
-
----
-
-### 🟣 Instalare prin **HACS (Custom Repository)**
-
-1. Deschide HACS → `Integrations`
-2. Click pe `⋮` (meniu dreapta sus) → `Custom Repositories`
-3. Introdu URL:
-   →`https://github.com/SnipsC0/Home-inventar`
-
-Tip: **Integration** 4. Confirmă → apare în HACS → Instalează 5. Repornește Home Assistant
+```
+custom_components/home_inventory/
+├── __init__.py          # Integration initialization
+├── manifest.json        # Integration metadata
+├── config_flow.py       # Configuration flow
+├── const.py            # Constants and configuration
+├── api.py              # API endpoints
+├── sensor.py           # Sensor entities
+└── ...
+```
 
 ---
 
-## 🖥 Panou UI dedicat
+## 🚀 Installation
 
-După instalare, în bara laterală Home Assistant apare **"Home Inventory"**.  
-Panoul este servit prin API securizat, NU prin `/local`, ceea ce înseamnă:
+### 🔹 Manual Installation
 
-> ✅ **Imaginile și datele NU sunt accesibile public** prin URL direct sau Cloudflare Proxy — se încarcă doar dacă ești autentificat în HA.
+1. Copy the `home_inventory` folder to:
+
+   ```
+   /config/custom_components/home_inventory
+   ```
+
+2. Restart Home Assistant:
+
+   ```
+   Settings → System → Restart
+   ```
+
+3. Add the integration:
+   ```
+   Settings → Devices & Services → Add Integration → "Home Inventory"
+   ```
+
+### 🟣 Installation via HACS (Custom Repository)
+
+1. Open HACS → **Integrations**
+
+2. Click on `⋮` (top right menu) → **Custom Repositories**
+
+3. Enter the repository URL:
+
+   ```
+   https://github.com/SnipsC0/Home-Inventory
+   ```
+
+   Type: **Integration**
+
+4. Confirm → The integration appears in HACS → Click **Install**
+
+5. Restart Home Assistant
 
 ---
 
-## 📢 Eveniment automat: `home_inventory_low_stock`
+## 🖥 Dedicated UI Panel
 
-Integrarea generează automat evenimentul **`home_inventory_low_stock`** când un obiect intră în **stoc redus**.
+After installation, a **"Home Inventory"** panel appears in the Home Assistant sidebar.
 
-### 🎯 Condiții pentru declanșare
+The panel is served through a **secured API**, NOT through `/local`, which means:
 
-| Condiție                            | Necesită |
-| ----------------------------------- | :------: |
-| `track_quantity = True`             |    ✅    |
-| Modificare cantitate (UI/API/modal) |    ✅    |
-| `quantity <= min_quantity`          |    ✅    |
-| `quantity > 0`                      |    ✅    |
+✅ Images and data are NOT publicly accessible via direct URL or Cloudflare Proxy  
+✅ Content loads only when authenticated in Home Assistant  
+✅ Complete privacy and security for your inventory data
 
-### 🔍 Structură eveniment
+---
+
+## 📊 Available Sensors
+
+The integration automatically creates three sensor entities for monitoring your inventory. Each sensor updates every minute and provides real-time inventory statistics.
+
+### Sensor: `sensor.home_inventory_total_items`
+
+**Description**: Tracks the total number of items in your entire inventory.
+
+**Entity Properties**:
+
+- **State**: Integer (total count of all items)
+- **Icon**: `mdi:package-variant`
+- **Unique ID**: `home_inventory_total_items`
+- **Update Interval**: 1 minute
+
+**Attributes**:
 
 ```yaml
-event_type: home_inventory_low_stock
-  event_data:
-    item_id: 123
-    name: 'Orez Basmati'
-    aliases: 'orez, rice'
+unit_of_measurement: 'items'
+```
+
+**Example State**:
+
+```yaml
+state: 127
+attributes:
+  unit_of_measurement: 'items'
+```
+
+---
+
+### Sensor: `sensor.home_inventory_low_stock`
+
+**Description**: Monitors items that have quantity tracking enabled and are currently at or below their minimum threshold.
+
+**Entity Properties**:
+
+- **State**: Integer (count of items with low stock)
+- **Icon**: `mdi:alert-circle`
+- **Unique ID**: `home_inventory_low_stock`
+- **Update Interval**: 1 minute
+
+**Attributes**:
+
+```yaml
+unit_of_measurement: 'items'
+items:
+  - id: 123
+    name: 'Basmati Rice'
     quantity: 1
     min_quantity: 2
-    room: 'Bucătărie'
-    cupboard: 'Dulap Mare'
-    shelf: 'Raft 2'
-    location: 'Bucătărie › Dulap Mare › Raft 2'
+    room: 'Kitchen'
+    cupboard: 'Main Cupboard'
+    shelf: 'Shelf 2'
+    location: 'Kitchen / Main Cupboard / Shelf 2'
+  - id: 456
+    name: 'Olive Oil'
+    quantity: 0
+    min_quantity: 1
+    room: 'Kitchen'
+    cupboard: 'Pantry'
+    shelf: 'Top Shelf'
+    location: 'Kitchen / Pantry / Top Shelf'
 ```
 
-### Exemple notificare push
+**SQL Query Logic**:
 
-automation:
+- Only includes items with `track_quantity = 1`
+- Only includes items where both `quantity` and `min_quantity` are set
+- Filters items where `quantity <= min_quantity`
+- Orders results by quantity (ascending)
+
+**Example State**:
 
 ```yaml
-- alias: '📱 Notificare Stoc Redus - Inventar'
-  trigger:
-    - platform: event
-      event_type: home_inventory_low_stock
-  action:
-    - service: notify.mobile_app_telefonul_tau
-      data:
-        title: '⚠️ Stoc Redus: {{ trigger.event.data.name }}'
-        message: >
-          Obiectul "{{ trigger.event.data.name }}" este pe terminate!
-          Cantitate: {{ trigger.event.data.quantity }} / {{ trigger.event.data.min_quantity }}
-          Locație: {{ trigger.event.data.location }}
+state: 5
+attributes:
+  unit_of_measurement: 'items'
+  items:
+    - id: 123
+      name: 'Coffee Beans'
+      quantity: 1
+      min_quantity: 3
+      room: 'Kitchen'
+      cupboard: 'Upper Cabinet'
+      shelf: 'Middle Shelf'
+      location: 'Kitchen / Upper Cabinet / Middle Shelf'
 ```
 
-### Test eveniment manual
+---
+
+### Sensor: `sensor.home_inventory_tracked_items`
+
+**Description**: Displays all items that have quantity tracking enabled, regardless of their current stock level.
+
+**Entity Properties**:
+
+- **State**: Integer (count of all tracked items)
+- **Icon**: `mdi:playlist-check`
+- **Unique ID**: `home_inventory_tracked_items`
+- **Update Interval**: 1 minute
+
+**Attributes**:
+
+```yaml
+unit_of_measurement: 'items'
+items:
+  - id: 123
+    name: 'Basmati Rice'
+    quantity: 1
+    min_quantity: 2
+    room: 'Kitchen'
+    cupboard: 'Main Cupboard'
+    shelf: 'Shelf 2'
+    is_low: true
+  - id: 124
+    name: 'Pasta'
+    quantity: 5
+    min_quantity: 2
+    room: 'Kitchen'
+    cupboard: 'Pantry'
+    shelf: 'Bottom Shelf'
+    is_low: false
+```
+
+**SQL Query Logic**:
+
+- Only includes items with `track_quantity = 1`
+- Only includes items where `min_quantity` is set
+- Includes items regardless of current quantity level
+- Orders results by name (alphabetically)
+- Includes `is_low` flag to indicate if item is below threshold
+
+**Example State**:
+
+```yaml
+state: 42
+attributes:
+  unit_of_measurement: 'items'
+  items:
+    - id: 101
+      name: 'AA Batteries'
+      quantity: 8
+      min_quantity: 4
+      room: 'Office'
+      cupboard: 'Desk Drawer'
+      shelf: 'Top Drawer'
+      is_low: false
+    - id: 102
+      name: 'Paper Towels'
+      quantity: 1
+      min_quantity: 3
+      room: 'Kitchen'
+      cupboard: 'Under Sink'
+      shelf: 'Bottom'
+      is_low: true
+```
+
+---
+
+## 🔍 Using Sensors in Automations
+
+You can use these sensors to create powerful automations:
+
+### Example: Badge Count Notification
+
+```yaml
+automation:
+  - alias: 'Daily Low Stock Summary'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.home_inventory_low_stock
+        above: 0
+    action:
+      - service: notify.mobile_app
+        data:
+          title: '📦 Inventory Alert'
+          message: "You have {{ states('sensor.home_inventory_low_stock') }} items running low!"
+```
+
+### Example: Using Sensor Attributes
+
+```yaml
+automation:
+  - alias: 'Low Stock Item List'
+    trigger:
+      - platform: state
+        entity_id: sensor.home_inventory_low_stock
+    action:
+      - service: notify.persistent_notification
+        data:
+          title: 'Low Stock Items'
+          message: >
+            {% for item in state_attr('sensor.home_inventory_low_stock', 'items') %}
+            - {{ item.name }}: {{ item.quantity }}/{{ item.min_quantity }} ({{ item.location }})
+            {% endfor %}
+```
+
+## 📢 Automatic Event: `home_inventory_low_stock`
+
+The integration automatically triggers the `home_inventory_low_stock` event when an item enters low stock status.
+
+### Trigger Conditions
+
+| Condition                        | Required |
+| -------------------------------- | -------- |
+| `track_quantity = True`          | ✅       |
+| Quantity modified (UI/API/modal) | ✅       |
+| `quantity <= min_quantity`       | ✅       |
+| `quantity > 0`                   | ✅       |
+
+### Event Data Structure
 
 ```yaml
 event_type: home_inventory_low_stock
 event_data:
-  name: 'Test'
+  item_id: 123
+  name: 'Basmati Rice'
+  aliases: 'rice, long grain'
   quantity: 1
   min_quantity: 2
-  location: 'Room / Cupboard / Shelf *(/ Organizer)*'
+  room: 'Kitchen'
+  cupboard: 'Main Cupboard'
+  shelf: 'Shelf 2'
+  organizer: 'Rice Container' # Optional
+  location: 'Kitchen › Main Cupboard › Shelf 2 › Rice Container'
 ```
 
 ---
 
-## Securitate & confidențialitate
+## 🔔 Example Automations
 
-→ Imaginile nu sunt servite prin /local public
-→ Acces imagini doar cu autentificare HA
-→ Funcționare 100% offline/local
-→ Compatibil cu Cloudflare / Remote Proxy
+### Push Notification for Low Stock
+
+```yaml
+automation:
+  - alias: '📱 Low Stock Notification - Inventory'
+    trigger:
+      - platform: event
+        event_type: home_inventory_low_stock
+    action:
+      - service: notify.mobile_app_your_phone
+        data:
+          title: '⚠️ Low Stock: {{ trigger.event.data.name }}'
+          message: >
+            Item "{{ trigger.event.data.name }}" is running low!
+            Quantity: {{ trigger.event.data.quantity }} / {{ trigger.event.data.min_quantity }}
+            Location: {{ trigger.event.data.location }}
+```
+
+### Add to Shopping List
+
+```yaml
+automation:
+  - alias: '🛒 Add Low Stock to Shopping List'
+    trigger:
+      - platform: event
+        event_type: home_inventory_low_stock
+    action:
+      - service: shopping_list.add_item
+        data:
+          name: '{{ trigger.event.data.name }}'
+```
+
+### Discord Notification
+
+```yaml
+automation:
+  - alias: '💬 Discord Low Stock Alert'
+    trigger:
+      - platform: event
+        event_type: home_inventory_low_stock
+    action:
+      - service: notify.discord
+        data:
+          message: >
+            🚨 **Low Stock Alert**
+            **Item:** {{ trigger.event.data.name }}
+            **Quantity:** {{ trigger.event.data.quantity }}/{{ trigger.event.data.min_quantity }}
+            **Location:** {{ trigger.event.data.location }}
+```
+
+### LED Light Alert
+
+```yaml
+automation:
+  - alias: '💡 LED Alert for Low Stock'
+    trigger:
+      - platform: event
+        event_type: home_inventory_low_stock
+    action:
+      - service: light.turn_on
+        target:
+          entity_id: light.kitchen_led
+        data:
+          rgb_color: [255, 0, 0]
+          brightness: 255
+      - delay: '00:00:03'
+      - service: light.turn_off
+        target:
+          entity_id: light.kitchen_led
+```
 
 ---
 
-## Screenshot-uri
+## 🧪 Manual Event Testing
 
-... in progress
+You can manually trigger the event for testing purposes:
+
+### Via Developer Tools → Events
+
+```yaml
+event_type: home_inventory_low_stock
+event_data:
+  name: 'Test Item'
+  quantity: 1
+  min_quantity: 2
+  location: 'Room / Cupboard / Shelf / Organizer'
+```
 
 ---
 
-## Licență
+## 🔐 Security & Privacy
 
-Distribuit sub licență MIT — poți modifica și redistribui liber.
+- ✅ **Secure image serving**: Images are NOT served through the public `/local` directory
+- ✅ **Authentication required**: Image access requires Home Assistant authentication
+- ✅ **100% offline/local operation**: Works completely offline without external dependencies
+- ✅ **Cloudflare/Remote Proxy compatible**: Secure when accessed remotely
+- ✅ **No cloud synchronization**: All data stays on your Home Assistant instance
+- ✅ **No telemetry**: No data collection or external communications
 
-Dacă îți este util proiectul, un ⭐ pe GitHub ajută enorm.
+---
+
+## 📱 Mobile Usage
+
+The integration works seamlessly with the Home Assistant Companion App:
+
+- ✅ Fast mobile interface
+- ✅ Camera integration for item photos
+- ✅ Barcode scanning support
+- ✅ Quick quantity adjustments
+- ✅ Push notifications for low stock alerts
+
+---
+
+## 🛠 Usage Tips
+
+1. **Organize first, populate later**: Set up your room/cupboard/shelf structure before adding items
+2. **Use quantity tracking**: Enable quantity tracking for consumable items
+3. **Set realistic minimum thresholds**: Configure min_quantity based on your usage patterns
+4. **Leverage automations**: Create automations for shopping lists, notifications, and alerts
+5. **Use aliases**: Add alternative names to make items easier to search
+6. **Take photos**: Visual inventory is easier to manage and identify items
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+## 📜 License
+
+Distributed under the MIT License. You are free to modify and redistribute.
+
+---
+
+## ⭐ Support
+
+If you find this project useful, a ⭐ on GitHub helps tremendously!
+
+---
+
+## 📸 Screenshots
+
+_(Add your screenshots here)_

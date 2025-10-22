@@ -1,8 +1,6 @@
 {
   "name": "Home Inventory",
   "content_in_root": false,
-  "domain": "home_inventory",
-  "country": "RO",
   "homeassistant": "2025.10.1",
   "render_readme": true
 }

@@ -2,44 +2,33 @@
   <img src="https://raw.githubusercontent.com/SnipsC0/Home-Inventory/main/logo.png" width="200" alt="Home Inventory Logo">
 </p>
 
-# 🏠 Home Inventory
+<div align="center">
+
+![Status](https://img.shields.io/badge/status-production--ready-brightgreen)
+![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Custom%20Integration-41BDF5)
+![HACS](https://img.shields.io/badge/HACS-Custom-blue)
+![Privacy](https://img.shields.io/badge/data-local_only-important)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
+
+</div>
 
 A custom integration for Home Assistant designed to organize your domestic inventory through a logical structure: **Rooms → Cupboards → Shelves → Organizers → Items**, with support for secure local images, quantity tracking, minimum threshold alerts, automatic low stock events, dedicated UI, and smart automations.
-
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
 ## ✨ Features
 
-| Feature                     | Details                                                                          |
-| --------------------------- | -------------------------------------------------------------------------------- |
-| ✅ Logical Hierarchy        | Rooms → Cupboards → Shelves → Organizers → Items                                 |
-| ✅ Dedicated UI             | Panel in Home Assistant Sidebar with fast, fluid interface                       |
-| ✅ Secure Images            | Served via local API, NOT through public `/local` directory                      |
-| ✅ 100% Local Storage       | No cloud, no external data transmission                                          |
-| ✅ Quantity Tracking        | Stock badge display with quick adjustment (+/-) buttons                          |
-| ✅ Minimum Threshold Alert  | Home Assistant event: `home_inventory_low_stock`                                 |
-| ✅ HACS Compatible          | Installable as HACS Custom Repository                                            |
-| ✅ Lazy Loading             | Efficient UI handling hundreds of items (infinite scroll)                        |
-| ✅ Automations Ready        | Support for notifications, Discord, To-Do lists, Google Sheets, LED alerts, etc. |
-| ✅ Companion App Compatible | Perfect for mobile use with barcode scanning and photo capture                   |
-
----
-
-## 📁 Project Structure
-
-```
-custom_components/home_inventory/
-├── __init__.py          # Integration initialization
-├── manifest.json        # Integration metadata
-├── config_flow.py       # Configuration flow
-├── const.py            # Constants and configuration
-├── api.py              # API endpoints
-├── sensor.py           # Sensor entities
-└── ...
-```
+| Feature                                   | Details                                                                          |
+| ----------------------------------------- | -------------------------------------------------------------------------------- |
+| ✅ Logical Hierarchy                      | Rooms → Cupboards → Shelves → Organizers → Items                                 |
+| ✅ Dedicated UI                           | Panel in Home Assistant Sidebar with fast, fluid interface                       |
+| ✅ Secure Images                          | Served via local API, NOT through public `/local` directory                      |
+| ✅ 100% Local Storage                     | No cloud, no external data transmission                                          |
+| ✅ Quantity Tracking                      | Stock badge display with quick adjustment (+/-) buttons                          |
+| ✅ HACS Compatible                        | Installable as HACS Custom Repository                                            |
+| ✅ Lazy Loading                           | Efficient UI handling hundreds of items (infinite scroll)                        |
+| ✅ Automations ready with sens and events | Support for notifications, Discord, To-Do lists, Google Sheets, LED alerts, etc. |
+| ✅ Companion App Compatible               | Perfect for mobile use with barcode scanning and photo capture                   |
 
 ---
 
@@ -104,20 +93,7 @@ The integration automatically creates three sensor entities for monitoring your 
 
 **Description**: Tracks the total number of items in your entire inventory.
 
-**Entity Properties**:
-
-- **State**: Integer (total count of all items)
-- **Icon**: `mdi:package-variant`
-- **Unique ID**: `home_inventory_total_items`
-- **Update Interval**: 1 minute
-
-**Attributes**:
-
-```yaml
-unit_of_measurement: 'items'
-```
-
-**Example State**:
+**Attributes and state**:
 
 ```yaml
 state: 127
@@ -131,44 +107,7 @@ attributes:
 
 **Description**: Monitors items that have quantity tracking enabled and are currently at or below their minimum threshold.
 
-**Entity Properties**:
-
-- **State**: Integer (count of items with low stock)
-- **Icon**: `mdi:alert-circle`
-- **Unique ID**: `home_inventory_low_stock`
-- **Update Interval**: 1 minute
-
-**Attributes**:
-
-```yaml
-unit_of_measurement: 'items'
-items:
-  - id: 123
-    name: 'Basmati Rice'
-    quantity: 1
-    min_quantity: 2
-    room: 'Kitchen'
-    cupboard: 'Main Cupboard'
-    shelf: 'Shelf 2'
-    location: 'Kitchen / Main Cupboard / Shelf 2'
-  - id: 456
-    name: 'Olive Oil'
-    quantity: 0
-    min_quantity: 1
-    room: 'Kitchen'
-    cupboard: 'Pantry'
-    shelf: 'Top Shelf'
-    location: 'Kitchen / Pantry / Top Shelf'
-```
-
-**SQL Query Logic**:
-
-- Only includes items with `track_quantity = 1`
-- Only includes items where both `quantity` and `min_quantity` are set
-- Filters items where `quantity <= min_quantity`
-- Orders results by quantity (ascending)
-
-**Example State**:
+**Attributes and state**:
 
 ```yaml
 state: 5
@@ -176,13 +115,21 @@ attributes:
   unit_of_measurement: 'items'
   items:
     - id: 123
-      name: 'Coffee Beans'
+      name: 'Basmati Rice'
       quantity: 1
-      min_quantity: 3
+      min_quantity: 2
       room: 'Kitchen'
-      cupboard: 'Upper Cabinet'
-      shelf: 'Middle Shelf'
-      location: 'Kitchen / Upper Cabinet / Middle Shelf'
+      cupboard: 'Main Cupboard'
+      shelf: 'Shelf 2'
+      location: 'Kitchen / Main Cupboard / Shelf 2'
+    - id: 456
+      name: 'Olive Oil'
+      quantity: 0
+      min_quantity: 1
+      room: 'Kitchen'
+      cupboard: 'Pantry'
+      shelf: 'Top Shelf'
+      location: 'Kitchen / Pantry / Top Shelf'
 ```
 
 ---
@@ -191,45 +138,7 @@ attributes:
 
 **Description**: Displays all items that have quantity tracking enabled, regardless of their current stock level.
 
-**Entity Properties**:
-
-- **State**: Integer (count of all tracked items)
-- **Icon**: `mdi:playlist-check`
-- **Unique ID**: `home_inventory_tracked_items`
-- **Update Interval**: 1 minute
-
-**Attributes**:
-
-```yaml
-unit_of_measurement: 'items'
-items:
-  - id: 123
-    name: 'Basmati Rice'
-    quantity: 1
-    min_quantity: 2
-    room: 'Kitchen'
-    cupboard: 'Main Cupboard'
-    shelf: 'Shelf 2'
-    is_low: true
-  - id: 124
-    name: 'Pasta'
-    quantity: 5
-    min_quantity: 2
-    room: 'Kitchen'
-    cupboard: 'Pantry'
-    shelf: 'Bottom Shelf'
-    is_low: false
-```
-
-**SQL Query Logic**:
-
-- Only includes items with `track_quantity = 1`
-- Only includes items where `min_quantity` is set
-- Includes items regardless of current quantity level
-- Orders results by name (alphabetically)
-- Includes `is_low` flag to indicate if item is below threshold
-
-**Example State**:
+**Attributes and state**:
 
 ```yaml
 state: 42
@@ -253,6 +162,14 @@ attributes:
       shelf: 'Bottom'
       is_low: true
 ```
+
+**SQL Query Logic**:
+
+- Only includes items with `track_quantity = 1`
+- Only includes items where `min_quantity` is set
+- Includes items regardless of current quantity level
+- Orders results by name (alphabetically)
+- Includes `is_low` flag to indicate if item is below threshold
 
 ---
 
@@ -423,12 +340,12 @@ event_data:
 
 ## 🔐 Security & Privacy
 
-- ✅ **Secure image serving**: Images are NOT served through the public `/local` directory
-- ✅ **Authentication required**: Image access requires Home Assistant authentication
-- ✅ **100% offline/local operation**: Works completely offline without external dependencies
-- ✅ **Cloudflare/Remote Proxy compatible**: Secure when accessed remotely
-- ✅ **No cloud synchronization**: All data stays on your Home Assistant instance
-- ✅ **No telemetry**: No data collection or external communications
+- **Secure image serving**: Images are NOT served through the public `/local` directory
+- **Authentication required**: Image access requires Home Assistant authentication
+- **100% offline/local operation**: Works completely offline without external dependencies
+- **Cloudflare/Remote Proxy compatible**: Secure when accessed remotely
+- **No cloud synchronization**: All data stays on your Home Assistant instance
+- **No telemetry**: No data collection or external communications
 
 ---
 
@@ -436,11 +353,11 @@ event_data:
 
 The integration works seamlessly with the Home Assistant Companion App:
 
-- ✅ Fast mobile interface
-- ✅ Camera integration for item photos
-- ✅ Barcode scanning support
-- ✅ Quick quantity adjustments
-- ✅ Push notifications for low stock alerts
+- Fast mobile interface
+- Camera integration for item photos
+- Barcode scanning support (incoming...)
+- Quick quantity adjustments
+- Push notifications for low stock alerts
 
 ---
 
@@ -455,12 +372,6 @@ The integration works seamlessly with the Home Assistant Companion App:
 
 ---
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
----
-
 ## 📜 License
 
 Distributed under the MIT License. You are free to modify and redistribute.
@@ -472,7 +383,3 @@ Distributed under the MIT License. You are free to modify and redistribute.
 If you find this project useful, a ⭐ on GitHub helps tremendously!
 
 ---
-
-## 📸 Screenshots
-
-_(Add your screenshots here)_

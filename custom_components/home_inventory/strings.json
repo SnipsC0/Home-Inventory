@@ -3,25 +3,43 @@
   "config": {
     "step": {
       "user": {
-        "title": "Configurează Home Inventory",
-        "description": "Această integrare permite gestionarea unui inventar local de obiecte.\n\n{structure_info}",
+        "title": "Configure Home Inventory",
+        "description": "Set up your local inventory management system.\n\n📦 **Structure**: {structure_info}\n\n✅ 3 automatic sensors for monitoring\n✅ Low stock event notifications\n✅ 100% local storage (no cloud)",
         "data": {
-          "allow_structure_modification": "Permite modificarea structurii inventarului"
+          "allow_structure_modification": "Allow structure modification (rooms, cupboards, shelves)",
+          "language": "Interface language"
+        },
+        "data_description": {
+          "allow_structure_modification": "If disabled, you cannot add/edit/delete rooms, cupboards, or shelves from the UI",
+          "language": "Choose your preferred language for the interface"
         }
       }
     },
     "abort": {
-      "already_configured": "Home Inventory este deja configurat."
+      "already_configured": "Home Inventory is already configured. Only one instance is allowed."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Opțiuni Home Inventory",
-        "description": "{structure_info}",
+        "title": "Home Inventory Options",
+        "description": "Modify your inventory settings.\n\n📦 **Structure**: {structure_info}\n📊 **Sensors**: {sensor_count}\n📢 **Events**: {event_info}",
         "data": {
-          "allow_structure_modification": "Permite modificarea structurii inventarului"
+          "allow_structure_modification": "Allow structure modification",
+          "language": "Interface language"
+        },
+        "data_description": {
+          "allow_structure_modification": "Enable/disable the ability to modify rooms, cupboards, and shelves",
+          "language": "UI language preference"
         }
+      }
+    }
+  },
+  "selector": {
+    "languagess": {
+      "options": {
+        "en": "English",
+        "ro": "Română"
       }
     }
   }

@@ -89,7 +89,7 @@ async def async_setup_entry(hass, entry):
             config={
                 "_panel_custom": {
                     "name": "home-inventory-app",
-                    "module_url": f"/{DOMAIN}_static/panel-wrapper.js?v={VERSION}",
+                    "module_url": f"/{DOMAIN}_static/panel-wrapper.js",
                 }
             },
             require_admin=False,

@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 Discussions & Community
+    url: https://github.com/SnipsC0/Home-Inventory/discussions
+    about: General questions, ideas, and community discussions
+  - name: 📖 Wiki & Documentation
+    url: https://github.com/SnipsC0/Home-Inventory/wiki
+    about: Browse the full documentation and usage guides
+  - name: 🏠 Home Assistant Community
+    url: https://community.home-assistant.io/
+    about: Official Home Assistant forum for general questions

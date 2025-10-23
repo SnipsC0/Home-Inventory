@@ -28,7 +28,7 @@ export default function CupboardsView({ api }: Props) {
   const { addCupboard, updateCupboard, deleteCupboard, uploadStatus } =
     useCupboardActions(api);
 
-  const [showForm, setShowForm] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [editingCupboard, setEditingCupboard] = useState<Cupboard | null>(null);
   const [deletingCupboard, setDeletingCupboard] = useState<Cupboard | null>(
     null
@@ -52,17 +52,17 @@ export default function CupboardsView({ api }: Props) {
 
       <CupboardHeader
         allowEdit={config?.allow_structure_modification}
-        onToggleForm={() => setShowForm((prev) => !prev)}
+        onToggleForm={() => setShowAddModal((prev) => !prev)}
       />
 
-      {showForm && config?.allow_structure_modification && (
+      {showAddModal && config?.allow_structure_modification && (
         <CupboardAddForm
           uploadStatus={uploadStatus}
           pending={addCupboard.isPending}
           onSubmit={(name, file) =>
             addCupboard.mutate({ name, imageFile: file })
           }
-          onCancel={() => setShowForm(false)}
+          onCancel={() => setShowAddModal(false)}
         />
       )}
 
@@ -81,16 +81,7 @@ export default function CupboardsView({ api }: Props) {
               image={cupboard.image}
               editable={config?.allow_structure_modification}
               onClick={() => goToCupboard(cupboard.name)}
-              onEdit={(e: ClickOrTouchEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setEditingCupboard(cupboard);
-              }}
-              onDelete={(e: ClickOrTouchEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setDeletingCupboard(cupboard);
-              }}
+              onEdit={() => setEditingCupboard(cupboard)}
               onQR={(e: ClickOrTouchEvent) => {
                 e.preventDefault();
                 e.stopPropagation();

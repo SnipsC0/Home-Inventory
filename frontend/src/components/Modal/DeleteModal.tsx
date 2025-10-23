@@ -26,7 +26,6 @@ export default function DeleteModal({
     setLoading(true);
     try {
       await onConfirm();
-      onClose();
     } finally {
       setLoading(false);
     }

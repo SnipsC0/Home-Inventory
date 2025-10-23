@@ -56,7 +56,7 @@ export default function ItemCard({
     <>
       <div
         {...interactionHandlers}
-        className={`bg-ha-card p-3 rounded-lg shadow-ha cursor-pointer select-none flex flex-col justify-between text-center
+        className={`bg-ha-card p-3 rounded-lg shadow-ha cursor-pointer select-none flex flex-col justify-between text-center select-none
         ${
           isLowStock
             ? 'border-l-4 border-ha-error'
@@ -72,7 +72,7 @@ export default function ItemCard({
               <img
                 src={item.image}
                 alt={item.name}
-                className="w-[8rem] h-[10rem] object-cover"
+                className="w-[8rem] h-[10rem] object-cover drag-none"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                   const parent = e.currentTarget.parentElement as HTMLElement;

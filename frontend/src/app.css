@@ -10,3 +10,11 @@
 
   --shadow-ha: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+
+@utility drag-none {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-select: none;
+}

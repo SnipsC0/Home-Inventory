@@ -1,11 +1,13 @@
 import { useState, useCallback } from 'react';
+import { ClickOrTouchEvent } from '../../types';
 
 interface UseItemInteractionsOptions {
   onSingleClick?: (e: React.MouseEvent) => void;
   onRightClick?: (e: React.MouseEvent) => void;
-  onLongPress?: () => void;
+  onLongPress?: (e: ClickOrTouchEvent) => void;
   longPressDuration?: number;
   excludeSelector?: string;
+  enabled?: boolean;
 }
 
 export function useInteractions({
@@ -14,6 +16,7 @@ export function useInteractions({
   onLongPress,
   longPressDuration = 500,
   excludeSelector = '.qty-btn',
+  enabled = true,
 }: UseItemInteractionsOptions) {
   const [longPressTimer, setLongPressTimer] = useState<ReturnType<
     typeof setTimeout
@@ -34,6 +37,7 @@ export function useInteractions({
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
+      if (!enabled) return;
       e.preventDefault();
       if (
         excludeSelector &&
@@ -48,6 +52,8 @@ export function useInteractions({
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
+      if (!enabled) return;
+
       if (
         excludeSelector &&
         (e.target as HTMLElement).closest(excludeSelector)
@@ -63,6 +69,8 @@ export function useInteractions({
   );
 
   const handleTouchEnd = useCallback(() => {
+    if (!enabled) return;
+
     if (longPressTimer) {
       clearTimeout(longPressTimer);
     }
@@ -70,6 +78,7 @@ export function useInteractions({
   }, [longPressTimer]);
 
   const handleTouchMove = useCallback(() => {
+    if (!enabled) return;
     if (longPressTimer) {
       clearTimeout(longPressTimer);
     }

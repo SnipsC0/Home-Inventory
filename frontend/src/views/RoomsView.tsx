@@ -5,7 +5,6 @@ import { useRoomMutations } from '../hooks/rooms/useRoomMutations';
 import { useHomeInventarConfig } from '../hooks/global/useHomeInventarConfig';
 import { useRoomNavigation } from '../hooks/rooms/useRoomNavigation';
 import EditRoomModal from '../components/Modal/EditRoomModal';
-import DeleteModal from '../components/Modal/DeleteModal';
 import { useState } from 'react';
 import type { ApiService } from '../services/api';
 import type { Room } from '../types';
@@ -16,11 +15,10 @@ export default function RoomsView({ api }: { api: ApiService }) {
   const { t } = useTranslation();
   const { data: config } = useHomeInventarConfig(api);
   const { goToRoom, goToAllItems, goToTrackedItems } = useRoomNavigation();
-  const { addRoom, updateRoom, deleteRoom } = useRoomMutations(api);
+  const { addRoom, updateRoom } = useRoomMutations(api);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [roomToEdit, setRoomToEdit] = useState<Room | null>(null);
-  const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
 
   if (isLoading) return <div className="text-ha-text">{t.common.loading}</div>;
   if (error)
@@ -50,7 +48,6 @@ export default function RoomsView({ api }: { api: ApiService }) {
               editable={config?.allow_structure_modification}
               onClick={() => goToRoom(room.name)}
               onEdit={() => setRoomToEdit(room)}
-              onDelete={() => setRoomToDelete(room)}
             />
           ))
         )}
@@ -58,6 +55,7 @@ export default function RoomsView({ api }: { api: ApiService }) {
 
       {showAddModal && (
         <EditRoomModal
+          room={null}
           isOpen={true}
           currentName=""
           onClose={() => setShowAddModal(false)}
@@ -70,26 +68,13 @@ export default function RoomsView({ api }: { api: ApiService }) {
 
       {roomToEdit && (
         <EditRoomModal
+          room={roomToEdit}
           isOpen={true}
           currentName={roomToEdit.name}
           onClose={() => setRoomToEdit(null)}
           onSave={async (newName) => {
             await updateRoom.mutateAsync({ id: roomToEdit.id, name: newName });
             setRoomToEdit(null);
-          }}
-        />
-      )}
-
-      {roomToDelete && (
-        <DeleteModal
-          isOpen={true}
-          itemName={roomToDelete.name}
-          itemType={t.rooms.room.toLowerCase()}
-          itemCount={roomToDelete.itemCount}
-          onClose={() => setRoomToDelete(null)}
-          onConfirm={async () => {
-            await deleteRoom.mutateAsync(roomToDelete.id);
-            setRoomToDelete(null);
           }}
         />
       )}

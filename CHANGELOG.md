@@ -1,3 +1,9 @@
+## 🏷️ 2.0.3 - UI improved
+
+### Improved
+
+- Switched buttons for edit and delete with long press and right click for all entities (rooms, cupboards.) This behaviour was available only on items.
+
 ## 🏷️ 2.0.2 - Bug fix
 
 ### Bug

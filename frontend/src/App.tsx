@@ -16,6 +16,7 @@ import { isDev } from './config/dev';
 import TrackedItemsView from './views/TrackedItemsView';
 import { I18nProvider } from './i18n/I18nContext';
 import { useHomeInventarConfig } from './hooks/global/useHomeInventarConfig';
+import { ApiProvider } from './contexts/ApiContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -102,7 +103,9 @@ function App({ hass: hassProp }: AppProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContent api={api} />
+      <ApiProvider hass={hass}>
+        <AppContent api={api} />
+      </ApiProvider>
     </QueryClientProvider>
   );
 }

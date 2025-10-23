@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ApiService } from '../services/api';
-import { useAppStore } from '../store/useAppStore';
+import { ApiService } from '../../services/api';
+import { useAppStore } from '../../store/useAppStore';
 
 export function useItemActions(api: ApiService, organizerName?: string | null) {
   const queryClient = useQueryClient();

@@ -3,7 +3,7 @@ import ImageUploader from './ImageUploader';
 import MoveLocationSelector from './MoveLocationSelector';
 import type { Item } from '../../../types';
 import { ApiService } from '../../../services/api';
-import useEditItemModal from '../../../hooks/useEditItemModal';
+import useEditItemModal from '../../../hooks/items/useEditItemModal';
 import { useTranslation } from '../../../i18n/I18nContext';
 
 interface Props {

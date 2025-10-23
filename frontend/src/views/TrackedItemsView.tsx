@@ -1,19 +1,14 @@
 import { FC, ReactElement, useState, useMemo } from 'react';
 import { ApiService } from '../services/api';
-import { useGlobalItems, useUpdateItemMutation } from '../hooks/useItems';
+import { useGlobalItems, useUpdateItemMutation } from '../hooks/items/useItems';
 import { Item } from '../types';
-import {
-  Search,
-  Package,
-  AlertCircle,
-  TrendingDown,
-  CheckCircle,
-} from 'lucide-react';
+import { Search, Package, TrendingDown } from 'lucide-react';
 import ViewItemModal from '../components/Modal/ViewItemModal';
 import EditItemModal from '../components/Modal/EditItemModal/EditItemModal';
 import Breadcrumb from '../components/Layout/BreadCrumb';
 import { useAppStore } from '../store/useAppStore';
 import { useTranslation } from '../i18n/I18nContext';
+import TrackedItem from '../components/Item/TrackedItem';
 
 interface Props {
   api: ApiService;
@@ -30,9 +25,6 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [longPressTimer, setLongPressTimer] = useState<ReturnType<
-    typeof setTimeout
-  > | null>(null);
 
   const trackedItems = useMemo(() => {
     return allItems.filter(
@@ -82,45 +74,14 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
     ).length;
   }, [trackedItems]);
 
-  const getStatusColor = (item: Item) => {
-    if (item.quantity! <= item.min_quantity!) {
-      return 'border-l-4 border-ha-error';
-    }
-    return 'border-l-4 border-transparent';
-  };
-
-  const getStatusIcon = (item: Item) => {
-    if (item.quantity! <= item.min_quantity!) {
-      return <AlertCircle className="w-5 h-5 text-red-500" />;
-    }
-    return <CheckCircle className="w-5 h-5 text-green-500" />;
-  };
-
-  const handleItemClick = (item: Item, e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.qty-btn')) return;
+  const handleItemView = (item: Item) => {
     setSelectedItem(item);
     setShowViewModal(true);
   };
 
-  const handleItemContextMenu = (item: Item, e: React.MouseEvent) => {
-    e.preventDefault();
-    if ((e.target as HTMLElement).closest('.qty-btn')) return;
+  const handleItemEdit = (item: Item) => {
     setSelectedItem(item);
     setShowEditModal(true);
-  };
-
-  const handleTouchStart = (item: Item, e: React.TouchEvent) => {
-    if ((e.target as HTMLElement).closest('.qty-btn')) return;
-    const timer = setTimeout(() => {
-      setSelectedItem(item);
-      setShowEditModal(true);
-    }, 500);
-    setLongPressTimer(timer);
-  };
-
-  const handleTouchEnd = () => {
-    if (longPressTimer) clearTimeout(longPressTimer);
-    setLongPressTimer(null);
   };
 
   const handleQuantityChange = (item: Item, newQuantity: number) => {
@@ -221,110 +182,13 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
         ) : (
           <div className="space-y-3">
             {filteredItems.map((item: Item) => (
-              <div
+              <TrackedItem
                 key={item.id}
-                onClick={(e) => handleItemClick(item, e)}
-                onContextMenu={(e) => handleItemContextMenu(item, e)}
-                onTouchStart={(e) => handleTouchStart(item, e)}
-                onTouchEnd={handleTouchEnd}
-                onTouchMove={handleTouchEnd}
-                className={`p-4 rounded-lg border-2 transition bg-ha-card cursor-pointer select-none ${getStatusColor(
-                  item
-                )}`}
-              >
-                <div className="flex gap-4 items-center">
-                  {item.image ? (
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-40 h-55 object-cover rounded-lg flex-shrink-0"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        const parent = e.currentTarget
-                          .parentElement as HTMLElement;
-                        if (parent) {
-                          parent.innerHTML =
-                            '<div style="display:flex;align-items:center;justify-content:center;width:80px;height:120px;font-size:3em;">📦</div>';
-                        }
-                      }}
-                    />
-                  ) : (
-                    <div className="w-40 h-50 flex border-[1px] rounded-lg">
-                      <div className="bg-ha-secondary-bg flex items-center justify-center m-auto text-4xl rounded-lg flex-shrink-0">
-                        📦
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-ha-text text-lg truncate">
-                          {item.name}
-                        </h3>
-                        {item.aliases && (
-                          <p className="text-sm text-ha-secondary truncate">
-                            {item.aliases}
-                          </p>
-                        )}
-                      </div>
-                      {getStatusIcon(item)}
-                    </div>
-
-                    <div className="text-sm text-ha-secondary mb-3 truncate flex flex-col">
-                      <span className="font-semibold">
-                        {t.trackedItems.locationLabel}
-                      </span>
-                      <span className="italic">{item.location}</span>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-ha-secondary">
-                          {`${t.trackedItems.quantityLabel} `}
-                          <span className="font-semibold text-ha-text">
-                            {item.quantity}
-                          </span>{' '}
-                          / {item.min_quantity}
-                        </span>
-                      </div>
-
-                      {item.quantity! <= item.min_quantity! && (
-                        <div className="flex items-center gap-1 text-xs text-red-600 font-medium">
-                          <AlertCircle className="w-3 h-3" />
-                          {t.trackedItems.needsRestockLabel}
-                        </div>
-                      )}
-                    </div>
-
-                    <div
-                      className="flex gap-4 justify-start items-center mt-3"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        disabled={item.quantity === 0}
-                        className="qty-btn w-11 h-11 bg-ha-error text-white rounded flex items-center justify-center text-lg font-bold hover:opacity-90 transition disabled:opacity-50"
-                        onClick={() =>
-                          handleQuantityChange(
-                            item,
-                            Math.max(0, (item.quantity || 0) - 1)
-                          )
-                        }
-                      >
-                        -
-                      </button>
-                      <button
-                        className="qty-btn w-11 h-11 bg-ha-primary text-white rounded flex items-center justify-center text-lg font-bold hover:opacity-90 transition"
-                        onClick={() =>
-                          handleQuantityChange(item, (item.quantity || 0) + 1)
-                        }
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                item={item}
+                onView={handleItemView}
+                onEdit={handleItemEdit}
+                onQuantityChange={handleQuantityChange}
+              />
             ))}
           </div>
         )}

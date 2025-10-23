@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ApiService } from '../services/api';
+import type { ApiService } from '../../services/api';
 
 export function useRoomMutations(api: ApiService) {
   const queryClient = useQueryClient();

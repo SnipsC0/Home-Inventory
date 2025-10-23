@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from './../node_modules/@tanstack/react-query-devtools/src/production';
-import { useHass } from './hooks/useHass';
+import { useHass } from './hooks/global/useHass';
 import { useAppStore } from './store/useAppStore';
 import { ApiService } from './services/api';
 
@@ -14,8 +14,8 @@ import AllItemsView from './views/AllItemsView';
 import CupboardsView from './views/CupboardView';
 import { isDev } from './config/dev';
 import TrackedItemsView from './views/TrackedItemsView';
-import { I18nProvider } from './i18n/I18nContext';
-import { useHomeInventarConfig } from './hooks/useHomeInventarConfig';
+import { I18nProvider, useTranslation } from './i18n/I18nContext';
+import { useHomeInventarConfig } from './hooks/global/useHomeInventarConfig';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,6 +53,7 @@ function AppContent({ api }: { api: ApiService }) {
 }
 
 function App({ hass: hassProp }: AppProps) {
+  const { t } = useTranslation();
   const { hass: hassHook, loading, error } = useHass();
   const hass = hassProp || hassHook;
 
@@ -87,7 +88,7 @@ function App({ hass: hassProp }: AppProps) {
   if ((error && !hassProp) || !hass) {
     return (
       <div className="p-5 text-center text-ha-error">
-        <p>{error?.message || 'Eroare la conectare'}</p>
+        <p>{error?.message || `${t.errors.connectionError}...`}</p>
         <button
           onClick={() => window.location.reload()}
           className="mt-4 px-5 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition"

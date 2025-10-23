@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { useFilteredItems, useGlobalItems } from '../hooks/useItems';
-import { useHomeInventarConfig } from '../hooks/useHomeInventarConfig';
-import { useItemActions } from '../hooks/useItemActions';
+import { useFilteredItems, useGlobalItems } from '../hooks/items/useItems';
+import { useHomeInventarConfig } from '../hooks/global/useHomeInventarConfig';
+import { useItemActions } from '../hooks/items/useItemActions';
 import { useAppStore } from '../store/useAppStore';
 import AddItemModal from '../components/Modal/AddItemModal';
 import ItemCard from '../components/Item/ItemCard';

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import ViewItemModal from '../Modal/ViewItemModal';
 import EditItemModal from '../Modal/EditItemModal/EditItemModal';
-import { useUpdateItemMutation } from '../../hooks/useItems';
+import { useInteractions } from '../../hooks/global/useInteractions';
 import type { Item } from '../../types';
 import type { ApiService } from '../../services/api';
+import { useUpdateItemMutation } from '../../hooks/items/useItems';
 
 interface ItemCardProps {
   item: Item;
@@ -21,9 +22,13 @@ export default function ItemCard({
   const updateItem = useUpdateItemMutation(api);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [longPressTimer, setLongPressTimer] = useState<ReturnType<
-    typeof setTimeout
-  > | null>(null);
+
+  const interactionHandlers = useInteractions({
+    onSingleClick: () => setShowViewModal(true),
+    onRightClick: () => setShowEditModal(true),
+    onLongPress: () => setShowEditModal(true),
+    excludeSelector: '.qty-btn',
+  });
 
   const isLowStock =
     item.track_quantity &&
@@ -32,28 +37,6 @@ export default function ItemCard({
     item.min_quantity !== null &&
     item.min_quantity !== undefined &&
     item.quantity <= item.min_quantity;
-
-  const handleClick = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.qty-btn')) return;
-    setShowViewModal(true);
-  };
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if ((e.target as HTMLElement).closest('.qty-btn')) return;
-    setShowEditModal(true);
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if ((e.target as HTMLElement).closest('.qty-btn')) return;
-    const timer = setTimeout(() => setShowEditModal(true), 500);
-    setLongPressTimer(timer);
-  };
-
-  const handleTouchEnd = () => {
-    if (longPressTimer) clearTimeout(longPressTimer);
-    setLongPressTimer(null);
-  };
 
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity < 0) return;
@@ -72,8 +55,7 @@ export default function ItemCard({
   return (
     <>
       <div
-        onClick={handleClick}
-        onContextMenu={handleContextMenu}
+        {...interactionHandlers}
         className={`bg-ha-card p-3 rounded-lg shadow-ha cursor-pointer select-none flex flex-col justify-between text-center
         ${
           isLowStock
@@ -81,12 +63,7 @@ export default function ItemCard({
             : 'border-l-4 border-transparent'
         }`}
       >
-        <div
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          onTouchMove={handleTouchEnd}
-          className={`${isCompact ? 'items-center gap-4' : ''}`}
-        >
+        <div className={`${isCompact ? 'items-center gap-4' : ''}`}>
           {/* Image */}
           {item.image ? (
             <div

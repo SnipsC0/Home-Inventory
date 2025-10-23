@@ -23,7 +23,6 @@ export default function ViewItemModal({
     item.quantity <= item.min_quantity
   );
 
-  console.log(item.min_quantity);
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <ModalHeader onClose={onClose}>{item.name}</ModalHeader>

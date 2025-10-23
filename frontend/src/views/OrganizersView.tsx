@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { useOrganizers } from '../hooks/useOrganizers';
-import { useGlobalItems, useFilteredItems } from '../hooks/useItems';
-import { useHomeInventarConfig } from '../hooks/useHomeInventarConfig';
-import { useOrganizerNavigation } from '../hooks/useOrganizerNavigation';
-import { useOrganizerActions } from '../hooks/useOrganizerActions';
-import { useItemActions } from '../hooks/useItemActions';
+import { useOrganizers } from '../hooks/organizers/useOrganizers';
+import { useGlobalItems, useFilteredItems } from '../hooks/items/useItems';
+import { useHomeInventarConfig } from '../hooks/global/useHomeInventarConfig';
+import { useOrganizerNavigation } from '../hooks/organizers/useOrganizerNavigation';
+import { useOrganizerActions } from '../hooks/organizers/useOrganizerActions';
+import { useItemActions } from '../hooks/items/useItemActions';
 import { useAppStore } from '../store/useAppStore';
 import DeleteModal from '../components/Modal/DeleteModal';
 import EditOrganizerModal from '../components/Modal/EditOrganizerModal';

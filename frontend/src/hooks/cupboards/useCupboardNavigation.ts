@@ -1,4 +1,4 @@
-import { useAppStore } from '../store/useAppStore';
+import { useAppStore } from '../../store/useAppStore';
 
 export function useCupboardNavigation() {
   const setView = useAppStore((state) => state.setView);

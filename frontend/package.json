@@ -8,7 +8,8 @@
     "build": "tsc && vite build --mode production",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "deploy": "npm run build && echo 'Build copiat în custom_components/home_inventory/panel'"
+    "deploy": "npm run build && echo 'Build copiat în custom_components/home_inventory/panel'",
+    "build-local": "cd ../.. && bash ./deploy_dev.sh && home_inventar/frontend"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.17.0",

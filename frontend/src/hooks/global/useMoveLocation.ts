@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
-import type { Cupboard, Shelf, Organizer } from '../types';
-import { ApiService } from '../services/api';
+import type { Cupboard, Shelf, Organizer } from '../../types';
+import { ApiService } from '../../services/api';
+import { useTranslation } from '../../i18n/I18nContext';
 
 interface CurrentLocation {
   room: string;
@@ -13,6 +14,7 @@ export function useMoveLocation(
   api: ApiService,
   { current }: { current: CurrentLocation }
 ) {
+  const { t } = useTranslation();
   const [showMove, setShowMove] = useState(false);
   const [state, setState] = useState({
     room: current.room || '',
@@ -79,7 +81,7 @@ export function useMoveLocation(
           organizer: current.organizer || '',
         }));
       } catch (err) {
-        console.error('Eroare la preîncărcarea locației curente:', err);
+        console.error(`${t.errors.preloadMoveLocation}:`, err);
       }
     }
   }, [api, current]);

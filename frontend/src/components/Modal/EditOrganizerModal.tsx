@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Modal, ModalHeader, ModalFooter } from './Modal';
-import { useRooms } from '../../hooks/useRooms';
+import { useRooms } from '../../hooks/rooms/useRooms';
 import type { ApiService } from '../../services/api';
 import { useAppStore } from '../../store/useAppStore';
 import { Cupboard, Shelf } from '../../types';

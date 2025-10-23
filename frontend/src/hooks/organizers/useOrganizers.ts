@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import type { ApiService } from '../services/api';
-import { useAppStore } from '../store/useAppStore';
+import { ApiService } from '../../services/api';
+import { useAppStore } from '../../store/useAppStore';
 
 export function useOrganizers(api: ApiService) {
   const selectedCupboard = useAppStore((state) => state.selectedCupboard);

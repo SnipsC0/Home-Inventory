@@ -1,3 +1,4 @@
+import { useTranslation } from '../i18n/I18nContext';
 import type {
   Hass,
   Room,
@@ -238,7 +239,6 @@ export class ApiService {
     return this.hass.callApi('DELETE', `home_inventory/items/${id}`);
   }
 
-  // Upload
   async uploadImage(file: File, context: UploadContext = {}): Promise<string> {
     const formData = new FormData();
     formData.append('file', file);
@@ -265,8 +265,9 @@ export class ApiService {
     });
 
     if (!response.ok) {
+      const { t } = useTranslation();
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || 'Upload eșuat');
+      throw new Error(error.error || `${t.errors.uploadFailed}`);
     }
 
     const data = await response.json();

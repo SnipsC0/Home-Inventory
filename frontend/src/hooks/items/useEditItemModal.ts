@@ -1,9 +1,8 @@
 import { useCallback, useState } from 'react';
-import { useAppStore } from '../store/useAppStore';
-import { useMoveLocation } from './useMoveLocation';
 import { useDeleteItemMutation, useUpdateItemMutation } from './useItems';
-import { ApiService } from '../services/api';
-import { Item } from '../types';
+import { Item } from '../../types';
+import { ApiService } from '../../services/api';
+import { useMoveLocation } from '../global/useMoveLocation';
 
 interface Props {
   item: Item;

@@ -47,7 +47,7 @@ export default function MoveLocationSelector({
         const res = await api.getRooms();
         setRooms(res);
       } catch (err) {
-        console.error('Eroare la încărcarea camerelor:', err);
+        console.error(`${t.errors.getRoomsError}: `, err);
       }
     })();
   }, [api]);

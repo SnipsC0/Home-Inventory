@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import Breadcrumb from '../components/Layout/BreadCrumb';
-import { useGlobalItems } from '../hooks/useItems';
+import { useGlobalItems } from '../hooks/items/useItems';
 import ItemCard from '../components/Item/ItemCard';
 import type { ApiService } from '../services/api';
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { useInfiniteScroll } from '../hooks/global/useInfiniteScroll';
 import { useAppStore } from '../store/useAppStore';
 import { useTranslation } from '../i18n/I18nContext';
 

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ApiService } from '../services/api';
-import type { Item } from '../types';
+import { ApiService } from '../../services/api';
+import { Item } from '../../types';
 
 export function useGlobalItems(api: ApiService) {
   return useQuery({
@@ -98,7 +98,7 @@ export function useUpdateItemMutation(api: ApiService) {
         queryClient.invalidateQueries({ queryKey: ['organizers'] });
       }
     },
-    onError: (err, variables, context) => {
+    onError: (_, __, context) => {
       if (context?.previousItems) {
         queryClient.setQueryData(['global-items'], context.previousItems);
       }
@@ -122,7 +122,7 @@ export function useDeleteItemMutation(api: ApiService) {
 
       return { previousItems };
     },
-    onError: (err, variables, context) => {
+    onError: (_, __, context) => {
       if (context?.previousItems) {
         queryClient.setQueryData(['global-items'], context.previousItems);
       }

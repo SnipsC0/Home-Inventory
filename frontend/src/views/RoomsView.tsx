@@ -1,9 +1,9 @@
 import RoomsHeader from '../components/Room/RoomsHeader';
 import RoomCard from '../components/Room/RoomCard';
-import { useRooms } from '../hooks/useRooms';
-import { useRoomMutations } from '../hooks/useRoomMutations';
-import { useHomeInventarConfig } from '../hooks/useHomeInventarConfig';
-import { useRoomNavigation } from '../hooks/useRoomNavigation';
+import { useRooms } from '../hooks/rooms/useRooms';
+import { useRoomMutations } from '../hooks/rooms/useRoomMutations';
+import { useHomeInventarConfig } from '../hooks/global/useHomeInventarConfig';
+import { useRoomNavigation } from '../hooks/rooms/useRoomNavigation';
 import EditRoomModal from '../components/Modal/EditRoomModal';
 import DeleteModal from '../components/Modal/DeleteModal';
 import { useState } from 'react';
@@ -22,9 +22,9 @@ export default function RoomsView({ api }: { api: ApiService }) {
   const [roomToEdit, setRoomToEdit] = useState<Room | null>(null);
   const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
 
-  if (isLoading) return <div className="text-ha-text">Se încarcă...</div>;
+  if (isLoading) return <div className="text-ha-text">{t.common.loading}</div>;
   if (error)
-    return <div className="text-ha-error">Eroare la încărcarea camerelor</div>;
+    return <div className="text-ha-error">{t.errors.getRoomsError}</div>;
 
   return (
     <div className="space-y-4">

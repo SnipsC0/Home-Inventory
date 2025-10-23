@@ -22,6 +22,7 @@ export interface Translations {
     select: string;
     name: string;
     infoViewPress: string;
+    connectingHA: string;
   };
   rooms: {
     title: string;
@@ -107,6 +108,8 @@ export interface Translations {
     generalError: string;
     sameLocationOrganizer: string;
     sameLocationItem: string;
+    preloadMoveLocation: string;
+    getRoomsError: string;
   };
 }
 
@@ -133,6 +136,7 @@ export const translations: Record<Language, Translations> = {
       select: 'Selectează',
       name: 'Nume',
       infoViewPress: 'Apasă lungă sau click dreapta pentru editare',
+      connectingHA: 'Se conectează la Home Assistant...',
     },
     rooms: {
       title: 'Camere',
@@ -218,6 +222,8 @@ export const translations: Record<Language, Translations> = {
       generalError: 'A apărut o eroare',
       sameLocationOrganizer: 'Organizatorul este în aceeași locație',
       sameLocationItem: 'Articolul este în aceeași locație',
+      preloadMoveLocation: 'Eroare la preîncărcarea locației curente',
+      getRoomsError: 'Eroare la încărcarea camerelor',
     },
   },
   en: {
@@ -241,6 +247,7 @@ export const translations: Record<Language, Translations> = {
       select: 'Select',
       name: 'Name',
       infoViewPress: 'Touch longer or right click to edit',
+      connectingHA: 'Connecting to Home Assistant...',
     },
     rooms: {
       title: 'Rooms',
@@ -326,6 +333,8 @@ export const translations: Record<Language, Translations> = {
       generalError: 'An error occurred',
       sameLocationOrganizer: 'The organizer is in the same location',
       sameLocationItem: 'The item is in the same location',
+      preloadMoveLocation: 'Error at preloaded current location',
+      getRoomsError: 'Error at fetching rooms.',
     },
   },
 };

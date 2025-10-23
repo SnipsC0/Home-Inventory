@@ -44,13 +44,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType):
 
 
 async def async_setup_entry(hass, entry):
-    _LOGGER.info("[Home Inventory] Inițializare integrare...")
+    _LOGGER.info("[Home Inventory] Integration init...")
 
     base_path = ensure_data_folders(hass)
     db_path = os.path.join(base_path, "db", "inventar.db")
 
     await hass.async_add_executor_job(initialize_db, db_path)
-    _LOGGER.info(f"[Home Inventory] ✅ Baza de date inițializată la {db_path}")
+    _LOGGER.debug(f"[Home Inventory] ✅ DB initialized at {db_path}")
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["entry"] = entry
@@ -71,13 +71,13 @@ async def async_setup_entry(hass, entry):
         HomeInventarItemDeepLinkView(hass),
     ]:
         hass.http.register_view(view)
-    _LOGGER.info("[Home Inventory] ✅ API-uri înregistrate")
+    _LOGGER.debug("[Home Inventory] ✅ APIs registered")
 
     panel_dir = os.path.join(os.path.dirname(__file__), "panel")
     await hass.http.async_register_static_paths([
         StaticPathConfig(url_path=f"/{DOMAIN}_static", path=panel_dir, cache_headers=False)
     ])
-    _LOGGER.info("[Home Inventory] ✅ Static path înregistrat")
+    _LOGGER.debug("[Home Inventory] ✅ Static path registered")
 
     try:
         async_register_built_in_panel(
@@ -94,15 +94,15 @@ async def async_setup_entry(hass, entry):
             },
             require_admin=False,
         )
-        _LOGGER.info(f"[Home Inventory] ✅ Panou frontend v{VERSION}")
+        _LOGGER.debug(f"[Home Inventory] ✅ Panou frontend v{VERSION}")
     except ValueError as e:
         if "Overwriting panel" in str(e):
-            _LOGGER.warning(f"[Home Inventory] Panou deja înregistrat, se ignoră: {e}")
+            _LOGGER.warning(f"[Home Inventory] Panel already registered, ignoring: {e}")
         else:
             raise
     
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
-    _LOGGER.info("[Home Inventory] ✅ Senzori înregistrați")
+    _LOGGER.info("[Home Inventory] ✅ Sensors registered")
     
     entry.async_on_unload(entry.add_update_listener(async_update_options))
     
@@ -110,11 +110,11 @@ async def async_setup_entry(hass, entry):
 
 
 async def async_update_options(hass: HomeAssistant, entry):
-    _LOGGER.info("[Home Inventory] Opțiuni actualizate")
+    _LOGGER.info("[Home Inventory] Update options")
 
 
 async def async_unload_entry(hass, entry):
-    _LOGGER.info("[Home Inventory] Integrare dezinstalată.")
+    _LOGGER.info("[Home Inventory] Uninstalled integration.")
     
     unload_ok = await hass.config_entries.async_unload_platforms(entry, ["sensor"])
     

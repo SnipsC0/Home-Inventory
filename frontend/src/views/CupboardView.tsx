@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useCupboards } from '../hooks/useCupboards';
-import { useHomeInventarConfig } from '../hooks/useHomeInventarConfig';
-import { useCupboardNavigation } from '../hooks/useCupboardNavigation';
-import { useCupboardActions } from '../hooks/useCupboardActions';
+import { useCupboards } from '../hooks/cupboards/useCupboards';
+import { useHomeInventarConfig } from '../hooks/global/useHomeInventarConfig';
+import { useCupboardNavigation } from '../hooks/cupboards/useCupboardNavigation';
+import { useCupboardActions } from '../hooks/cupboards/useCupboardActions';
 import CupboardHeader from '../components/Cupboard/CupboardHeader';
 import CupboardAddForm from '../components/Cupboard/CupboardAddForm';
 import CupboardCard from '../components/Cupboard/CupboardCard';

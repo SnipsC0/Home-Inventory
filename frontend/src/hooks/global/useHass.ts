@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { Hass } from '../types';
-import { isDev, createMockHass } from '../config/dev';
+import type { Hass } from '../../types';
+import { isDev, createMockHass } from '../../config/dev';
 
 declare global {
   interface Window {

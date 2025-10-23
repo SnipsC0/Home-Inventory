@@ -19,7 +19,6 @@ class HomeInventarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         _LOGGER.debug("[Home Inventory] Config flow user step called")
         
-        # Only allow a single instance
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
         
@@ -53,10 +52,6 @@ class HomeInventarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class HomeInventarOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Home Inventory."""
     
-    # ❌ REMOVED: def __init__(self, config_entry):
-    # ❌ REMOVED:     self.config_entry = config_entry
-    # ✅ Nu mai setăm explicit config_entry - clasa părinte o face automat!
-
     async def async_step_init(self, user_input=None):
         """Manage the options."""
         _LOGGER.debug("[Home Inventory] Options flow init step called")
@@ -65,8 +60,6 @@ class HomeInventarOptionsFlow(config_entries.OptionsFlow):
             _LOGGER.info("[Home Inventory] Updating options with: %s", user_input)
             return self.async_create_entry(title="", data=user_input)
 
-        # Get current options with defaults
-        # ✅ Folosește self.config_entry direct - e setat de clasa părinte
         current_allow = self.config_entry.options.get("allow_structure_modification", True)
         current_language = self.config_entry.options.get("language", "en")
         

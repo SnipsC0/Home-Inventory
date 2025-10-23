@@ -1,8 +1,14 @@
+## 🏷️ 2.0.2 - Bug fix
+
+### Bug
+
+- Provider translation use
+
 ## 🏷️ 2.0.1 - Fixes
 
 ### Fixed
 
-- Translate to EN for all apis loggers
+- Translate to EN all apis loggers
 - Few refactorization for frontend
 
 ## 🏷️ 2.0.0 - Translations + new sensors + new view

@@ -14,7 +14,7 @@ import AllItemsView from './views/AllItemsView';
 import CupboardsView from './views/CupboardView';
 import { isDev } from './config/dev';
 import TrackedItemsView from './views/TrackedItemsView';
-import { I18nProvider, useTranslation } from './i18n/I18nContext';
+import { I18nProvider } from './i18n/I18nContext';
 import { useHomeInventarConfig } from './hooks/global/useHomeInventarConfig';
 
 const queryClient = new QueryClient({
@@ -53,7 +53,6 @@ function AppContent({ api }: { api: ApiService }) {
 }
 
 function App({ hass: hassProp }: AppProps) {
-  const { t } = useTranslation();
   const { hass: hassHook, loading, error } = useHass();
   const hass = hassProp || hassHook;
 
@@ -80,7 +79,7 @@ function App({ hass: hassProp }: AppProps) {
     return (
       <div className="flex items-center justify-center min-h-[400px] flex-col gap-4 text-ha-text">
         <div className="w-10 h-10 border-4 border-ha-divider border-t-ha-primary rounded-full animate-spin" />
-        <div>Se conectează la Home Assistant...</div>
+        <div>Connecting to Home Assistant...</div>
       </div>
     );
   }
@@ -88,7 +87,7 @@ function App({ hass: hassProp }: AppProps) {
   if ((error && !hassProp) || !hass) {
     return (
       <div className="p-5 text-center text-ha-error">
-        <p>{error?.message || `${t.errors.connectionError}...`}</p>
+        <p>{error?.message || 'Connection error'}</p>
         <button
           onClick={() => window.location.reload()}
           className="mt-4 px-5 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition"

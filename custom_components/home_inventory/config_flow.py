@@ -46,7 +46,7 @@ class HomeInventarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
-        return HomeInventarOptionsFlow(config_entry)
+        return HomeInventarOptionsFlow()
 
 
 class HomeInventarOptionsFlow(config_entries.OptionsFlow):

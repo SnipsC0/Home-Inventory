@@ -1,8 +1,14 @@
-## 🏷️ 2.0.3 - UI improved
+## 🏷️ 2.0.3 - UI Improvements & Compatibility Update
 
 ### Improved
 
-- Switched buttons for edit and delete with long press and right click for all entities (rooms, cupboards.) This behaviour was available only on items.
+- Unified interaction behavior — editing and deleting entities (rooms, cupboards, etc.) can now be triggered via long press or right-click, just like for items.
+
+- Provides a more consistent and intuitive experience across all entity types.
+
+### Fixed
+
+- Updated integration configuration to align with upcoming Home Assistant 2025.12 standards, ensuring future compatibility and preventing deprecation warnings.
 
 ## 🏷️ 2.0.2 - Bug fix
 

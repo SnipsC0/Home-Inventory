@@ -18,7 +18,7 @@ export default function CupboardHeader({ allowEdit, onToggleForm }: Props) {
           onClick={onToggleForm}
           className="px-3 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition"
         >
-          + Adaugă Dulap
+          + {t.cupboards.addCupboard}
         </button>
       )}
     </div>

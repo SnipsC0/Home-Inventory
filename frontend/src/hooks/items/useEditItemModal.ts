@@ -1,13 +1,15 @@
 import { useCallback, useState } from 'react';
-import { useDeleteItemMutation, useUpdateItemMutation } from './useItems';
-import { Item } from '../../types';
+import { ExpirationBatch, Item, ItemLocation } from '../../types';
 import { ApiService } from '../../services/api';
 import { useMoveLocation } from '../global/useMoveLocation';
+import { validateDate } from '../../utils/helpers';
+import { useItemActions } from './useItemActions';
 
 interface Props {
   item: Item;
   api: ApiService;
   organizer?: string | null;
+  location: ItemLocation;
   onSuccess: () => void;
   onClose: () => void;
 }
@@ -16,26 +18,62 @@ export default function useEditItemModal({
   api,
   item,
   organizer,
+  location,
   onSuccess,
   onClose,
 }: Props) {
-  const updateItem = useUpdateItemMutation(api);
-  const deleteItem = useDeleteItemMutation(api);
+  const { deleteItem, updateItem } = useItemActions();
 
-  const [selectedRoom, selectedCupboard, selectedShelf] =
-    item.location.split(' / ');
+  const loc: ItemLocation | undefined = location;
 
-  const [name, setName] = useState(item.name);
-  const [aliases, setAliases] = useState(item.aliases || '');
-  const [preview, setPreview] = useState<string | null>(item.image || null);
+  const selectedRoom = loc?.room ?? '';
+  const selectedCupboard = loc?.cupboard ?? '';
+  const selectedShelf = loc?.shelf ?? '';
+  const selectedOrganizer = loc?.organizer ?? organizer ?? null;
+
   const [file, setFile] = useState<File | null>(null);
   const [track, setTrack] = useState(item.track_quantity);
-  const [quantity, setQuantity] = useState<number | null>(
-    item.quantity ?? null
+  const [preview, setPreview] = useState<string | null>(
+    loc?.image || item.default_image || null
   );
-  const [minQuantity, setMinQuantity] = useState<number | null>(
-    item.min_quantity ?? null
+  const [expirationBatches, setExpirationBatches] = useState<ExpirationBatch[]>(
+    () => {
+      try {
+        if (!loc?.expiration_dates) {
+          return loc?.quantity ? [{ quantity: loc.quantity, date: '' }] : [];
+        }
+        if (typeof loc.expiration_dates === 'string') {
+          return JSON.parse(loc.expiration_dates);
+        }
+        return loc.expiration_dates as ExpirationBatch[];
+      } catch {
+        return loc?.quantity ? [{ quantity: loc.quantity, date: '' }] : [];
+      }
+    }
   );
+
+  const addBatch = () => {
+    setExpirationBatches([...expirationBatches, { quantity: 1, date: '' }]);
+  };
+
+  const removeBatch = (index: number) => {
+    setExpirationBatches(expirationBatches.filter((_, i) => i !== index));
+  };
+
+  const updateBatch = (
+    index: number,
+    field: 'quantity' | 'date',
+    value: string | number
+  ) => {
+    const updated = [...expirationBatches];
+    if (field === 'quantity') {
+      updated[index].quantity = value as number;
+    } else {
+      updated[index].date = value as string;
+    }
+    setExpirationBatches(updated);
+  };
+
   const [loading, setLoading] = useState(false);
 
   const {
@@ -50,7 +88,7 @@ export default function useEditItemModal({
       room: selectedRoom,
       cupboard: selectedCupboard,
       shelf: selectedShelf,
-      organizer,
+      organizer: selectedOrganizer,
     },
   });
 
@@ -61,94 +99,145 @@ export default function useEditItemModal({
         const reader = new FileReader();
         reader.onload = () => setPreview(reader.result as string);
         reader.readAsDataURL(f);
-      } else setPreview(item.image || null);
+      } else {
+        setPreview(loc?.image || item.default_image || null);
+      }
     },
-    [item.image]
+    [loc?.image, item.default_image]
   );
 
   const handleSave = useCallback(async () => {
-    if (!name.trim()) return;
+    if (
+      track &&
+      expirationBatches.some((batch) => !validateDate(batch.date || ''))
+    ) {
+      alert(
+        'Datele de expirare trebuie să fie în formatul YYYY/MM/DD sau goale!'
+      );
+      return;
+    }
+
     if (showMove && isSameLocation(moveState)) {
       alert('Obiectul este deja în această locație!');
       return;
     }
 
-    let qty: number | null;
-
-    if (track) {
-      if (quantity === null || quantity < 0) {
-        qty = 0;
-      } else {
-        qty = quantity;
-      }
-    } else {
-      qty = null;
-    }
+    const qty =
+      track && expirationBatches.length > 0
+        ? expirationBatches.reduce(
+            (sum, batch) => sum + (batch.quantity || 0),
+            0
+          )
+        : null;
 
     setLoading(true);
     try {
-      const data: any = {
-        name: name.trim(),
-        aliases: aliases.trim() || undefined,
+      const data: Record<string, any> = {
         track_quantity: track,
         quantity: qty,
-        min_quantity: track ? minQuantity : null,
       };
+
+      if (track && expirationBatches.length > 0) {
+        data.expiration_dates = JSON.stringify(expirationBatches);
+      }
 
       if (showMove) Object.assign(data, moveState);
 
       if (file) {
         const imagePath = await api.uploadImage(file, {
-          ...moveState,
-          item: name,
-          old_image: item.image?.split('/').pop()?.split('?')[0],
+          ...(showMove
+            ? moveState
+            : {
+                room: selectedRoom,
+                cupboard: selectedCupboard,
+                shelf: selectedShelf,
+                organizer: selectedOrganizer,
+              }),
+          item: item.name,
+          old_image: loc?.image?.split('/').pop()?.split('?')[0] || undefined,
         });
         data.image = `/api/home_inventory/images/${imagePath}`;
       }
 
-      await updateItem.mutateAsync({ id: item.id, data });
+      await updateItem.mutateAsync({
+        id: item.id,
+        data,
+        location_id: loc?.location_id,
+      });
       await new Promise((r) => setTimeout(r, 100));
+
       onSuccess();
       onClose();
     } catch (err) {
-      console.error('Update error:', err);
+      console.error('[EditItemModal] Update error:', err);
     } finally {
       setLoading(false);
     }
-  }, [name, aliases, track, quantity, minQuantity, showMove, moveState, file]);
+  }, [
+    track,
+    file,
+    showMove,
+    moveState,
+    isSameLocation,
+    loc,
+    item.id,
+    item.name,
+    api,
+    onSuccess,
+    onClose,
+    expirationBatches,
+    updateItem,
+    selectedRoom,
+    selectedCupboard,
+    selectedShelf,
+    selectedOrganizer,
+  ]);
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (!confirm(`Ștergi "${item.name}"?`)) return;
     setLoading(true);
     try {
-      await deleteItem.mutateAsync(item.id);
+      await deleteItem.mutateAsync({ itemId: item.id, locationId: loc.location_id });
       onSuccess();
       onClose();
     } finally {
       setLoading(false);
     }
-  };
+  }, [item.id, item.name, loc.location_id, deleteItem, onSuccess, onClose]);
+
+  const locationLabel = loc
+    ? [loc.room, loc.cupboard, loc.shelf, loc.organizer]
+        .filter(Boolean)
+        .join(' / ')
+    : '';
 
   return {
-    name,
-    aliases,
+    // variables
     track,
-    quantity,
-    minQuantity,
+    preview,
+    expirationBatches,
+
+    // setters
+    setTrack,
+
+    // move
     showMove,
-    moveState,
-    setName,
     startMove,
     cancelMove,
+    moveState,
     setMoveState,
-    setAliases,
-    preview,
-    setTrack,
-    setQuantity,
-    setMinQuantity,
-    loading,
+
+    // handlers
     handleFileChange,
     handleSave,
     handleDelete,
+    addBatch,
+    removeBatch,
+    updateBatch,
+
+    // others
+    locationLabel,
+    loading,
+    validateDate,
   };
 }

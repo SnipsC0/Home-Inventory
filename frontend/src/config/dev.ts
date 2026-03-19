@@ -50,8 +50,7 @@ export function createMockHass(): Hass {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
-        console.error(`❌ API Error: ${response.status}`, errorText);
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        throw new Error(`API Error: ${errorText}`);
       }
 
       return response.json();

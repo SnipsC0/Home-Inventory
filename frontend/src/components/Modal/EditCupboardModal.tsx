@@ -10,7 +10,7 @@ interface EditCupboardModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (newName: string, newFile: File | null) => Promise<void>;
-  cupboard: Cupboard;
+  cupboard?: Cupboard;
 }
 
 export default function EditCupboardModal({
@@ -20,10 +20,12 @@ export default function EditCupboardModal({
   cupboard,
 }: EditCupboardModalProps) {
   const { t } = useTranslation();
-  const [name, setName] = useState(cupboard.name);
+  const [name, setName] = useState(cupboard?.name || '');
   const [showDeleteModal, setShowDeleteModal] = useState<Cupboard | null>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(cupboard.image || null);
+  const [preview, setPreview] = useState<string | null>(
+    cupboard?.image || null
+  );
   const [loading, setLoading] = useState(false);
 
   const api = useApi();
@@ -51,7 +53,10 @@ export default function EditCupboardModal({
     <>
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalHeader onClose={onClose}>
-          ✏️ {t.common.edit} {t.cupboards.cupboard}
+          ✏️{' '}
+          {`${cupboard?.id ? t.common.edit : t.common.add} ${
+            t.cupboards.cupboard
+          }`}
         </ModalHeader>
 
         <div className="space-y-4">
@@ -108,7 +113,7 @@ export default function EditCupboardModal({
           </button>
         </ModalFooter>
       </Modal>
-      {showDeleteModal ? (
+      {cupboard?.id && showDeleteModal ? (
         <DeleteModal
           isOpen={true}
           itemName={cupboard.name}

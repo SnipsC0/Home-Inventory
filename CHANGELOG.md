@@ -1,3 +1,5 @@
+## 🏷️ 3.0.0 - Migrate to DBv2
+
 ## 🏷️ 2.0.3 - UI Improvements & Compatibility Update
 
 ### Improved

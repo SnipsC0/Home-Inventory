@@ -10,3 +10,5 @@ __pycache__/
 *.zip
 frontend/.env
 frontend/node_modules
+local_docs/
+CLAUDE.md

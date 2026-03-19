@@ -3,10 +3,14 @@ import { Modal, ModalHeader, ModalFooter } from './Modal';
 import { useRooms } from '../../hooks/rooms/useRooms';
 import type { ApiService } from '../../services/api';
 import { useAppStore } from '../../store/useAppStore';
-import { Cupboard, Shelf } from '../../types';
+import { Cupboard, Organizer, Shelf } from '../../types';
 import { useTranslation } from '../../i18n/I18nContext';
+import DeleteModal from './DeleteModal';
+import { useOrganizerActions } from '../../hooks/organizers/useOrganizerActions';
+import { useApi } from '../../contexts/ApiContext';
 
 interface EditOrganizerModalProps {
+  organizer: Organizer | null;
   isOpen: boolean;
   onClose: () => void;
   onSave: (
@@ -16,10 +20,11 @@ interface EditOrganizerModalProps {
   ) => Promise<void>;
   currentName: string;
   currentImage?: string;
-  api?: ApiService;
+  api: ApiService;
 }
 
 export default function EditOrganizerModal({
+  organizer,
   isOpen,
   onClose,
   onSave,
@@ -28,11 +33,13 @@ export default function EditOrganizerModal({
   api,
 }: EditOrganizerModalProps) {
   const { t, language } = useTranslation();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   const currentRoom = useAppStore((state) => state.selectedRoom);
   const currentCupboard = useAppStore((state) => state.selectedCupboard);
   const currentShelf = useAppStore((state) => state.selectedShelf);
 
-  const [name, setName] = useState(currentName);
+  const [name, setName] = useState(organizer?.name || '');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(currentImage || null);
   const [loading, setLoading] = useState(false);
@@ -47,6 +54,8 @@ export default function EditOrganizerModal({
 
   const [availableCupboards, setAvailableCupboards] = useState<Cupboard[]>([]);
   const [availableShelves, setAvailableShelves] = useState<Shelf[]>([]);
+
+  const { deleteOrganizer } = useOrganizerActions(api);
 
   useEffect(() => {
     if (moveRoom && api) {
@@ -121,195 +130,220 @@ export default function EditOrganizerModal({
   const isEditMode = !!currentName;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <ModalHeader onClose={onClose}>
-        {isEditMode
-          ? `✏️ ${t.common.edit} ${t.organizers.organizer}`
-          : `➕ ${t.common.add} ${t.organizers.organizer}`}
-      </ModalHeader>
+    <>
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalHeader onClose={onClose}>
+          {isEditMode
+            ? `✏️ ${t.common.edit} ${t.organizers.organizer}`
+            : `➕ ${t.common.add} ${t.organizers.organizer}`}
+        </ModalHeader>
 
-      <div className="space-y-4">
-        <div>
-          <label className="text-ha-text text-sm block mb-1">
-            {language === 'en' ? 'Name' : 'Nume'} *
-          </label>
-          <input
-            type="text"
-            className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t.organizers.organizerName}
-          />
-        </div>
-
-        {/* Preview imagine */}
-        {preview && (
-          <img
-            src={preview}
-            alt="Preview"
-            className="w-full h-[20rem] object-cover rounded border border-ha-divider"
-          />
-        )}
-
-        {/* Upload imagine */}
-        <div>
-          <label className="text-ha-text text-sm block mb-1">
-            {t.items.image} ({t.common.optional})
-          </label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="w-full text-ha-text text-sm"
-          />
-        </div>
-
-        {isEditMode && (
-          <div className="bg-ha-secondary-bg p-3 rounded">
-            <div className="text-ha-text text-sm mb-1">
-              📍 {t.trackedItems.locationLabel}
-            </div>
-            <div className="text-ha-text/70 text-xs">
-              {currentRoom} › {currentCupboard} › {currentShelf}
-            </div>
+        <div className="space-y-4">
+          <div>
+            <label className="text-ha-text text-sm block mb-1">
+              {language === 'en' ? 'Name' : 'Nume'} *
+            </label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t.organizers.organizerName}
+            />
           </div>
-        )}
 
-        {isEditMode && !showMove && (
-          <button
-            onClick={handleStartMove}
-            className="w-full py-2 bg-ha-card border border-ha-primary text-ha-primary rounded hover:bg-ha-secondary-bg transition"
-          >
-            🚚 {t.organizers.moveOrganizer}
-          </button>
-        )}
+          {/* Preview imagine */}
+          {preview && (
+            <img
+              src={preview}
+              alt="Preview"
+              className="w-full h-[20rem] object-cover rounded border border-ha-divider"
+            />
+          )}
 
-        {/* Sistem de mutare */}
-        {showMove && (
-          <div className="border border-ha-primary rounded-lg p-4 space-y-3 bg-ha-card">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-ha-text font-semibold text-sm">
-                🚚{' '}
-                {`${t.organizers.moveOrganizer.split(' ')[0]} ${
-                  language === 'en' ? 'in' : 'în'
-                }:`}
-              </span>
-              <button
-                onClick={handleCancelMove}
-                className="text-ha-error text-xs hover:underline"
-              >
-                {t.common.cancel} {language === 'en' ? 'move' : 'mutarea'}
-              </button>
+          {/* Upload imagine */}
+          <div>
+            <label className="text-ha-text text-sm block mb-1">
+              {t.items.image} ({t.common.optional})
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="w-full text-ha-text text-sm"
+            />
+          </div>
+
+          {isEditMode && (
+            <div className="bg-ha-secondary-bg p-3 rounded">
+              <div className="text-ha-text text-sm mb-1">
+                📍 {t.trackedItems.locationLabel}
+              </div>
+              <div className="text-ha-text/70 text-xs">
+                {currentRoom} › {currentCupboard} › {currentShelf}
+              </div>
             </div>
+          )}
 
-            {/* Cameră */}
-            <div>
-              <label className="text-ha-text text-xs block mb-1">
-                {t.rooms.room} *
-              </label>
-              <select
-                value={moveRoom}
-                onChange={(e) => {
-                  setMoveRoom(e.target.value);
-                  setMoveCupboard('');
-                  setMoveShelf('');
-                }}
-                className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
-              >
-                <option value="">
-                  {t.common.select} {t.rooms.room.toLowerCase()}
-                </option>
-                {rooms.map((r) => (
-                  <option key={r.id} value={r.name}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {isEditMode && !showMove && (
+            <button
+              onClick={handleStartMove}
+              className="w-full py-2 bg-ha-card border border-ha-primary text-ha-primary rounded hover:bg-ha-secondary-bg transition"
+            >
+              🚚 {t.organizers.moveOrganizer}
+            </button>
+          )}
 
-            {/* Dulap */}
-            {moveRoom && (
+          {/* Sistem de mutare */}
+          {showMove && (
+            <div className="border border-ha-primary rounded-lg p-4 space-y-3 bg-ha-card">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-ha-text font-semibold text-sm">
+                  🚚{' '}
+                  {`${t.organizers.moveOrganizer.split(' ')[0]} ${
+                    language === 'en' ? 'in' : 'în'
+                  }:`}
+                </span>
+                <button
+                  onClick={handleCancelMove}
+                  className="text-ha-error text-xs hover:underline"
+                >
+                  {t.common.cancel} {language === 'en' ? 'move' : 'mutarea'}
+                </button>
+              </div>
+
+              {/* Cameră */}
               <div>
                 <label className="text-ha-text text-xs block mb-1">
-                  {t.cupboards.cupboard} *
+                  {t.rooms.room} *
                 </label>
                 <select
-                  value={moveCupboard}
+                  value={moveRoom}
                   onChange={(e) => {
-                    setMoveCupboard(e.target.value);
+                    setMoveRoom(e.target.value);
+                    setMoveCupboard('');
                     setMoveShelf('');
                   }}
                   className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
                 >
                   <option value="">
-                    {t.common.select} {t.cupboards.cupboard.toLowerCase()}
+                    {t.common.select} {t.rooms.room.toLowerCase()}
                   </option>
-                  {availableCupboards.map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {c.name}
+                  {rooms.map((r) => (
+                    <option key={r.id} value={r.name}>
+                      {r.name}
                     </option>
                   ))}
                 </select>
               </div>
-            )}
 
-            {/* Raft */}
-            {moveCupboard && (
-              <div>
-                <label className="text-ha-text text-xs block mb-1">
-                  {t.shelves.shelf} *
-                </label>
-                <select
-                  value={moveShelf}
-                  onChange={(e) => setMoveShelf(e.target.value)}
-                  className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
-                >
-                  <option value="">
-                    {t.common.select} {t.shelves.shelf.toLowerCase()}
-                  </option>
-                  {availableShelves.map((s) => (
-                    <option key={s.id} value={s.name}>
-                      {s.name}
+              {/* Dulap */}
+              {moveRoom && (
+                <div>
+                  <label className="text-ha-text text-xs block mb-1">
+                    {t.cupboards.cupboard} *
+                  </label>
+                  <select
+                    value={moveCupboard}
+                    onChange={(e) => {
+                      setMoveCupboard(e.target.value);
+                      setMoveShelf('');
+                    }}
+                    className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
+                  >
+                    <option value="">
+                      {t.common.select} {t.cupboards.cupboard.toLowerCase()}
                     </option>
-                  ))}
-                </select>
-              </div>
-            )}
+                    {availableCupboards.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-            {/* Preview locație nouă */}
-            {moveRoom && moveCupboard && moveShelf && (
-              <div className="bg-ha-secondary-bg p-2 rounded text-xs text-ha-text/70">
-                📍 {language === 'en' ? 'New' : 'Noua'}{' '}
-                {t.trackedItems.locationLabel}{' '}
-                <span className="font-semibold">
-                  {moveRoom} › {moveCupboard} › {moveShelf}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+              {/* Raft */}
+              {moveCupboard && (
+                <div>
+                  <label className="text-ha-text text-xs block mb-1">
+                    {t.shelves.shelf} *
+                  </label>
+                  <select
+                    value={moveShelf}
+                    onChange={(e) => setMoveShelf(e.target.value)}
+                    className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
+                  >
+                    <option value="">
+                      {t.common.select} {t.shelves.shelf.toLowerCase()}
+                    </option>
+                    {availableShelves.map((s) => (
+                      <option key={s.id} value={s.name}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-      <ModalFooter>
-        <button
-          onClick={handleSave}
-          disabled={
-            loading ||
-            !name.trim() ||
-            (showMove && (!moveRoom || !moveCupboard || !moveShelf))
-          }
-          className="flex-1 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition disabled:opacity-50"
-        >
-          {loading ? t.common.saving : `💾 ${t.common.save}`}
-        </button>
-        <button
-          onClick={onClose}
-          disabled={loading}
-          className="flex-1 py-2 bg-ha-secondary-bg border border-ha-divider text-ha-text rounded hover:bg-ha-card transition"
-        >
-          {t.common.cancel}
-        </button>
-      </ModalFooter>
-    </Modal>
+              {moveRoom && moveCupboard && moveShelf && (
+                <div className="bg-ha-secondary-bg p-2 rounded text-xs text-ha-text/70">
+                  📍 {language === 'en' ? 'New' : 'Noua'}{' '}
+                  {t.trackedItems.locationLabel}{' '}
+                  <span className="font-semibold">
+                    {moveRoom} › {moveCupboard} › {moveShelf}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <ModalFooter>
+          <button
+            onClick={handleSave}
+            disabled={
+              loading ||
+              !name.trim() ||
+              (showMove && (!moveRoom || !moveCupboard || !moveShelf))
+            }
+            className="flex-1 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition disabled:opacity-50"
+          >
+            {loading ? t.common.saving : `💾 ${t.common.save}`}
+          </button>
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 py-2 bg-ha-secondary-bg border border-ha-divider text-ha-text rounded hover:bg-ha-card transition"
+          >
+            {t.common.cancel}
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              // setDeletingOrganizer(organizer);
+            }}
+            className="flex-1 py-2 bg-ha-error text-white text-sm rounded hover:opacity-90 transition"
+          >
+            🗑️ {t.common.delete}
+          </button>
+        </ModalFooter>
+      </Modal>
+      {showDeleteModal && organizer ? (
+        <DeleteModal
+          isOpen={true}
+          itemName={name}
+          itemType={t.organizers.organizer}
+          itemCount={organizer?.itemCount}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={async () => {
+            await deleteOrganizer.mutateAsync(organizer.id);
+            setShowDeleteModal(false);
+            onClose();
+          }}
+        />
+      ) : (
+        ''
+      )}
+    </>
   );
 }

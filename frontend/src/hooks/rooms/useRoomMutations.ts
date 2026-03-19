@@ -9,6 +9,9 @@ export function useRoomMutations(api: ApiService) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
     },
+    onError: (error: any) => {
+      console.error('❌ Eroare la adăugarea camerei:', error);
+    },
   });
 
   const updateRoom = useMutation({
@@ -17,12 +20,18 @@ export function useRoomMutations(api: ApiService) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
     },
+    onError: (error: any) => {
+      console.error('❌ Eroare la actualizarea camerei:', error);
+    },
   });
 
   const deleteRoom = useMutation({
     mutationFn: (id: number) => api.deleteRoom(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    },
+    onError: (error: any) => {
+      console.error('❌ Eroare la ștergerea camerei:', error);
     },
   });
 

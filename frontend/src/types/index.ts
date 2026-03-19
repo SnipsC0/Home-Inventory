@@ -45,18 +45,61 @@ export interface Organizer {
   itemCount: number;
 }
 
+export interface AddItemData {
+  name: string;
+  aliases: string | undefined;
+  imageFile: File | null;
+  track_quantity: boolean;
+  quantity: number | null;
+  barcode: string;
+  expiration_date: string | null;
+}
+
+export interface UpdateItemData {
+  location_id?: number | null;
+  room?: string;
+  shelf?: string;
+  cupboard?: string;
+  organizer?: string | null;
+  name?: string;
+  aliases?: string;
+  barcode?: string;
+  default_image?: string;
+  image?: string | null;
+  track_quantity?: boolean;
+  min_quantity?: number | null;
+  expiration_dates?: string | null;
+}
+
+export interface ItemLocation {
+  location_id: number;
+  quantity: number | null;
+  expiration_dates: string | ExpirationBatch[] | null;
+  room: string;
+  cupboard: string;
+  shelf: string;
+  organizer: string | null;
+  location: string;
+  is_low_stock: boolean;
+  is_expired: boolean;
+  image: string | null;
+}
+
+export type ExpirationBatch = {
+  quantity: number;
+  date: string | null;
+};
+
 export interface Item {
   id: number;
   name: string;
-  aliases?: string;
-  image?: string;
-  quantity: number | null;
-  min_quantity: number | null;
+  barcode: string | null;
+  aliases: string | null;
   track_quantity: boolean;
-  location: string;
-  room?: string;
-  cupboard?: string;
-  shelf?: string;
+  min_quantity: number | null;
+  default_image: string | null;
+  locations: ItemLocation[];
+  total_quantity: number | null;
 }
 
 // API Response Types
@@ -92,9 +135,11 @@ export interface UploadContext {
   room?: string;
   cupboard?: string;
   shelf?: string;
-  organizer?: string;
+  organizer?: string | null;
   item?: string;
   old_image?: string;
+  create_default_copy?: boolean;
+  is_default?: boolean;
 }
 
 export type ClickOrTouchEvent =

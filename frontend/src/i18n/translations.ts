@@ -86,6 +86,9 @@ export interface Translations {
     pieces: string;
     moveItem: string;
     noTrack: string;
+    lots: string;
+    barcode: string;
+    scanButton: string;
   };
   trackedItems: {
     title: string;
@@ -200,6 +203,9 @@ export const translations: Record<Language, Translations> = {
       pieces: 'bucăți',
       moveItem: 'Mută articolul',
       noTrack: 'Cantitatea nu este urmărită pentru acest obiect',
+      lots: 'Loturi',
+      barcode: 'Cod de bare',
+      scanButton: 'Scaneaza codul de bare',
     },
     trackedItems: {
       title: 'Articole Urmărite',
@@ -311,6 +317,9 @@ export const translations: Record<Language, Translations> = {
       pieces: 'pieces',
       moveItem: 'Move the item',
       noTrack: 'The quantity is not tracked for this item',
+      lots: 'Lots',
+      barcode: 'Barcode',
+      scanButton: 'Scan the barcode',
     },
     trackedItems: {
       title: 'Tracked Items',

@@ -50,12 +50,12 @@ class HomeInventarOrganizersView(HomeAssistantView):
             cur = conn.cursor()
             
             cur.execute('''
-                SELECT o.id, o.name, o.image, COUNT(DISTINCT i.id)
+                SELECT o.id, o.name, o.image, COUNT(DISTINCT il.id)
                 FROM organizers o
                 JOIN shelves s ON o.shelf_id = s.id
                 JOIN cupboards c ON s.cupboard_id = c.id
                 JOIN rooms r ON c.room_id = r.id
-                LEFT JOIN items i ON o.id = i.organizer_id
+                LEFT JOIN item_locations il ON o.id = il.organizer_id
                 WHERE r.name = ? AND c.name = ? AND s.name = ?
                 GROUP BY o.id, o.name, o.image
                 ORDER BY o.name
@@ -72,13 +72,13 @@ class HomeInventarOrganizersView(HomeAssistantView):
                 })
             
             cur.execute('''
-                SELECT COUNT(i.id)
-                FROM items i
-                JOIN shelves s ON i.shelf_id = s.id
+                SELECT COUNT(il.id)
+                FROM item_locations il
+                JOIN shelves s ON il.shelf_id = s.id
                 JOIN cupboards c ON s.cupboard_id = c.id
                 JOIN rooms r ON c.room_id = r.id
                 WHERE r.name = ? AND c.name = ? AND s.name = ? 
-                AND i.organizer_id IS NULL
+                AND il.organizer_id IS NULL
             ''', (room, cupboard, shelf))
             
             items_without_organizer = cur.fetchone()[0]
@@ -199,7 +199,7 @@ class HomeInventarOrganizersView(HomeAssistantView):
                     
                     _LOGGER.info(f"Moving all items from organizer {organizer_id} to shelf_id {new_shelf_id}")
                     cur.execute('''
-                        UPDATE items 
+                        UPDATE item_locations 
                         SET shelf_id = ? 
                         WHERE organizer_id = ?
                     ''', (new_shelf_id, organizer_id))
@@ -259,10 +259,10 @@ class HomeInventarOrganizersView(HomeAssistantView):
                 org_row = cur.fetchone()
                 organizer_image = org_row[0] if org_row else None
 
-                cur.execute("SELECT id, image FROM items WHERE organizer_id = ?", (organizer_id,))
+                cur.execute("SELECT id, image FROM item_locations WHERE organizer_id = ?", (organizer_id,))
                 items_to_delete = cur.fetchall()
 
-                cur.execute("DELETE FROM items WHERE organizer_id = ?", (organizer_id,))
+                cur.execute("DELETE FROM item_locations WHERE organizer_id = ?", (organizer_id,))
 
                 cur.execute("DELETE FROM organizers WHERE id = ?", (organizer_id,))
                 conn.commit()

@@ -1,45 +1,125 @@
-import { useMemo, useState } from 'react';
-import { useFilteredItems, useGlobalItems } from '../hooks/items/useItems';
+import { useState, useMemo, useCallback } from 'react';
+import Breadcrumb from '../components/Layout/BreadCrumb';
+import AddItemModal from '../components/Modal/ItemModal/AddItemModal';
+import ItemCard from '../components/Item/ItemCard';
+import Loading from '../components/Loading';
+
+import { useGlobalItems } from '../hooks/items/useItems';
 import { useHomeInventarConfig } from '../hooks/global/useHomeInventarConfig';
 import { useItemActions } from '../hooks/items/useItemActions';
 import { useAppStore } from '../store/useAppStore';
-import AddItemModal from '../components/Modal/AddItemModal';
-import ItemCard from '../components/Item/ItemCard';
-import Breadcrumb from '../components/Layout/BreadCrumb';
-import type { ApiService } from '../services/api';
 import { useTranslation } from '../i18n/I18nContext';
 
-export default function ItemsView({ api }: { api: ApiService }) {
+import type { ApiService } from '../services/api';
+import type { Item, ItemLocation } from '../types';
+
+interface ItemsViewProps {
+  api: ApiService;
+}
+
+export default function ItemsView({ api }: ItemsViewProps) {
   const { t } = useTranslation();
-  const selectedOrganizer = useAppStore((state) => state.selectedOrganizer);
-  const selectedRoom = useAppStore((state) => state.selectedRoom);
-  const selectedCupboard = useAppStore((state) => state.selectedCupboard);
-  const selectedShelf = useAppStore((state) => state.selectedShelf);
-  const goBack = useAppStore((state) => state.goBack);
 
-  const { isLoading } = useGlobalItems(api);
-  const items = useFilteredItems(api, {
-    room: selectedRoom,
-    cupboard: selectedCupboard,
-    shelf: selectedShelf,
-    organizer: selectedOrganizer,
-  });
+  // navigation + context
+  const selectedRoom = useAppStore((s) => s.selectedRoom);
+  const selectedCupboard = useAppStore((s) => s.selectedCupboard);
+  const selectedShelf = useAppStore((s) => s.selectedShelf);
+  const selectedOrganizer = useAppStore((s) => s.selectedOrganizer);
+  const goBack = useAppStore((s) => s.goBack);
 
-  const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => a.name.localeCompare(b.name, 'ro'));
-  }, [items]);
-
+  // data
+  const { data: allItems = [], isLoading } = useGlobalItems(api);
   const { data: config } = useHomeInventarConfig(api);
-  const { addItem } = useItemActions(api);
+  const { addItem } = useItemActions(selectedOrganizer);
 
-  const [showAddModal, setShowAddModal] = useState(false);
+  // ui state
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // guards
   if (!selectedOrganizer) {
     goBack();
     return null;
   }
+  if (isLoading) return <Loading />;
 
-  if (isLoading) return <div className="text-ha-text">Se încarcă...</div>;
+  // helpers
+  const normalize = useCallback(
+    (v?: string | null) => v?.toLowerCase().trim() || null,
+    []
+  );
+
+  // Filter items that have at least one location in current organizer
+  const filteredItems = useMemo(() => {
+    return allItems.filter((item) =>
+      item.locations?.some(
+        (loc) =>
+          normalize(loc.room) === normalize(selectedRoom) &&
+          normalize(loc.cupboard) === normalize(selectedCupboard) &&
+          normalize(loc.shelf) === normalize(selectedShelf) &&
+          normalize(loc.organizer) === normalize(selectedOrganizer)
+      )
+    );
+  }, [allItems, selectedRoom, selectedCupboard, selectedShelf, selectedOrganizer, normalize]);
+
+  // Sort items alphabetically
+  const sortedItems = useMemo(
+    () => [...filteredItems].sort((a, b) => a.name.localeCompare(b.name, 'ro')),
+    [filteredItems]
+  );
+
+  // derived values
+  const allowEdit = !!config?.allow_structure_modification;
+  const hasNoItems = sortedItems.length === 0;
+
+  const getSpecificLocation = useCallback(
+    (
+      locations: ItemLocation[] | undefined | null
+    ): ItemLocation | undefined => {
+      if (!locations) return undefined;
+      return locations.find(
+        (loc) =>
+          normalize(loc.room) === normalize(selectedRoom) &&
+          normalize(loc.cupboard) === normalize(selectedCupboard) &&
+          normalize(loc.shelf) === normalize(selectedShelf) &&
+          normalize(loc.organizer) === normalize(selectedOrganizer)
+      );
+    },
+    [
+      normalize,
+      selectedRoom,
+      selectedCupboard,
+      selectedShelf,
+      selectedOrganizer,
+    ]
+  );
+
+  // handlers
+  const handleAdd = useCallback(() => {
+    setIsModalOpen(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+  }, []);
+
+  const handleSave = useCallback(
+    async (itemData: any) => {
+      await addItem.mutateAsync(itemData);
+      setIsModalOpen(false);
+    },
+    [addItem]
+  );
+
+  // precompute cards
+  const cards = useMemo(
+    () =>
+      sortedItems.map((item) => ({
+        item,
+        organizer: selectedOrganizer,
+        specificLocation: getSpecificLocation(item.locations),
+      })),
+    [sortedItems, selectedOrganizer, getSpecificLocation]
+  );
 
   return (
     <div className="space-y-4">
@@ -48,9 +128,9 @@ export default function ItemsView({ api }: { api: ApiService }) {
         onBack={goBack}
       />
 
-      {config?.allow_structure_modification && (
+      {allowEdit && (
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={handleAdd}
           className="px-3 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition"
         >
           + {t.items.addItem}
@@ -58,31 +138,20 @@ export default function ItemsView({ api }: { api: ApiService }) {
       )}
 
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(140px,1fr))]">
-        {items.length === 0 ? (
+        {hasNoItems ? (
           <p className="text-center text-ha-text py-10">
-            {t.items.noItems}.
-            {config?.allow_structure_modification && ` ${t.items.addFirst}!`}
+            {t.items.noItems}.{allowEdit && ` ${t.items.addFirst}!`}
           </p>
         ) : (
-          sortedItems.map((item) => (
-            <ItemCard
-              key={item.id}
-              item={item}
-              api={api}
-              organizer={selectedOrganizer}
-            />
-          ))
+          cards.map((props) => <ItemCard key={props.item.id} {...props} />)
         )}
       </div>
 
-      {showAddModal && (
+      {isModalOpen && allowEdit && (
         <AddItemModal
-          isOpen={true}
-          onClose={() => setShowAddModal(false)}
-          onSave={async (itemData) => {
-            await addItem.mutateAsync(itemData);
-            setShowAddModal(false);
-          }}
+          isOpen
+          onClose={handleCloseModal}
+          onSave={handleSave}
           organizerName={selectedOrganizer}
         />
       )}

@@ -47,11 +47,11 @@ class HomeInventarCupboardsView(HomeAssistantView):
             conn = sqlite3.connect(self.db_path)
             cur = conn.cursor()
             cur.execute('''
-                SELECT c.id, c.name, c.image, COUNT(DISTINCT i.id)
+                SELECT c.id, c.name, c.image, COUNT(DISTINCT il.id)
                 FROM cupboards c
                 JOIN rooms r ON c.room_id = r.id
                 LEFT JOIN shelves s ON c.id = s.cupboard_id
-                LEFT JOIN items i ON s.id = i.shelf_id
+                LEFT JOIN item_locations il ON s.id = il.shelf_id
                 WHERE r.name = ?
                 GROUP BY c.id, c.name, c.image
                 ORDER BY c.name
@@ -205,9 +205,9 @@ class HomeInventarCupboardsView(HomeAssistantView):
                     images_to_delete.append(row[0])
                 
                 cur.execute('''
-                    SELECT i.image FROM items i
-                    JOIN shelves s ON i.shelf_id = s.id
-                    WHERE s.cupboard_id = ? AND i.image IS NOT NULL AND i.image != ''
+                    SELECT il.image FROM item_locations il
+                    JOIN shelves s ON il.shelf_id = s.id
+                    WHERE s.cupboard_id = ? AND il.image IS NOT NULL AND il.image != ''
                 ''', (cupboard_id,))
                 images_to_delete.extend([row[0] for row in cur.fetchall()])
                 

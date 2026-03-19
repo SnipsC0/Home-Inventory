@@ -5,7 +5,6 @@ import { useHass } from './hooks/global/useHass';
 import { useAppStore } from './store/useAppStore';
 import { ApiService } from './services/api';
 
-// Views
 import RoomsView from './views/RoomsView';
 import ShelvesView from './views/ShelvesView';
 import OrganizersView from './views/OrganizersView';
@@ -17,6 +16,8 @@ import TrackedItemsView from './views/TrackedItemsView';
 import { I18nProvider } from './i18n/I18nContext';
 import { useHomeInventarConfig } from './hooks/global/useHomeInventarConfig';
 import { ApiProvider } from './contexts/ApiContext';
+import { useSmoothLoading } from './hooks/global/useSmoothLoading';
+import Loading from './components/Loading';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,11 +35,15 @@ interface AppProps {
 
 function AppContent({ api }: { api: ApiService }) {
   const currentView = useAppStore((state) => state.currentView);
-  const { data: config } = useHomeInventarConfig(api);
+  const { data: config, isLoading } = useHomeInventarConfig(api);
+
+  const smoothLanding = useSmoothLoading(isLoading, 3000);
+
+  if (smoothLanding || isLoading) return <Loading animated={true} />;
 
   return (
     <I18nProvider configLanguage={config?.language}>
-      <div className="p-4 h-full box-border overflow-auto">
+      <div className="p-5 h-full w-full relative overflow-auto box-border">
         {currentView === 'rooms' && <RoomsView api={api} />}
         {currentView === 'cupboards' && <CupboardsView api={api} />}
         {currentView === 'shelves' && <ShelvesView api={api} />}

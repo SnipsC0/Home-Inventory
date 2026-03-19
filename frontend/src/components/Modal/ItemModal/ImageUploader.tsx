@@ -10,6 +10,7 @@ export default function ImageUploader({
   onChange,
 }: ImageUploaderProps) {
   const { t } = useTranslation();
+
   return (
     <div className="space-y-2">
       {preview && (

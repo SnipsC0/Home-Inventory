@@ -44,7 +44,7 @@ class InventoryTotalItemsSensor(SensorEntity):
         def fetch():
             conn = sqlite3.connect(self._db_path)
             cur = conn.cursor()
-            cur.execute("SELECT COUNT(*) FROM items")
+            cur.execute("SELECT COUNT(*) FROM items_master")
             count = cur.fetchone()[0]
             conn.close()
             return count
@@ -80,17 +80,18 @@ class InventoryLowStockSensor(SensorEntity):
             cur = conn.cursor()
             cur.execute('''
                 SELECT 
-                    i.id, i.name, i.quantity, i.min_quantity,
+                    im.id, im.name, il.quantity, im.min_quantity,
                     r.name as room, c.name as cupboard, s.name as shelf
-                FROM items i
-                JOIN shelves s ON i.shelf_id = s.id
+                FROM item_locations il
+                JOIN items_master im ON il.item_id = im.id
+                JOIN shelves s ON il.shelf_id = s.id
                 JOIN cupboards c ON s.cupboard_id = c.id
                 JOIN rooms r ON c.room_id = r.id
-                WHERE i.track_quantity = 1 
-                  AND i.quantity IS NOT NULL 
-                  AND i.min_quantity IS NOT NULL
-                  AND i.quantity <= i.min_quantity
-                ORDER BY i.quantity ASC
+                WHERE im.track_quantity = 1 
+                AND il.quantity IS NOT NULL 
+                AND im.min_quantity IS NOT NULL
+                AND il.quantity <= im.min_quantity
+                ORDER BY il.quantity ASC
             ''')
             rows = cur.fetchall()
             conn.close()
@@ -139,15 +140,16 @@ class InventoryTrackedItemsSensor(SensorEntity):
             cur = conn.cursor()
             cur.execute('''
                 SELECT 
-                    i.id, i.name, i.quantity, i.min_quantity,
+                    im.id, im.name, il.quantity, im.min_quantity,
                     r.name as room, c.name as cupboard, s.name as shelf
-                FROM items i
-                JOIN shelves s ON i.shelf_id = s.id
+                FROM item_locations il
+                JOIN items_master im ON il.item_id = im.id
+                JOIN shelves s ON il.shelf_id = s.id
                 JOIN cupboards c ON s.cupboard_id = c.id
                 JOIN rooms r ON c.room_id = r.id
-                WHERE i.track_quantity = 1
-                    AND i.min_quantity IS NOT NULL
-                ORDER BY i.name
+                WHERE im.track_quantity = 1
+                AND im.min_quantity IS NOT NULL
+                ORDER BY im.name
             ''')
             rows = cur.fetchall()
             conn.close()

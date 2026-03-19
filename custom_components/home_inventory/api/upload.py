@@ -7,7 +7,7 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 from PIL import Image
-from ..const import DOMAIN
+from ..const import DOMAIN, DB_PATH
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,16 +84,18 @@ class HomeInventarUpload(HomeAssistantView):
                 return web.json_response({"error": "No file"}, status=400)
 
             image_data = await field.read()
-            
+
             resized_data = self._resize_image(image_data)
-            
+
             room = request.query.get('room', '')
             cupboard = request.query.get('cupboard', '')
             shelf = request.query.get('shelf', '')
             organizer = request.query.get('organizer', '')
             item = request.query.get('item', '')
             old_image = request.query.get('old_image', '')
-            
+            create_default_copy = request.query.get('create_default_copy', 'false').lower() == 'true'
+            is_default = request.query.get('is_default', 'false').lower() == 'true'
+
             name_parts = []
             if room:
                 name_parts.append(sanitize_filename(room))
@@ -105,14 +107,16 @@ class HomeInventarUpload(HomeAssistantView):
                 name_parts.append(sanitize_filename(organizer))
             if item:
                 name_parts.append(sanitize_filename(item))
-            
+
             if name_parts:
                 base_name = '_'.join(name_parts)
                 short_uuid = str(uuid.uuid4())[:8]
-                filename = f"{base_name}_{short_uuid}.jpg"
+                # Add '_default' suffix if this is a default image
+                suffix = '_default' if is_default else ''
+                filename = f"{base_name}{suffix}_{short_uuid}.jpg"
             else:
                 filename = f"{uuid.uuid4()}.jpg"
-            
+
             base_path = self.hass.config.path(f"data/{DOMAIN}/images")
             os.makedirs(base_path, exist_ok=True)
             storage_path = os.path.join(base_path, filename)
@@ -123,17 +127,30 @@ class HomeInventarUpload(HomeAssistantView):
 
             await self.hass.async_add_executor_job(_write_file, storage_path, resized_data)
 
+            default_filename = None
+            if create_default_copy:
+                # Create a copy for item_master with '_default' suffix
+                filename_without_ext = filename.rsplit('.', 1)[0]
+                default_filename = f"{filename_without_ext}_default.jpg"
+                default_storage_path = os.path.join(base_path, default_filename)
+                await self.hass.async_add_executor_job(_write_file, default_storage_path, resized_data)
+                _LOGGER.debug(f"[Home Inventory] Created default copy: {default_filename}")
+
             original_size = len(image_data) / 1024
             final_size = len(resized_data) / 1024
             _LOGGER.debug(
                 f"[Home Inventory] 📸 Image uploaded: {filename} "
                 f"(original: {original_size:.1f}KB, final: {final_size:.1f}KB)"
             )
-            
+
             if old_image and old_image != filename:
                 self._delete_old_image(old_image)
-            
-            return web.json_response({"path": filename})
+
+            response_data = {"path": filename}
+            if default_filename:
+                response_data["default_path"] = default_filename
+
+            return web.json_response(response_data)
 
         except Exception as e:
             _LOGGER.error(f"[Home Inventory] Upload error: {e}", exc_info=True)
@@ -151,11 +168,37 @@ class HomeInventarUpload(HomeAssistantView):
             else:
                 filename = image_path
             
-            full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
+            db_path = self.hass.config.path(DB_PATH)
+            import sqlite3
             
-            if os.path.exists(full_path):
-                os.remove(full_path)
-                _LOGGER.debug(f"[Home Inventory] 🗑️ Deleted old image: {filename}")
+            def _check_and_delete():
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                
+                cursor.execute(
+                    "SELECT COUNT(*) FROM items_master WHERE default_image LIKE ?",
+                    (f'%{filename}%',)
+                )
+                count = cursor.fetchone()[0]
+                conn.close()
+                
+                if count > 0:
+                    _LOGGER.debug(f"[Home Inventory] 🔒 Skipping delete: {filename} is a default_image")
+                    return False
+                
+                full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
+                
+                if os.path.exists(full_path):
+                    os.remove(full_path)
+                    _LOGGER.debug(f"[Home Inventory] 🗑️ Deleted old image: {filename}")
+                    return True
+                return False
+            
+            # Rulează operația în executor pentru a nu bloca
+            import asyncio
+            asyncio.create_task(
+                self.hass.async_add_executor_job(_check_and_delete)
+            )
             
         except Exception as e:
             _LOGGER.error(f"[Home Inventory] Error deleting old image: {e}", exc_info=True)

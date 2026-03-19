@@ -1,7 +1,7 @@
 {
   "name": "home-inventory-frontend",
   "private": true,
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,14 +9,16 @@
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "deploy": "npm run build && echo 'Build copiat în custom_components/home_inventory/panel'",
-    "build-local": "cd ../.. && bash ./deploy_dev.sh && home_inventar/frontend"
+    "build-local": "cd ../.. && bash ./deploy_dev.sh"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.17.0",
+    "@zxing/browser": "^0.1.5",
     "clsx": "^2.1.0",
     "lucide-react": "^0.546.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-zxing": "^2.1.0",
     "zustand": "^4.4.7"
   },
   "devDependencies": {

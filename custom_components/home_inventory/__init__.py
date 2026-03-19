@@ -1,3 +1,4 @@
+# custom_components/home_inventory/__init__.py
 import logging, os, time, random
 import voluptuous as vol
 from homeassistant.helpers import config_validation as cv
@@ -12,7 +13,7 @@ from .api.rooms import HomeInventarRoomsView
 from .api.cupboards import HomeInventarCupboardsView
 from .api.shelves import HomeInventarShelvesView
 from .api.organizers import HomeInventarOrganizersView
-from .api.items import HomeInventarItemsView, HomeInventarItemView
+from .api.items import HomeInventarItemsView, HomeInventarItemView, HomeInventarItemMasterView, HomeInventarItemMasterUpdateView
 from .api.all_items import (
     HomeInventarAllItemsView,
     HomeInventarUpdateItemQuantityView,
@@ -56,19 +57,21 @@ async def async_setup_entry(hass, entry):
     hass.data[DOMAIN]["entry"] = entry
 
     for view in [
-        HomeInventarRoomsView(db_path, hass), 
-        HomeInventarCupboardsView(db_path, hass), 
-        HomeInventarShelvesView(db_path, hass), 
-        HomeInventarOrganizersView(db_path, hass), 
-        HomeInventarItemsView(db_path, hass), 
-        HomeInventarItemView(db_path, hass), 
+        HomeInventarRoomsView(db_path, hass),
+        HomeInventarCupboardsView(db_path, hass),
+        HomeInventarShelvesView(db_path, hass),
+        HomeInventarOrganizersView(db_path, hass),
+        HomeInventarItemsView(db_path, hass),
+        HomeInventarItemView(db_path, hass),
+        HomeInventarItemMasterView(db_path, hass),
+        HomeInventarItemMasterUpdateView(db_path, hass),
         HomeInventarAllItemsView(db_path),
         HomeInventarUpdateItemQuantityView(db_path),
         HomeInventarUpload(hass),
         HomeInventarImageView(hass),
         HomeInventarConfigView(hass),
         HomeInventarConsumeView(hass, db_path),
-        HomeInventarItemDeepLinkView(hass),
+        HomeInventarItemDeepLinkView(hass)
     ]:
         hass.http.register_view(view)
     _LOGGER.debug("[Home Inventory] ✅ APIs registered")

@@ -6,6 +6,7 @@ import type { ApiService } from '../services/api';
 import { useInfiniteScroll } from '../hooks/global/useInfiniteScroll';
 import { useAppStore } from '../store/useAppStore';
 import { useTranslation } from '../i18n/I18nContext';
+import Loading from '../components/Loading';
 
 interface Props {
   api: ApiService;
@@ -34,12 +35,28 @@ export default function AllItemsView({ api }: Props) {
     return allItems.filter((item) => {
       const name = normalize(item.name);
       const aliases = normalize(item.aliases || '');
-      const location = normalize(item.location || '');
+
+      // ✅ Căutăm în TOATE locațiile itemului
+      const matchesInAnyLocation = item.locations?.some((loc) => {
+        const location = normalize(loc.location || '');
+        const room = normalize(loc.room || '');
+        const cupboard = normalize(loc.cupboard || '');
+        const shelf = normalize(loc.shelf || '');
+        const organizer = normalize(loc.organizer || '');
+
+        return (
+          location.includes(searchNormalized) ||
+          room.includes(searchNormalized) ||
+          cupboard.includes(searchNormalized) ||
+          shelf.includes(searchNormalized) ||
+          organizer.includes(searchNormalized)
+        );
+      });
 
       return (
         name.includes(searchNormalized) ||
         aliases.includes(searchNormalized) ||
-        location.includes(searchNormalized)
+        matchesInAnyLocation
       );
     });
   }, [allItems, search]);
@@ -48,10 +65,30 @@ export default function AllItemsView({ api }: Props) {
     return filteredItems.slice(0, (currentPage + 1) * itemsPerPage);
   }, [filteredItems, currentPage]);
 
-  const sortedItems = useMemo(() => {
-    return [...displayedItems].sort((a, b) =>
-      a.name.localeCompare(b.name, 'ro')
-    );
+  // Transformăm itemele pentru afișare
+  const itemsForDisplay = useMemo(() => {
+    const result: Array<{ item: any; location?: any; key: string }> = [];
+
+    displayedItems.forEach((item) => {
+      if (item.track_quantity) {
+        // Consumabile: un singur card cu multiple locații
+        result.push({
+          item,
+          key: `item-${item.id}`,
+        });
+      } else {
+        // Non-consumabile: câte un card per locație
+        item.locations?.forEach((location: any, index: number) => {
+          result.push({
+            item,
+            location,
+            key: `item-${item.id}-loc-${index}`,
+          });
+        });
+      }
+    });
+
+    return result.sort((a, b) => a.item.name.localeCompare(b.item.name, 'ro'));
   }, [displayedItems]);
 
   const hasNextPage = displayedItems.length < filteredItems.length;
@@ -60,6 +97,8 @@ export default function AllItemsView({ api }: Props) {
     shouldLoad: hasNextPage && !isLoading,
     onLoadMore: () => setCurrentPage((prev) => prev + 1),
   });
+
+  if (isLoading) return <Loading />;
 
   return (
     <div className="space-y-4">
@@ -76,18 +115,19 @@ export default function AllItemsView({ api }: Props) {
       </div>
 
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(140px,1fr))]">
-        {!displayedItems.length ? (
+        {!itemsForDisplay.length ? (
           <p className="text-center text-ha-text py-10">
             {t.trackedItems.noItemsFiltered}.
           </p>
         ) : (
-          sortedItems.map((item) => (
+          itemsForDisplay.map(({ item, location, key }) => (
             <ItemCard
-              key={item.id}
+              key={key}
               item={item}
-              api={api}
-              organizer={null}
+              organizer={undefined}
               variant="compact"
+              specificLocation={location}
+              showMultipleLocations={item.track_quantity && !location}
             />
           ))
         )}

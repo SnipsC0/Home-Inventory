@@ -51,9 +51,7 @@ export default function EditItemMasterModal({
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} maxWidth="600px">
-        <ModalHeader onClose={onClose}>
-          ✏️ Editare Item Principal
-        </ModalHeader>
+        <ModalHeader onClose={onClose}>✏️ Editare Item Principal</ModalHeader>
 
         <div className="space-y-4">
           <label className="block">
@@ -168,7 +166,9 @@ export default function EditItemMasterModal({
 
             {deleteLocations.length > 0 && (
               <div className="space-y-2">
-                <p className="text-ha-text font-semibold">Locații care vor fi șterse:</p>
+                <p className="text-ha-text font-semibold">
+                  Locații care vor fi șterse:
+                </p>
                 <ul className="list-disc list-inside space-y-1 max-h-48 overflow-y-auto bg-ha-secondary-bg p-3 rounded border border-ha-divider">
                   {deleteLocations.map((location, idx) => (
                     <li key={idx} className="text-ha-text text-sm">

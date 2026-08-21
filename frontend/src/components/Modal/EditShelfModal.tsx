@@ -10,7 +10,7 @@ interface EditShelfModalProps {
   shelf?: Shelf;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (newName: string) => Promise<void>;
+  onSave: (newName: string, newFile: File | null) => Promise<void>;
   currentName: string;
 }
 
@@ -24,17 +24,30 @@ export default function EditShelfModal({
   const { t } = useTranslation();
   const [name, setName] = useState(currentName);
   const [showDeleteModal, setShowDeleteModal] = useState<Shelf | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(shelf?.image || null);
   const [loading, setLoading] = useState(false);
 
   const api = useApi();
   const { deleteShelf } = useShelfActions(api);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFile = e.target.files?.[0] || null;
+    setFile(newFile);
+
+    if (newFile) {
+      const reader = new FileReader();
+      reader.onload = () => setPreview(reader.result as string);
+      reader.readAsDataURL(newFile);
+    }
+  };
 
   const handleSave = async () => {
     if (!name.trim()) return;
 
     setLoading(true);
     try {
-      await onSave(name);
+      await onSave(name, file);
     } finally {
       setLoading(false);
     }
@@ -55,6 +68,21 @@ export default function EditShelfModal({
             className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
             placeholder={t.shelves.shelfName}
           />
+
+          {preview && (
+            <img
+              src={preview}
+              alt="Preview"
+              className="w-3/5 m-auto object-cover rounded border border-ha-divider"
+            />
+          )}
+
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="w-full text-ha-text text-sm"
+          />
         </div>
 
         <ModalFooter>
@@ -71,7 +99,7 @@ export default function EditShelfModal({
               onClick={() => {
                 setShowDeleteModal(shelf);
               }}
-              className="flex-1 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition disabled:opacity-50"
+              className="flex-1 py-2 bg-ha-error text-white rounded text-sm hover:opacity-90 transition"
             >
               {t.common.delete}
             </button>

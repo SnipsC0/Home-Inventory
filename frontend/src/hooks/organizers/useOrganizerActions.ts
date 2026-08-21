@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiService } from '../../services/api';
 import { useAppStore } from '../../store/useAppStore';
+import { useTranslation } from '../../i18n/I18nContext';
 
 export function useOrganizerActions(api: ApiService) {
   const queryClient = useQueryClient();
@@ -9,6 +10,7 @@ export function useOrganizerActions(api: ApiService) {
   const selectedCupboard = useAppStore((state) => state.selectedCupboard);
   const selectedShelf = useAppStore((state) => state.selectedShelf);
   const [uploadStatus, setUploadStatus] = useState('');
+  const { t } = useTranslation();
 
   const addOrganizer = useMutation({
     mutationFn: async ({
@@ -20,14 +22,14 @@ export function useOrganizerActions(api: ApiService) {
     }) => {
       let imagePath = '';
       if (imageFile) {
-        setUploadStatus('Se încarcă imaginea...');
+        setUploadStatus(t.common.uploadingImage);
         imagePath = await api.uploadImage(imageFile, {
           room: selectedRoom!,
           cupboard: selectedCupboard!,
           shelf: selectedShelf!,
           organizer: name,
         });
-        setUploadStatus('✓ Imagine încărcată');
+        setUploadStatus(t.common.imageUploaded);
       }
 
       return api.addOrganizer(
@@ -64,14 +66,14 @@ export function useOrganizerActions(api: ApiService) {
       let imagePath: string | undefined = undefined;
 
       if (imageFile) {
-        setUploadStatus('Se încarcă imaginea...');
+        setUploadStatus(t.common.uploadingImage);
         imagePath = await api.uploadImage(imageFile, {
           room: moveData?.room || selectedRoom!,
           cupboard: moveData?.cupboard || selectedCupboard!,
           shelf: moveData?.shelf || selectedShelf!,
           organizer: name || '',
         });
-        setUploadStatus('✓ Imagine încărcată');
+        setUploadStatus(t.common.imageUploaded);
       }
 
       const updateData: {

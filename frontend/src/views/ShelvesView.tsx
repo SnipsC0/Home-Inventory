@@ -7,13 +7,15 @@ import { useShelfActions } from '../hooks/shelves/useShelfActions';
 import { useAppStore } from '../store/useAppStore';
 import EditShelfModal from '../components/Modal/EditShelfModal';
 import type { ApiService } from '../services/api';
-import { Shelf } from '../types';
+import { ClickOrTouchEvent, Shelf } from '../types';
 import ShelfCard from '../components/Shelf/ShelfCard';
 import { useShelfNavigation } from './../hooks/shelves/useShelfNavigation';
 import { useTranslation } from '../i18n/I18nContext';
+import { downloadQRCode } from '../utils/qr-generator';
 
 export default function ShelvesView({ api }: { api: ApiService }) {
   const { t } = useTranslation();
+  const selectedRoom = useAppStore((state) => state.selectedRoom);
   const selectedCupboard = useAppStore((state) => state.selectedCupboard);
   const goBack = useAppStore((state) => state.goBack);
 
@@ -59,6 +61,11 @@ export default function ShelvesView({ api }: { api: ApiService }) {
               editable={config?.allow_structure_modification}
               onClick={() => goToShelf(shelf.name)}
               onEdit={() => setEditingShelf(shelf)}
+              onQR={(e: ClickOrTouchEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                downloadQRCode(selectedRoom!, selectedCupboard!, shelf.name);
+              }}
             />
           ))
         )}
@@ -69,8 +76,8 @@ export default function ShelvesView({ api }: { api: ApiService }) {
           isOpen={true}
           currentName=""
           onClose={() => setShowAddModal(false)}
-          onSave={async (name) => {
-            await addShelf.mutateAsync(name);
+          onSave={async (name, imageFile) => {
+            await addShelf.mutateAsync({ name, imageFile });
             setShowAddModal(false);
           }}
         />
@@ -82,10 +89,11 @@ export default function ShelvesView({ api }: { api: ApiService }) {
           isOpen={true}
           currentName={editingShelf.name}
           onClose={() => setEditingShelf(null)}
-          onSave={async (newName) => {
+          onSave={async (newName, imageFile) => {
             await updateShelf.mutateAsync({
               id: editingShelf.id,
               name: newName,
+              imageFile,
             });
             setEditingShelf(null);
           }}

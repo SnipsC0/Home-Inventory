@@ -1,5 +1,11 @@
-export function generateQRCodeUrl(room: string, cupboard: string): string {
-  const payload = JSON.stringify({ room, cupboard });
+export function generateQRCodeUrl(
+  room: string,
+  cupboard: string,
+  shelf?: string
+): string {
+  const payload = shelf
+    ? JSON.stringify({ room, cupboard, shelf })
+    : JSON.stringify({ room, cupboard });
   const base64Data = btoa(payload);
   const deepLinkUrl = `homeassistant://navigate/home_inventory?data=${base64Data}`;
 
@@ -8,12 +14,12 @@ export function generateQRCodeUrl(room: string, cupboard: string): string {
   )}`;
 }
 
-export function downloadQRCode(room: string, cupboard: string) {
-  const qrUrl = generateQRCodeUrl(room, cupboard);
+export function downloadQRCode(room: string, cupboard: string, shelf?: string) {
+  const qrUrl = generateQRCodeUrl(room, cupboard, shelf);
 
   const link = document.createElement('a');
   link.href = qrUrl;
-  link.download = `QR_${room}_${cupboard}.png`;
+  link.download = shelf ? `QR_${room}_${cupboard}_${shelf}.png` : `QR_${room}_${cupboard}.png`;
 
   document.body.appendChild(link);
   link.click();

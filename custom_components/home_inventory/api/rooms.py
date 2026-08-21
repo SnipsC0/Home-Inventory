@@ -42,17 +42,17 @@ class HomeInventarRoomsView(HomeAssistantView):
             conn = sqlite3.connect(self.db_path)
             cur = conn.cursor()
             cur.execute('''
-                SELECT r.id, r.name, COUNT(DISTINCT i.id)
+                SELECT r.id, r.name, r.image, COUNT(DISTINCT i.id)
                 FROM rooms r
                 LEFT JOIN cupboards c ON r.id = c.room_id
                 LEFT JOIN shelves s ON c.id = s.cupboard_id
                 LEFT JOIN items i ON s.id = i.shelf_id
-                GROUP BY r.id, r.name
+                GROUP BY r.id, r.name, r.image
                 ORDER BY r.name
             ''')
             rows = cur.fetchall()
             conn.close()
-            return [{"id": r[0], "name": r[1], "itemCount": r[2]} for r in rows]
+            return [{"id": r[0], "name": r[1], "image": r[2] if r[2] else "", "itemCount": r[3]} for r in rows]
 
         data = await request.app["hass"].async_add_executor_job(fetch_rooms)
         return web.json_response(data)
@@ -60,13 +60,14 @@ class HomeInventarRoomsView(HomeAssistantView):
     async def post(self, request):
         data = await request.json()
         name = data.get("name", "").strip()
+        image = data.get("image", "")
         if not name:
             return web.json_response({"error": "Name required"}, status=400)
 
         def insert_room():
             conn = sqlite3.connect(self.db_path)
             cur = conn.cursor()
-            cur.execute("INSERT INTO rooms (name) VALUES (?)", (name,))
+            cur.execute("INSERT INTO rooms (name, image) VALUES (?, ?)", (name, image))
             conn.commit()
             rid = cur.lastrowid
             conn.close()
@@ -85,31 +86,58 @@ class HomeInventarRoomsView(HomeAssistantView):
             
             room_id = data.get("id")
             name = data.get("name")
+            new_image = data.get("image")
 
             if not room_id:
                 _LOGGER.error("PATCH rooms - missing room ID")
                 return web.json_response({"error": "Room ID required"}, status=400)
-            
-            if not name:
-                _LOGGER.error("PATCH rooms - missing room name")
-                return web.json_response({"error": "Room name required"}, status=400)
 
             def update_room():
                 conn = sqlite3.connect(self.db_path)
                 cur = conn.cursor()
-                
-                _LOGGER.info(f"Updating room {room_id} to name: {name}")
-                cur.execute("UPDATE rooms SET name = ? WHERE id = ?", (name, room_id))
+
+                old_image = None
+                if new_image is not None:
+                    cur.execute("SELECT image FROM rooms WHERE id = ?", (room_id,))
+                    row = cur.fetchone()
+                    if row:
+                        old_image = row[0]
+
+                updates = []
+                params = []
+
+                if name is not None:
+                    updates.append("name = ?")
+                    params.append(name)
+                    _LOGGER.info(f"Updating room {room_id} to name: {name}")
+
+                if new_image is not None:
+                    updates.append("image = ?")
+                    params.append(new_image)
+                    _LOGGER.info(f"Updating room {room_id} image to: '{new_image}'")
+
+                if not updates:
+                    conn.close()
+                    _LOGGER.warning("No updates provided")
+                    return 0, None
+
+                params.append(room_id)
+                sql = f"UPDATE rooms SET {', '.join(updates)} WHERE id = ?"
+                cur.execute(sql, params)
                 conn.commit()
                 count = cur.rowcount
                 conn.close()
-                return count
 
-            count = await request.app["hass"].async_add_executor_job(update_room)
+                return count, old_image if (new_image is not None and old_image != new_image) else None
+
+            count, old_image = await request.app["hass"].async_add_executor_job(update_room)
             if count == 0:
                 _LOGGER.error(f"Room not found with ID: {room_id}")
                 return web.json_response({"error": "Room not found"}, status=404)
-            
+
+            if old_image:
+                self._delete_image_file(old_image)
+
             _LOGGER.info(f"Room {room_id} updated successfully")
             return web.json_response({"message": "Updated"})
             
@@ -132,9 +160,17 @@ class HomeInventarRoomsView(HomeAssistantView):
                 cur = conn.cursor()
                 
                 images_to_delete = []
-                
+
                 cur.execute('''
-                    SELECT image FROM cupboards 
+                    SELECT image FROM rooms
+                    WHERE id = ? AND image IS NOT NULL AND image != ''
+                ''', (room_id,))
+                row = cur.fetchone()
+                if row:
+                    images_to_delete.append(row[0])
+
+                cur.execute('''
+                    SELECT image FROM cupboards
                     WHERE room_id = ? AND image IS NOT NULL AND image != ''
                 ''', (room_id,))
                 images_to_delete.extend([row[0] for row in cur.fetchall()])

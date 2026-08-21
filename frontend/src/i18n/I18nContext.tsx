@@ -24,7 +24,7 @@ interface I18nProviderProps {
 export function I18nProvider({ children, configLanguage }: I18nProviderProps) {
   const [language, setLanguage] = useState<Language>(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as Language | null;
-    if (stored && (stored === 'en' || stored === 'ro')) {
+    if (stored && (stored === 'en' || stored === 'ro' || stored === 'de')) {
       return stored;
     }
     return configLanguage || 'en';

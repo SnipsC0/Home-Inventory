@@ -39,7 +39,7 @@ export default function ItemsView({ api }: { api: ApiService }) {
     return null;
   }
 
-  if (isLoading) return <div className="text-ha-text">Se încarcă...</div>;
+  if (isLoading) return <div className="text-ha-text">{t.common.loading}</div>;
 
   return (
     <div className="space-y-4">

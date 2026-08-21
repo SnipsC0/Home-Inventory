@@ -22,7 +22,7 @@ export default function AddItemModal({
   onSave,
   organizerName,
 }: AddItemModalProps) {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [aliases, setAliases] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -80,7 +80,7 @@ export default function AddItemModal({
       <ModalHeader onClose={onClose}>
         {`➕ ${t.common.add} ${
           organizerName
-            ? `${language === 'en' ? 'in' : 'în'} ${organizerName}`
+            ? `${t.common.in} ${organizerName}`
             : t.items.addItemWithoutOrganizer
         }`}
       </ModalHeader>

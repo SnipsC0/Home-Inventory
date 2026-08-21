@@ -1,4 +1,4 @@
-export type Language = 'ro' | 'en';
+export type Language = 'ro' | 'en' | 'de';
 
 export interface Translations {
   common: {
@@ -23,6 +23,10 @@ export interface Translations {
     name: string;
     infoViewPress: string;
     connectingHA: string;
+    uploadingImage: string;
+    imageUploaded: string;
+    in: string;
+    newLocation: string;
   };
   rooms: {
     title: string;
@@ -55,6 +59,7 @@ export interface Translations {
     deleteConfirm: string;
     noShelves: string;
     addFirst: string;
+    from: string;
   };
   organizers: {
     title: string;
@@ -66,6 +71,8 @@ export interface Translations {
     noOrganizers: string;
     addFirst: string;
     moveOrganizer: string;
+    moveTo: string;
+    cancelMove: string;
   };
   items: {
     title: string;
@@ -114,6 +121,125 @@ export interface Translations {
 }
 
 export const translations: Record<Language, Translations> = {
+  de: {
+    common: {
+      loading: 'Lädt...',
+      error: 'Fehler',
+      save: 'Speichern',
+      saving: 'Wird gespeichert...',
+      cancel: 'Abbrechen',
+      delete: 'Löschen',
+      deleting: 'Wird gelöscht...',
+      edit: 'Bearbeiten',
+      add: 'Hinzufügen',
+      search: 'Suchen',
+      close: 'Schließen',
+      confirm: 'Bestätigen',
+      back: 'Zurück',
+      reload: 'Neu laden',
+      deleteConfirm: 'Möchtest du diese wirklich löschen',
+      deleteConfirm2: 'Möchtest du diesen wirklich löschen',
+      optional: 'optional',
+      select: 'Auswählen',
+      name: 'Name',
+      infoViewPress: 'Lange drücken oder Rechtsklick zum Bearbeiten',
+      connectingHA: 'Verbindung mit Home Assistant wird hergestellt...',
+      uploadingImage: 'Bild wird hochgeladen...',
+      imageUploaded: '✓ Bild hochgeladen',
+      in: 'in',
+      newLocation: 'Neuer Standort:',
+    },
+    rooms: {
+      title: 'Räume',
+      room: 'Raum',
+      addRoom: 'Raum hinzufügen',
+      roomName: 'Raumname',
+      allItems: 'Alle Artikel',
+      trackedItems: 'Verfolgte Artikel',
+      noExist: 'Es gibt keine Räume.',
+      addFirst: 'Ersten Raum hinzufügen',
+      this: 'Dieser',
+      contain: 'enthält',
+      containItems: 'Artikel, die gelöscht werden',
+    },
+    cupboards: {
+      title: 'Schränke',
+      cupboard: 'Schrank',
+      addCupboard: 'Schrank hinzufügen',
+      cupboardName: 'Schrankname',
+      deleteConfirm: 'Möchtest du diesen Schrank wirklich löschen?',
+      noCupboards: 'Keine Schränke vorhanden',
+      addFirst: 'Ersten Schrank hinzufügen',
+      example: 'z. B.: Großer Schrank',
+    },
+    shelves: {
+      title: 'Regale',
+      shelf: 'Regal',
+      addShelf: 'Regal hinzufügen',
+      shelfName: 'Regalname',
+      deleteConfirm: 'Möchtest du dieses Regal wirklich löschen?',
+      noShelves: 'Keine Regale vorhanden',
+      addFirst: 'Erstes Regal hinzufügen',
+      from: 'aus',
+    },
+    organizers: {
+      title: 'Organizer',
+      organizer: 'Organizer',
+      addOrganizer: 'Organizer hinzufügen',
+      organizerName: 'Organizer-Name',
+      deleteConfirm: 'Möchtest du diesen Organizer wirklich löschen?',
+      withoutOrganizer: 'Ohne Organizer',
+      noOrganizers: 'Keine Organizer vorhanden',
+      addFirst: 'Ersten Organizer hinzufügen',
+      moveOrganizer: 'Organizer verschieben',
+      moveTo: 'Verschieben nach',
+      cancelMove: 'Verschieben abbrechen',
+    },
+    items: {
+      title: 'Artikel',
+      addItem: 'Artikel hinzufügen',
+      addFirst: 'Ersten Artikel hinzufügen',
+      addItemWithoutOrganizer: 'Artikel direkt im Regal',
+      itemName: 'Artikelname',
+      aliases: 'Aliasnamen',
+      quantity: 'Menge',
+      minQuantity: 'Mindestmenge',
+      trackQuantity: 'Menge verfolgen',
+      location: 'Standort',
+      image: 'Bild',
+      deleteConfirm: 'Möchtest du diesen Artikel wirklich löschen?',
+      noItems: 'Keine Artikel vorhanden',
+      lowStock: 'Niedriger Bestand',
+      needsRestock: 'Nachschub erforderlich',
+      pieces: 'Stück',
+      moveItem: 'Artikel verschieben',
+      noTrack: 'Die Menge wird für diesen Artikel nicht verfolgt',
+    },
+    trackedItems: {
+      title: 'Verfolgte Artikel',
+      loading: 'Verfolgte Artikel werden geladen...',
+      noItems: 'Keine verfolgten Artikel',
+      noItemsFiltered: 'Keine Artikel gefunden',
+      tryModifyFilters: 'Versuch die Filter anzupassen',
+      enableTracking: 'Mengenverfolgung für Artikel aktivieren',
+      all: 'Alle',
+      belowStock: 'Unter Bestand',
+      ok: 'OK',
+      searchPlaceholder: 'Artikel suchen...',
+      locationLabel: 'Standort:',
+      quantityLabel: 'Menge:',
+      needsRestockLabel: 'Nachschub erforderlich',
+    },
+    errors: {
+      connectionError: 'Verbindungsfehler',
+      uploadFailed: 'Upload fehlgeschlagen',
+      generalError: 'Ein Fehler ist aufgetreten',
+      sameLocationOrganizer: 'Der Organizer befindet sich am selben Ort',
+      sameLocationItem: 'Der Artikel befindet sich am selben Ort',
+      preloadMoveLocation: 'Fehler beim Laden des aktuellen Standorts',
+      getRoomsError: 'Fehler beim Laden der Räume',
+    },
+  },
   ro: {
     common: {
       loading: 'Se încarcă...',
@@ -137,6 +263,10 @@ export const translations: Record<Language, Translations> = {
       name: 'Nume',
       infoViewPress: 'Apasă lungă sau click dreapta pentru editare',
       connectingHA: 'Se conectează la Home Assistant...',
+      uploadingImage: 'Se încarcă imaginea...',
+      imageUploaded: '✓ Imagine încărcată',
+      in: 'în',
+      newLocation: 'Locație nouă:',
     },
     rooms: {
       title: 'Camere',
@@ -169,6 +299,7 @@ export const translations: Record<Language, Translations> = {
       deleteConfirm: 'Sigur vrei să ștergi acest raft?',
       noShelves: 'Nu există rafturi',
       addFirst: 'Adaugă primul raft',
+      from: 'din',
     },
     organizers: {
       title: 'Organizatoare',
@@ -180,6 +311,8 @@ export const translations: Record<Language, Translations> = {
       noOrganizers: 'Nu există organizatoare',
       addFirst: 'Adaugă primul organizator',
       moveOrganizer: 'Mută organizatorul',
+      moveTo: 'Mută în',
+      cancelMove: 'Anulează mutarea',
     },
     items: {
       title: 'Articole',
@@ -248,6 +381,10 @@ export const translations: Record<Language, Translations> = {
       name: 'Name',
       infoViewPress: 'Touch longer or right click to edit',
       connectingHA: 'Connecting to Home Assistant...',
+      uploadingImage: 'Uploading image...',
+      imageUploaded: '✓ Image uploaded',
+      in: 'in',
+      newLocation: 'New location:',
     },
     rooms: {
       title: 'Rooms',
@@ -280,6 +417,7 @@ export const translations: Record<Language, Translations> = {
       deleteConfirm: 'Are you sure you want to delete this shelf?',
       noShelves: "There's no shelves",
       addFirst: 'Add first shelf',
+      from: 'from',
     },
     organizers: {
       title: 'Organizers',
@@ -291,6 +429,8 @@ export const translations: Record<Language, Translations> = {
       noOrganizers: "There's no organizers",
       addFirst: 'Add first organizer',
       moveOrganizer: 'Move the organizer',
+      moveTo: 'Move to',
+      cancelMove: 'Cancel move',
     },
     items: {
       title: 'Items',

@@ -45,6 +45,7 @@ export default function RoomsView({ api }: { api: ApiService }) {
               key={room.id}
               name={room.name}
               count={room.itemCount}
+              image={room.image}
               editable={config?.allow_structure_modification}
               onClick={() => goToRoom(room.name)}
               onEdit={() => setRoomToEdit(room)}
@@ -59,8 +60,8 @@ export default function RoomsView({ api }: { api: ApiService }) {
           isOpen={true}
           currentName=""
           onClose={() => setShowAddModal(false)}
-          onSave={async (name) => {
-            await addRoom.mutateAsync(name);
+          onSave={async (name, imageFile) => {
+            await addRoom.mutateAsync({ name, imageFile });
             setShowAddModal(false);
           }}
         />
@@ -72,8 +73,12 @@ export default function RoomsView({ api }: { api: ApiService }) {
           isOpen={true}
           currentName={roomToEdit.name}
           onClose={() => setRoomToEdit(null)}
-          onSave={async (newName) => {
-            await updateRoom.mutateAsync({ id: roomToEdit.id, name: newName });
+          onSave={async (newName, imageFile) => {
+            await updateRoom.mutateAsync({
+              id: roomToEdit.id,
+              name: newName,
+              imageFile,
+            });
             setRoomToEdit(null);
           }}
         />

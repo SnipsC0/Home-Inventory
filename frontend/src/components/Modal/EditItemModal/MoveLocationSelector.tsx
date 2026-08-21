@@ -39,7 +39,7 @@ export default function MoveLocationSelector({
 
   const [rooms, setRooms] = useState<Room[]>([]);
 
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
 
   useEffect(() => {
     (async () => {
@@ -97,7 +97,7 @@ export default function MoveLocationSelector({
   return (
     <div className="border border-ha-primary rounded-lg p-4 space-y-3 bg-ha-card">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-ha-text font-semibold text-sm">🚚 Mută în:</span>
+        <span className="text-ha-text font-semibold text-sm">🚚 {t.organizers.moveTo}:</span>
         <button
           onClick={onCancel}
           className="text-ha-error text-xs hover:underline"
@@ -198,7 +198,7 @@ export default function MoveLocationSelector({
       {shelf && (
         <div>
           <label className="text-ha-text text-xs block mb-1">
-            Organizator (opțional)
+            {t.organizers.organizer} ({t.common.optional})
           </label>
           <select
             value={organizer}
@@ -223,7 +223,7 @@ export default function MoveLocationSelector({
       {/* Preview locație nouă */}
       {room && cupboard && shelf && (
         <div className="bg-ha-secondary-bg p-2 rounded text-xs text-ha-text/70">
-          📍 {language === 'en' ? 'New' : 'Noua'} {t.items.location}:{' '}
+          📍 {t.common.newLocation}{' '}
           <span className="font-semibold">
             {room} › {cupboard} › {shelf}
             {organizer && ` › ${organizer}`}

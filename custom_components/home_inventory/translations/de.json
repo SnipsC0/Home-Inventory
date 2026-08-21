@@ -1,0 +1,47 @@
+{
+  "title": "Home Inventory",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Inventory einrichten",
+        "description": "Richte dein lokales Inventarverwaltungssystem ein.\n\n📦 **Struktur**: {structure_info}\n\n✅ 3 automatische Sensoren zur Überwachung\n✅ Benachrichtigungen bei niedrigem Bestand\n✅ 100% lokale Speicherung (keine Cloud)",
+        "data": {
+          "allow_structure_modification": "Strukturänderungen erlauben (Räume, Schränke, Regale)",
+          "language": "Sprache der Oberfläche"
+        },
+        "data_description": {
+          "allow_structure_modification": "Wenn deaktiviert, können Räume, Schränke oder Regale nicht über die Oberfläche hinzugefügt/bearbeitet/gelöscht werden",
+          "language": "Wähle deine bevorzugte Sprache für die Oberfläche"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Home Inventory ist bereits konfiguriert. Es ist nur eine Instanz erlaubt."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Home Inventory Optionen",
+        "description": "Ändere die Einstellungen deines Inventars.\n\n📦 **Struktur**: {structure_info}\n📊 **Sensoren**: {sensor_count}\n📢 **Ereignisse**: {event_info}",
+        "data": {
+          "allow_structure_modification": "Strukturänderungen erlauben",
+          "language": "Sprache der Oberfläche"
+        },
+        "data_description": {
+          "allow_structure_modification": "Aktiviert/deaktiviert die Möglichkeit, Räume, Schränke und Regale zu ändern",
+          "language": "Bevorzugte Sprache der Oberfläche"
+        }
+      }
+    }
+  },
+  "selector": {
+    "language": {
+      "options": {
+        "en": "English",
+        "ro": "Română",
+        "de": "Deutsch"
+      }
+    }
+  }
+}

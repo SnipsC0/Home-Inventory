@@ -39,7 +39,8 @@
     "language": {
       "options": {
         "en": "English",
-        "ro": "Română"
+        "ro": "Română",
+        "de": "Deutsch"
       }
     }
   }

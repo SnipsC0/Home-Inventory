@@ -67,7 +67,7 @@ export default function OrganizersView({ api }: { api: ApiService }) {
   }
 
   if (organizersLoading || itemsLoading) {
-    return <div className="text-ha-text">Se încarcă...</div>;
+    return <div className="text-ha-text">{t.common.loading}</div>;
   }
 
   return (

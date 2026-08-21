@@ -63,8 +63,13 @@ function App({ hass: hassProp }: AppProps) {
 
     if (dataParam && hass) {
       try {
-        const { room, cupboard } = JSON.parse(atob(dataParam));
-        if (room && cupboard) {
+        const { room, cupboard, shelf } = JSON.parse(atob(dataParam));
+        if (room && cupboard && shelf) {
+          useAppStore.getState().setSelectedRoom(room);
+          useAppStore.getState().setSelectedCupboard(cupboard);
+          useAppStore.getState().setSelectedShelf(shelf);
+          useAppStore.getState().setView('organizers');
+        } else if (room && cupboard) {
           useAppStore.getState().setSelectedRoom(room);
           useAppStore.getState().setSelectedCupboard(cupboard);
           useAppStore.getState().setView('shelves');
@@ -93,7 +98,7 @@ function App({ hass: hassProp }: AppProps) {
           onClick={() => window.location.reload()}
           className="mt-4 px-5 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition"
         >
-          Reîncarcă
+          Reload
         </button>
       </div>
     );

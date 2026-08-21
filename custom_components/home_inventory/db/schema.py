@@ -24,6 +24,7 @@ def initialize_db(db_path: str):
         CREATE TABLE IF NOT EXISTS rooms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
+            image TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -40,6 +41,7 @@ def initialize_db(db_path: str):
         CREATE TABLE IF NOT EXISTS shelves (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
+            image TEXT,
             cupboard_id INTEGER NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (cupboard_id) REFERENCES cupboards(id) ON DELETE CASCADE,
@@ -78,6 +80,18 @@ def initialize_db(db_path: str):
         CREATE INDEX IF NOT EXISTS idx_items_organizer ON items(organizer_id);
         CREATE INDEX IF NOT EXISTS idx_items_quantity ON items(quantity);
     ''')
+
+    cur.execute("PRAGMA table_info(shelves)")
+    shelf_columns = [row[1] for row in cur.fetchall()]
+    if "image" not in shelf_columns:
+        cur.execute("ALTER TABLE shelves ADD COLUMN image TEXT")
+        _LOGGER.info("[DB] Migrated: added 'image' column to shelves table")
+
+    cur.execute("PRAGMA table_info(rooms)")
+    room_columns = [row[1] for row in cur.fetchall()]
+    if "image" not in room_columns:
+        cur.execute("ALTER TABLE rooms ADD COLUMN image TEXT")
+        _LOGGER.info("[DB] Migrated: added 'image' column to rooms table")
 
     conn.commit()
     conn.close()

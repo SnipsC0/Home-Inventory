@@ -47,19 +47,19 @@ class HomeInventarShelvesView(HomeAssistantView):
             conn = sqlite3.connect(self.db_path)
             cur = conn.cursor()
             cur.execute('''
-                SELECT s.id, s.name, COUNT(DISTINCT o.id), COUNT(DISTINCT i.id)
+                SELECT s.id, s.name, s.image, COUNT(DISTINCT o.id), COUNT(DISTINCT i.id)
                 FROM shelves s
                 JOIN cupboards c ON s.cupboard_id = c.id
                 JOIN rooms r ON c.room_id = r.id
                 LEFT JOIN organizers o ON s.id = o.shelf_id
                 LEFT JOIN items i ON s.id = i.shelf_id
                 WHERE r.name = ? AND c.name = ?
-                GROUP BY s.id, s.name
+                GROUP BY s.id, s.name, s.image
                 ORDER BY s.name
             ''', (room, cupboard))
             rows = cur.fetchall()
             conn.close()
-            return [{"id": r[0], "name": r[1], "organizerCount": r[2], "itemCount": r[3]} for r in rows]
+            return [{"id": r[0], "name": r[1], "image": r[2] if r[2] else "", "organizerCount": r[3], "itemCount": r[4]} for r in rows]
 
         data = await request.app["hass"].async_add_executor_job(fetch)
         return web.json_response(data)
@@ -69,28 +69,29 @@ class HomeInventarShelvesView(HomeAssistantView):
         room = data.get("room", "").strip()
         cupboard = data.get("cupboard", "").strip()
         name = data.get("name", "").strip()
-        
+        image = data.get("image", "")
+
         if not room or not cupboard or not name:
             return web.json_response({"error": "Room, cupboard and name required"}, status=400)
 
         def insert_shelf():
             conn = sqlite3.connect(self.db_path)
             cur = conn.cursor()
-            
+
             cur.execute('''
                 SELECT c.id FROM cupboards c
                 JOIN rooms r ON c.room_id = r.id
                 WHERE r.name = ? AND c.name = ?
             ''', (room, cupboard))
-            
+
             row = cur.fetchone()
             if not row:
                 conn.close()
                 return None
-            
+
             cupboard_id = row[0]
-            
-            cur.execute("INSERT INTO shelves (name, cupboard_id) VALUES (?, ?)", (name, cupboard_id))
+
+            cur.execute("INSERT INTO shelves (name, cupboard_id, image) VALUES (?, ?, ?)", (name, cupboard_id, image))
             conn.commit()
             shelf_id = cur.lastrowid
             conn.close()
@@ -111,31 +112,58 @@ class HomeInventarShelvesView(HomeAssistantView):
             
             shelf_id = data.get("id")
             name = data.get("name")
+            new_image = data.get("image")
 
             if not shelf_id:
                 _LOGGER.error("PATCH shelves - missing shelf ID")
                 return web.json_response({"error": "Shelf ID required"}, status=400)
-            
-            if not name:
-                _LOGGER.error("PATCH shelves - missing shelf name")
-                return web.json_response({"error": "Shelf name required"}, status=400)
 
             def update_shelf():
                 conn = sqlite3.connect(self.db_path)
                 cur = conn.cursor()
-                
-                _LOGGER.info(f"Updating shelf {shelf_id} to name: {name}")
-                cur.execute("UPDATE shelves SET name = ? WHERE id = ?", (name, shelf_id))
+
+                old_image = None
+                if new_image is not None:
+                    cur.execute("SELECT image FROM shelves WHERE id = ?", (shelf_id,))
+                    row = cur.fetchone()
+                    if row:
+                        old_image = row[0]
+
+                updates = []
+                params = []
+
+                if name is not None:
+                    updates.append("name = ?")
+                    params.append(name)
+                    _LOGGER.info(f"Updating shelf {shelf_id} to name: {name}")
+
+                if new_image is not None:
+                    updates.append("image = ?")
+                    params.append(new_image)
+                    _LOGGER.info(f"Updating shelf {shelf_id} image to: '{new_image}'")
+
+                if not updates:
+                    conn.close()
+                    _LOGGER.warning("No updates provided")
+                    return 0, None
+
+                params.append(shelf_id)
+                sql = f"UPDATE shelves SET {', '.join(updates)} WHERE id = ?"
+                cur.execute(sql, params)
                 conn.commit()
                 count = cur.rowcount
                 conn.close()
-                return count
 
-            count = await request.app["hass"].async_add_executor_job(update_shelf)
+                return count, old_image if (new_image is not None and old_image != new_image) else None
+
+            count, old_image = await request.app["hass"].async_add_executor_job(update_shelf)
             if count == 0:
                 _LOGGER.error(f"Shelf not found with ID: {shelf_id}")
                 return web.json_response({"error": "Shelf not found"}, status=404)
-            
+
+            if old_image:
+                self._delete_image_file(old_image)
+
             _LOGGER.info(f"Shelf {shelf_id} updated successfully")
             return web.json_response({"message": "Updated"})
             
@@ -156,13 +184,23 @@ class HomeInventarShelvesView(HomeAssistantView):
             def delete_shelf():
                 conn = sqlite3.connect(self.db_path)
                 cur = conn.cursor()
-                
+
+                images_to_delete = []
+
                 cur.execute('''
-                    SELECT image FROM items 
+                    SELECT image FROM shelves
+                    WHERE id = ? AND image IS NOT NULL AND image != ''
+                ''', (shelf_id,))
+                row = cur.fetchone()
+                if row:
+                    images_to_delete.append(row[0])
+
+                cur.execute('''
+                    SELECT image FROM items
                     WHERE shelf_id = ? AND image IS NOT NULL AND image != ''
                 ''', (shelf_id,))
-                images_to_delete = [row[0] for row in cur.fetchall()]
-                
+                images_to_delete.extend([row[0] for row in cur.fetchall()])
+
                 cur.execute("DELETE FROM shelves WHERE id = ?", (shelf_id,))
                 conn.commit()
                 count = cur.rowcount

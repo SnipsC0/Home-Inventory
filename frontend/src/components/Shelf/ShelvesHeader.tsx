@@ -11,11 +11,11 @@ export default function ShelvesHeader({
   allowEdit,
   onAddShelf,
 }: Props) {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   return (
     <div className="flex flex-wrap gap-3 mb-4 justify-between items-center">
       <h3 className="m-0 text-ha-text text-lg font-semibold">
-        📚 {t.shelves.title} {language === 'en' ? 'from' : 'din'} {cupboardName}
+        📚 {t.shelves.title} {t.shelves.from} {cupboardName}
       </h3>
 
       {allowEdit && (

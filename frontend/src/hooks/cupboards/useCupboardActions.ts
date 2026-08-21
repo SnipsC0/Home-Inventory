@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ApiService } from '../../services/api';
 import { useAppStore } from '../../store/useAppStore';
+import { useTranslation } from '../../i18n/I18nContext';
 
 export function useCupboardActions(api: ApiService) {
   const queryClient = useQueryClient();
   const selectedRoom = useAppStore((state) => state.selectedRoom);
   const [uploadStatus, setUploadStatus] = useState('');
+  const { t } = useTranslation();
 
   const addCupboard = useMutation({
     mutationFn: async ({
@@ -18,12 +20,12 @@ export function useCupboardActions(api: ApiService) {
     }) => {
       let imagePath = '';
       if (imageFile) {
-        setUploadStatus('Se încarcă imaginea...');
+        setUploadStatus(t.common.uploadingImage);
         imagePath = await api.uploadImage(imageFile, {
           room: selectedRoom!,
           cupboard: name,
         });
-        setUploadStatus('✓ Imagine încărcată');
+        setUploadStatus(t.common.imageUploaded);
       }
       await api.addCupboard(selectedRoom!, name, imagePath);
     },
@@ -49,12 +51,12 @@ export function useCupboardActions(api: ApiService) {
       let imagePath: string | undefined = undefined;
 
       if (imageFile) {
-        setUploadStatus('Se încarcă imaginea...');
+        setUploadStatus(t.common.uploadingImage);
         imagePath = await api.uploadImage(imageFile, {
           room: selectedRoom!,
           cupboard: name || '',
         });
-        setUploadStatus('✓ Imagine încărcată');
+        setUploadStatus(t.common.imageUploaded);
       }
 
       const updateData: { name?: string; image?: string } = {};

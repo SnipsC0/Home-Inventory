@@ -35,7 +35,7 @@ class HomeInventarConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema({
                 vol.Optional("allow_structure_modification", default=True): bool,
-                vol.Optional("language", default="en"): vol.In(["en", "ro"]),
+                vol.Optional("language", default="en"): vol.In(["en", "ro", "de"]),
             }),
             description_placeholders={
                 "structure_info": "Rooms > Cupboards > Shelves > Organizers > Items"
@@ -78,7 +78,7 @@ class HomeInventarOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     "language",
                     default=current_language
-                ): vol.In(["en", "ro"]),
+                ): vol.In(["en", "ro", "de"]),
             }),
             description_placeholders={
                 "structure_info": "Rooms > Cupboards > Shelves > Organizers > Items",

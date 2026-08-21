@@ -38,9 +38,7 @@ export default function DeleteModal({
       </ModalHeader>
 
       <div className="text-ha-text leading-relaxed mb-4">
-        {language === 'en'
-          ? t.common.deleteConfirm
-          : itemType === 'camera'
+        {language !== 'ro' || itemType === 'camera'
           ? t.common.deleteConfirm
           : t.common.deleteConfirm2}{' '}
         {itemType.toLowerCase()},<strong> {itemName}</strong>?

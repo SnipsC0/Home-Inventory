@@ -4,14 +4,14 @@
 Branch: `feature/backend-tests`, creat din `dev`, doar local (fără push).
 
 **Făcut:**
-- Pas 0: branch-ul și acest PLAN.md (commit `cef6eec`).
-- Pas 1: scaffolding pytest (commit `f07450a`):
+- Pas 0: branch-ul și acest PLAN.md (commit `0d30195`).
+- Pas 1: scaffolding pytest (commit `af6eb2f`):
   - `tests/conftest.py` cu stub de pachet `home_inventory` și fixture-urile `db_path`, `seed`, `q`;
   - `pyproject.toml`, `requirements_test.txt`;
   - `.gitignore` (+ `.venv/`, `.pytest_cache/`). Am reparat și linia `CLAUDE.md`, care se lipise de `.venv/`.
   - venv-ul local `.venv/` e creat și are pytest și pyflakes instalate.
-- Pas 2: `tests/test_schema.py`, 12 teste, toate trec (commit `c2bbbb8`).
-- Pas 3, partea de refactor (commit `09b605d`):
+- Pas 2: `tests/test_schema.py`, 12 teste, toate trec (commit `0b08a7f`).
+- Pas 3, partea de refactor (commit `a6ff881`):
   - `db/repository.py` are funcțiile `normalize_batch_input`, `_load_exp_list`, `_norm_date`, `create_item_location`, `update_item` și `get_low_stock_info`.
   - Codul a fost mutat verbatim cu un script, cu `self.db_path` → `db_path` și `locals().get("location_id")` → `location_id`.
   - În `api/items.py`, `post`/`patch` apelează funcțiile prin `functools.partial`; numele variabilelor locale (`insert`, `update_item`, `check_low_stock`) au rămas aceleași.

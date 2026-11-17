@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from typing import List, Dict, Optional, Tuple
 from functools import partial
 from ..const import DOMAIN
-from ..db import repository
+from ..db import repository, devreload
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -267,6 +267,7 @@ class HomeInventarItemsView(HomeAssistantView):
 
         _LOGGER.debug(f"[ITEM CREATE] Processing item: Barcode={barcode}, Name={name}, Aliases={aliases}")
 
+        devreload.reload_if_changed(repository)
         add_total_qty, add_batch_qty, batch_date = repository.normalize_batch_input(quantity, exp_obj)
         _LOGGER.debug(f"[ITEM CREATE] After add_total_qty={add_total_qty}, add_batch_qty={add_batch_qty}, batch_date={batch_date}")
 
@@ -370,6 +371,7 @@ class HomeInventarItemView(HomeAssistantView):
             if min_quantity is not None and min_quantity < 0:
                 return web.json_response({"error": "min_quantity must be >= 0"}, status=400)
 
+            devreload.reload_if_changed(repository)
             update_item = partial(
                 repository.update_item,
                 self.db_path,
@@ -405,6 +407,7 @@ class HomeInventarItemView(HomeAssistantView):
 
             # Check low stock
             if expiration_dates is not None and location_id:
+                devreload.reload_if_changed(repository)
                 check_low_stock = partial(repository.get_low_stock_info, self.db_path, location_id)
 
                 low_stock_data = await request.app["hass"].async_add_executor_job(check_low_stock)

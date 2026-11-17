@@ -1,5 +1,31 @@
 # Plan: teste pytest pentru backend + extragerea logicii SQL din `api/items.py`
 
+## Status (pentru reluare într-o sesiune nouă)
+Branch: `feature/backend-tests`, creat din `dev`, doar local (fără push).
+
+**Făcut:**
+- Pas 0: branch-ul și acest PLAN.md (commit `cef6eec`).
+- Pas 1: scaffolding pytest (commit `f07450a`):
+  - `tests/conftest.py` cu stub de pachet `home_inventory` și fixture-urile `db_path`, `seed`, `q`;
+  - `pyproject.toml`, `requirements_test.txt`;
+  - `.gitignore` (+ `.venv/`, `.pytest_cache/`). Am reparat și linia `CLAUDE.md`, care se lipise de `.venv/`.
+  - venv-ul local `.venv/` e creat și are pytest și pyflakes instalate.
+- Pas 2: `tests/test_schema.py`, 12 teste, toate trec (commit `c2bbbb8`).
+- Pas 3, partea de refactor (commit `09b605d`):
+  - `db/repository.py` are funcțiile `normalize_batch_input`, `_load_exp_list`, `_norm_date`, `create_item_location`, `update_item` și `get_low_stock_info`.
+  - Codul a fost mutat verbatim cu un script, cu `self.db_path` → `db_path` și `locals().get("location_id")` → `location_id`.
+  - În `api/items.py`, `post`/`patch` apelează funcțiile prin `functools.partial`; numele variabilelor locale (`insert`, `update_item`, `check_low_stock`) au rămas aceleași.
+  - pyflakes nu raportează nume nedefinite. Avertismentele rămase existau și înainte: importuri nefolosite și un f-string fără placeholder.
+
+**Rămas:**
+1. `tests/test_batch_input.py` și `tests/test_repository.py`, cu cazurile din Pas 3 de mai jos. Commit: `test: cover item create/update repository`.
+   - Atenție: `item_id` vine din URL ca **string**. Testele de `update_item` trebuie să-l paseze tot ca string, ca în producție. Comparația `new_master_id == item_id` depinde de asta.
+2. Actualizarea locală a secțiunii „Testing” din `CLAUDE.md`, cu comenzile pytest.
+3. Verificarea în HA-ul de dev (secțiunea „Verificare” de mai jos). Refactorul **nu** a fost încă testat în HA real.
+4. Raportul către utilizator. Decizia de merge în `dev` e a lui.
+
+Comenzi: `.venv/Scripts/python -m pytest -q` (din `home_inventar/`).
+
 ## Context
 Backendul nu are teste automate. Fiecare modificare în Python se verifică doar prin restartul lui HA (20-60 s) și testare manuală în UI. Riscul cel mai mare e pe migrări (`db/schema.py`) și pe logica de creare/editare a itemelor (`api/items.py`, 1435 de linii, SQL în closure-uri din handlerele HTTP). Scopul e o buclă de feedback sub o secundă cu `pytest`, fără HA instalat, plus un prim refactor incremental, fără schimbare de comportament.
 

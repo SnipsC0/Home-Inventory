@@ -14,7 +14,7 @@ def mod(tmp_path, monkeypatch):
     src.write_text("VALUE = 1\n")
     monkeypatch.syspath_prepend(str(tmp_path))
     m = importlib.import_module("fake_mod")
-    devreload._mtimes.pop("fake_mod", None)
+    devreload._mtimes["fake_mod"] = os.stat(src).st_mtime
     yield m, src
     sys.modules.pop("fake_mod", None)
     devreload._mtimes.pop("fake_mod", None)
@@ -52,3 +52,12 @@ def test_broken_reload_does_not_raise(mod, monkeypatch):
     _touch_new(src, "VALUE = (\n")
     assert devreload.reload_if_changed(m) is False
     assert m.VALUE == 1
+
+
+def test_edit_before_first_call_is_picked_up(mod, monkeypatch):
+    m, src = mod
+    monkeypatch.setenv("HOME_INVENTORY_DEV", "1")
+    devreload._mtimes.pop("fake_mod", None)  # no baseline yet: falls back to process start
+    _touch_new(src, "VALUE = 2\n")
+    assert devreload.reload_if_changed(m) is True
+    assert m.VALUE == 2

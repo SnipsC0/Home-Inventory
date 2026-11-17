@@ -5,9 +5,11 @@ Active only when ``HOME_INVENTORY_DEV=1``; otherwise a no-op.
 import importlib
 import logging
 import os
+import time
 from types import ModuleType
 
 _LOGGER = logging.getLogger(__name__)
+_START = time.time()  # files modified after process start count as changed
 _mtimes: dict[str, float] = {}
 
 
@@ -27,8 +29,8 @@ def reload_if_changed(module: ModuleType) -> bool:
     except OSError:
         return False
     name = module.__name__
-    last = _mtimes.setdefault(name, mtime)
-    if mtime == last:
+    last = _mtimes.setdefault(name, _START)
+    if mtime <= last:
         return False
     try:
         importlib.reload(module)

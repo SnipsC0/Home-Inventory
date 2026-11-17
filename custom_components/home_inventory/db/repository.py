@@ -1110,3 +1110,76 @@ def consume_items(db_path, item_id, location_id, amount):
 
     conn.close()
     return result, None
+
+
+# ---------------------------------------------------------------- rooms
+
+
+def list_rooms(db_path):
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT r.id, r.name, COUNT(DISTINCT il.id)
+        FROM rooms r
+        LEFT JOIN cupboards c ON r.id = c.room_id
+        LEFT JOIN shelves s ON c.id = s.cupboard_id
+        LEFT JOIN item_locations il ON s.id = il.shelf_id
+        GROUP BY r.id, r.name
+        ORDER BY r.name
+    ''')
+    rows = cur.fetchall()
+    conn.close()
+    return [{"id": r[0], "name": r[1], "itemCount": r[2]} for r in rows]
+
+
+def create_room(db_path, name):
+    """Raises sqlite3.IntegrityError if the name already exists."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("INSERT INTO rooms (name) VALUES (?)", (name,))
+    conn.commit()
+    rid = cur.lastrowid
+    conn.close()
+    return rid
+
+
+def update_room(db_path, room_id, name):
+    """Returns rowcount. Raises sqlite3.IntegrityError on duplicate name."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    _LOGGER.info(f"Updating room {room_id} to name: {name}")
+    cur.execute("UPDATE rooms SET name = ? WHERE id = ?", (name, room_id))
+    conn.commit()
+    count = cur.rowcount
+    conn.close()
+    return count
+
+
+def delete_room(db_path, room_id):
+    """Returns (rowcount, images_to_delete)."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    images_to_delete = []
+
+    cur.execute('''
+        SELECT image FROM cupboards 
+        WHERE room_id = ? AND image IS NOT NULL AND image != ''
+    ''', (room_id,))
+    images_to_delete.extend([row[0] for row in cur.fetchall()])
+
+    cur.execute('''
+        SELECT il.image FROM item_locations il
+        JOIN shelves s ON il.shelf_id = s.id
+        JOIN cupboards c ON s.cupboard_id = c.id
+        WHERE c.room_id = ? AND il.image IS NOT NULL AND il.image != ''
+    ''', (room_id,))
+    images_to_delete.extend([row[0] for row in cur.fetchall()])
+
+    cur.execute("DELETE FROM rooms WHERE id = ?", (room_id,))
+    conn.commit()
+    count = cur.rowcount
+    conn.close()
+
+    return count, images_to_delete

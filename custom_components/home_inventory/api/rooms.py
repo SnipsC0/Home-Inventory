@@ -1,7 +1,9 @@
 import sqlite3, logging, os
+from functools import partial
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from ..const import DOMAIN
+from ..db import repository, devreload
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,23 +40,8 @@ class HomeInventarRoomsView(HomeAssistantView):
             _LOGGER.error(f"[HomeInventar] Error deleting image file: {e}", exc_info=True)
 
     async def get(self, request):
-        def fetch_rooms():
-            conn = sqlite3.connect(self.db_path)
-            cur = conn.cursor()
-            cur.execute('''
-                SELECT r.id, r.name, COUNT(DISTINCT il.id)
-                FROM rooms r
-                LEFT JOIN cupboards c ON r.id = c.room_id
-                LEFT JOIN shelves s ON c.id = s.cupboard_id
-                LEFT JOIN item_locations il ON s.id = il.shelf_id
-                GROUP BY r.id, r.name
-                ORDER BY r.name
-            ''')
-            rows = cur.fetchall()
-            conn.close()
-            return [{"id": r[0], "name": r[1], "itemCount": r[2]} for r in rows]
-
-        data = await request.app["hass"].async_add_executor_job(fetch_rooms)
+        devreload.reload_if_changed(repository)
+        data = await request.app["hass"].async_add_executor_job(partial(repository.list_rooms, self.db_path))
         return web.json_response(data)
 
     async def post(self, request):
@@ -63,17 +50,11 @@ class HomeInventarRoomsView(HomeAssistantView):
         if not name:
             return web.json_response({"error": "Name required"}, status=400)
 
-        def insert_room():
-            conn = sqlite3.connect(self.db_path)
-            cur = conn.cursor()
-            cur.execute("INSERT INTO rooms (name) VALUES (?)", (name,))
-            conn.commit()
-            rid = cur.lastrowid
-            conn.close()
-            return rid
-
+        devreload.reload_if_changed(repository)
         try:
-            rid = await request.app["hass"].async_add_executor_job(insert_room)
+            rid = await request.app["hass"].async_add_executor_job(
+                partial(repository.create_room, self.db_path, name)
+            )
             return web.json_response({"id": rid, "name": name})
         except sqlite3.IntegrityError:
             return web.json_response({"error": "Room already exists"}, status=400)
@@ -94,18 +75,10 @@ class HomeInventarRoomsView(HomeAssistantView):
                 _LOGGER.error("PATCH rooms - missing room name")
                 return web.json_response({"error": "Room name required"}, status=400)
 
-            def update_room():
-                conn = sqlite3.connect(self.db_path)
-                cur = conn.cursor()
-                
-                _LOGGER.info(f"Updating room {room_id} to name: {name}")
-                cur.execute("UPDATE rooms SET name = ? WHERE id = ?", (name, room_id))
-                conn.commit()
-                count = cur.rowcount
-                conn.close()
-                return count
-
-            count = await request.app["hass"].async_add_executor_job(update_room)
+            devreload.reload_if_changed(repository)
+            count = await request.app["hass"].async_add_executor_job(
+                partial(repository.update_room, self.db_path, room_id, name)
+            )
             if count == 0:
                 _LOGGER.error(f"Room not found with ID: {room_id}")
                 return web.json_response({"error": "Room not found"}, status=404)
@@ -127,34 +100,10 @@ class HomeInventarRoomsView(HomeAssistantView):
             if not room_id:
                 return web.json_response({"error": "Room ID required"}, status=400)
 
-            def delete_room():
-                conn = sqlite3.connect(self.db_path)
-                cur = conn.cursor()
-                
-                images_to_delete = []
-                
-                cur.execute('''
-                    SELECT image FROM cupboards 
-                    WHERE room_id = ? AND image IS NOT NULL AND image != ''
-                ''', (room_id,))
-                images_to_delete.extend([row[0] for row in cur.fetchall()])
-                
-                cur.execute('''
-                    SELECT il.image FROM item_locations il
-                    JOIN shelves s ON il.shelf_id = s.id
-                    JOIN cupboards c ON s.cupboard_id = c.id
-                    WHERE c.room_id = ? AND il.image IS NOT NULL AND il.image != ''
-                ''', (room_id,))
-                images_to_delete.extend([row[0] for row in cur.fetchall()])
-                
-                cur.execute("DELETE FROM rooms WHERE id = ?", (room_id,))
-                conn.commit()
-                count = cur.rowcount
-                conn.close()
-                
-                return count, images_to_delete
-
-            count, images_to_delete = await request.app["hass"].async_add_executor_job(delete_room)
+            devreload.reload_if_changed(repository)
+            count, images_to_delete = await request.app["hass"].async_add_executor_job(
+                partial(repository.delete_room, self.db_path, room_id)
+            )
             
             if count == 0:
                 return web.json_response({"error": "Room not found"}, status=404)

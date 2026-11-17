@@ -34,18 +34,20 @@ Branch: `feature/backend-tests`, creat din `dev`, doar local (fără push).
 **Idee:** logica SQL stă în `db/repository.py` (modul pur, fără HA). În mod dev, handlerele îl reîncarcă cu `importlib.reload` când i se schimbă `mtime`. Handlerele subțiri din `api/*.py` (parsare, validare, răspuns) rămân cu restart, dar se modifică rar. Frontend-ul are deja HMR prin `npm run dev`.
 
 **Pași (fiecare cu teste și commit separat):**
-1. Mecanism de hot-reload în mod dev:
+1. **FĂCUT (2026-11-17, commit `db37e51` + fix `5de14b5`; verificat în HA: `Dev reload: ...repository` în log fără restart).** Mecanism de hot-reload în mod dev:
    - Activat doar de `HOME_INVENTORY_DEV=1` (setat în `homeassistant/docker-compose.yml`, `environment:` la serviciul `homeassistant`). Fără variabilă, comportament identic cu producția.
    - Helper mic (ex. `db/devreload.py`) care reîncarcă `home_inventory.db.repository` dacă `mtime` s-a schimbat.
    - `api/items.py` apelează funcțiile prin modul (`repository.update_item(...)`), nu prin `from ... import`, ca reload-ul să se vadă. Nu reîncărca `schema.py`.
    - Test: reload-ul e no-op fără variabilă; cu variabilă preia modificarea.
    - Verificare în HA: modific un mesaj de eroare în `repository.py`, salvez, repet acțiunea în UI, fără restart.
-2. Extrage în `repository.py` `delete` și `HomeInventarItemMasterView` / `HomeInventarItemMasterUpdateView` din `api/items.py`. Cod mutat verbatim, apoi teste în `tests/test_repository.py`.
+2. **URMĂTORUL PAS:** extrage în `repository.py` `delete` și `HomeInventarItemMasterView` / `HomeInventarItemMasterUpdateView` din `api/items.py`. Cod mutat verbatim, apoi teste în `tests/test_repository.py`.
 3. Extrage `api/consume.py` (low stock, scădere cantitate, batch-uri) în `repository.py`, cu teste.
 4. Aceeași extragere pentru `rooms`, `cupboards`, `shelves`, `organizers`, `all_items` (și logica din `upload.py` care atinge DB-ul), dacă vrem acoperire completă.
 5. După fiecare extragere: pytest, pyflakes, `grep` fără `homeassistant|aiohttp` în `repository.py`, apoi test manual în HA (confirmat de utilizator).
 6. Opțional: watcher pytest (`watchfiles`/`pytest-watch`) pentru feedback instant la save.
 7. La final: actualizez `CLAUDE.md` (workflow dev fără restart), apoi utilizatorul decide merge-ul în `dev`.
+
+**Note hot-reload:** după schimbarea `docker-compose.yml` e nevoie de `docker compose up -d --force-recreate homeassistant` (`restart` nu reciteste env). Handlerele din `api/*.py` care apelează `repository.*` trebuie să cheme `devreload.reload_if_changed(repository)` înainte; `PATCH /items_master` nu trece încă prin repository (de aceea nu se reîncarcă). Pasul 2 trebuie să adauge apelul în handlerele extrase. Nu folosi `git add -A` pe `custom_components` (`panel/panel-wrapper.js` e artefact de build).
 
 **Atenție:** `PRAGMA foreign_keys=ON` nu e setat în conexiunile din API (vezi „Observații”). La extragerea `delete`, nu presupune `ON DELETE CASCADE`; păstrează comportamentul actual.
 

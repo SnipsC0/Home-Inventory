@@ -320,7 +320,7 @@ export default function EditOrganizerModal({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              // setDeletingOrganizer(organizer);
+              setShowDeleteModal(true);
             }}
             className="flex-1 py-2 bg-ha-error text-white text-sm rounded hover:opacity-90 transition"
           >

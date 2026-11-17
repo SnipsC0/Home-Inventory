@@ -85,3 +85,13 @@ def test_search_items(db_path, seed):
     assert [(r["name"], r["location_count"], r["total_quantity"]) for r in by_alias] == [("Rice", 1, 3)]
     assert [r["name"] for r in search_items(db_path, "", "111")] == ["Rice"]
     assert [r["name"] for r in search_items(db_path, "e", "")] == ["Beans", "Rice"]
+
+
+def test_count_default_image_refs(db_path):
+    from home_inventory.db.repository import count_default_image_refs
+    conn = sqlite3.connect(db_path)
+    conn.execute("INSERT INTO items_master (name, default_image) VALUES ('Rice', '/api/home_inventory/images/a.jpg?t=1')")
+    conn.commit()
+    conn.close()
+    assert count_default_image_refs(db_path, "a.jpg") == 1
+    assert count_default_image_refs(db_path, "b.jpg") == 0

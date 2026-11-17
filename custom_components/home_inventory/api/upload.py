@@ -8,6 +8,7 @@ from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 from PIL import Image
 from ..const import DOMAIN, DB_PATH
+from ..db import repository, devreload
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -169,18 +170,10 @@ class HomeInventarUpload(HomeAssistantView):
                 filename = image_path
             
             db_path = self.hass.config.path(DB_PATH)
-            import sqlite3
             
             def _check_and_delete():
-                conn = sqlite3.connect(db_path)
-                cursor = conn.cursor()
-                
-                cursor.execute(
-                    "SELECT COUNT(*) FROM items_master WHERE default_image LIKE ?",
-                    (f'%{filename}%',)
-                )
-                count = cursor.fetchone()[0]
-                conn.close()
+                devreload.reload_if_changed(repository)
+                count = repository.count_default_image_refs(db_path, filename)
                 
                 if count > 0:
                     _LOGGER.debug(f"[Home Inventory] 🔒 Skipping delete: {filename} is a default_image")

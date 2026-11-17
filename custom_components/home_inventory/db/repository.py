@@ -1811,3 +1811,19 @@ def search_items(db_path, query, barcode):
         "location_count": r[5],
         "total_quantity": r[6]
     } for r in rows]
+
+
+# ---------------------------------------------------------------- upload
+
+
+def count_default_image_refs(db_path, filename):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM items_master WHERE default_image LIKE ?",
+        (f'%{filename}%',)
+    )
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count

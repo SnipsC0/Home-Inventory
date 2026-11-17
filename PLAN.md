@@ -24,11 +24,30 @@ Branch: `feature/backend-tests`, creat din `dev`, doar local (fără push).
 **Instrucțiune pentru agent la reluare:** când utilizatorul spune să continui, **cere întâi confirmarea că a rulat testele manuale din HA** (punctul 1 de mai jos: restart, loguri, flow-ul din UI) și ce rezultat au avut. Nu continua și nu închide pasul 1 fără confirmarea lui.
 
 **Rămas:**
-**TODO utilizator:** de rulat testele manuale în HA înainte de sesiunea următoare.
-1. Verificarea în HA-ul de dev (secțiunea „Verificare” de mai jos, punctele 3 și 4). Refactorul **nu** a fost încă testat în HA real: `docker` nu era disponibil în shell-urile agentului, deci restartul și testul în UI le face utilizatorul.
-   - Dacă apare o eroare în HA, repară-o în `api/items.py` sau `db/repository.py` și adaugă un test care o acoperă.
-2. După verificare: marchez pasul 1 ca făcut. Decizia de merge în `dev` e a utilizatorului (branch-ul e doar local, fără push).
-3. Opțional, în sesiuni viitoare: extrage restul endpointurilor (`delete`, `HomeInventarItemMasterView`, `consume.py`) în `repository.py`, doar când ajungem să le modificăm.
+1. **FĂCUT (2026-11-17):** utilizatorul a rulat testele manuale în HA (add item tracked, re-add cu aceeași dată → merge în batch), fără erori.
+2. Decizia de merge în `dev` e a utilizatorului (branch-ul e doar local, fără push).
+3. **Merge în `dev` abia după ce terminăm tot planul de mai jos (Faza 2).** Decizie utilizator, 2026-11-17.
+
+## Faza 2: dev fără restart HA
+**Scop:** să putem lucra pe `dev` și testa modificările fără `docker compose restart` la fiecare salvare (utilizatorul salvează des, deci restart automat la save a fost respins).
+
+**Idee:** logica SQL stă în `db/repository.py` (modul pur, fără HA). În mod dev, handlerele îl reîncarcă cu `importlib.reload` când i se schimbă `mtime`. Handlerele subțiri din `api/*.py` (parsare, validare, răspuns) rămân cu restart, dar se modifică rar. Frontend-ul are deja HMR prin `npm run dev`.
+
+**Pași (fiecare cu teste și commit separat):**
+1. Mecanism de hot-reload în mod dev:
+   - Activat doar de `HOME_INVENTORY_DEV=1` (setat în `homeassistant/docker-compose.yml`, `environment:` la serviciul `homeassistant`). Fără variabilă, comportament identic cu producția.
+   - Helper mic (ex. `db/devreload.py`) care reîncarcă `home_inventory.db.repository` dacă `mtime` s-a schimbat.
+   - `api/items.py` apelează funcțiile prin modul (`repository.update_item(...)`), nu prin `from ... import`, ca reload-ul să se vadă. Nu reîncărca `schema.py`.
+   - Test: reload-ul e no-op fără variabilă; cu variabilă preia modificarea.
+   - Verificare în HA: modific un mesaj de eroare în `repository.py`, salvez, repet acțiunea în UI, fără restart.
+2. Extrage în `repository.py` `delete` și `HomeInventarItemMasterView` / `HomeInventarItemMasterUpdateView` din `api/items.py`. Cod mutat verbatim, apoi teste în `tests/test_repository.py`.
+3. Extrage `api/consume.py` (low stock, scădere cantitate, batch-uri) în `repository.py`, cu teste.
+4. Aceeași extragere pentru `rooms`, `cupboards`, `shelves`, `organizers`, `all_items` (și logica din `upload.py` care atinge DB-ul), dacă vrem acoperire completă.
+5. După fiecare extragere: pytest, pyflakes, `grep` fără `homeassistant|aiohttp` în `repository.py`, apoi test manual în HA (confirmat de utilizator).
+6. Opțional: watcher pytest (`watchfiles`/`pytest-watch`) pentru feedback instant la save.
+7. La final: actualizez `CLAUDE.md` (workflow dev fără restart), apoi utilizatorul decide merge-ul în `dev`.
+
+**Atenție:** `PRAGMA foreign_keys=ON` nu e setat în conexiunile din API (vezi „Observații”). La extragerea `delete`, nu presupune `ON DELETE CASCADE`; păstrează comportamentul actual.
 
 Comenzi: `.venv/Scripts/python -m pytest -q` (din `home_inventar/`).
 

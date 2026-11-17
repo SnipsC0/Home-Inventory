@@ -925,3 +925,169 @@ def delete_item_master(db_path, item_id):
         return 0, [], [], str(e)
     finally:
         conn.close()
+
+
+def consume_item(db_path, item_id, location_id):
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Găsim locația specifică
+    cur.execute("""
+        SELECT 
+            il.id as location_id,
+            il.quantity,
+            im.id as item_id,
+            im.name,
+            im.aliases,
+            im.min_quantity,
+            im.track_quantity,
+            r.name as room_name,
+            c.name as cupboard_name,
+            s.name as shelf_name,
+            o.name as organizer_name
+        FROM item_locations il
+        JOIN items_master im ON il.item_id = im.id
+        JOIN shelves s ON il.shelf_id = s.id
+        JOIN cupboards c ON s.cupboard_id = c.id
+        JOIN rooms r ON c.room_id = r.id
+        LEFT JOIN organizers o ON il.organizer_id = o.id
+        WHERE il.id = ? AND im.id = ?
+    """, (location_id, item_id))
+
+    location = cur.fetchone()
+
+    if not location:
+        conn.close()
+        return None, "Item location not found"
+
+    if not location['track_quantity']:
+        conn.close()
+        return None, "Item does not have quantity tracking enabled"
+
+    if location['quantity'] is None or location['quantity'] <= 0:
+        conn.close()
+        return None, "Item quantity is already 0 or not set"
+
+    new_quantity = location['quantity'] - 1
+
+    # Actualizăm cantitatea
+    cur.execute("""
+        UPDATE item_locations 
+        SET quantity = ? 
+        WHERE id = ?
+    """, (new_quantity, location_id))
+
+    conn.commit()
+
+    # Verificăm low stock
+    is_low_stock = (
+        location['min_quantity'] is not None and 
+        new_quantity > 0 and
+        new_quantity <= location['min_quantity']
+    )
+
+    location_str = f"{location['room_name']} / {location['cupboard_name']} / {location['shelf_name']}"
+    if location['organizer_name']:
+        location_str += f" / {location['organizer_name']}"
+
+    result = {
+        'location_id': location['location_id'],
+        'item_id': location['item_id'],
+        'name': location['name'],
+        'aliases': location['aliases'],
+        'old_quantity': location['quantity'],
+        'new_quantity': new_quantity,
+        'min_quantity': location['min_quantity'],
+        'is_low_stock': is_low_stock,
+        'room': location['room_name'],
+        'cupboard': location['cupboard_name'],
+        'shelf': location['shelf_name'],
+        'organizer': location['organizer_name'],
+        'location': location_str
+    }
+
+    conn.close()
+    return result, None
+
+
+def consume_items(db_path, item_id, location_id, amount):
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT 
+            il.id as location_id,
+            il.quantity,
+            im.id as item_id,
+            im.name,
+            im.aliases,
+            im.min_quantity,
+            im.track_quantity,
+            r.name as room_name,
+            c.name as cupboard_name,
+            s.name as shelf_name,
+            o.name as organizer_name
+        FROM item_locations il
+        JOIN items_master im ON il.item_id = im.id
+        JOIN shelves s ON il.shelf_id = s.id
+        JOIN cupboards c ON s.cupboard_id = c.id
+        JOIN rooms r ON c.room_id = r.id
+        LEFT JOIN organizers o ON il.organizer_id = o.id
+        WHERE il.id = ? AND im.id = ?
+    """, (location_id, item_id))
+
+    location = cur.fetchone()
+
+    if not location:
+        conn.close()
+        return None, "Item location not found"
+
+    if not location['track_quantity']:
+        conn.close()
+        return None, "Item does not have quantity tracking enabled"
+
+    if location['quantity'] is None or location['quantity'] < amount:
+        conn.close()
+        return None, f"Insufficient quantity. Available: {location['quantity']}, Requested: {amount}"
+
+    new_quantity = location['quantity'] - amount
+
+    cur.execute("""
+        UPDATE item_locations 
+        SET quantity = ? 
+        WHERE id = ?
+    """, (new_quantity, location_id))
+
+    conn.commit()
+
+    is_low_stock = (
+        location['min_quantity'] is not None and 
+        new_quantity > 0 and
+        new_quantity <= location['min_quantity']
+    )
+
+    location_str = f"{location['room_name']} / {location['cupboard_name']} / {location['shelf_name']}"
+    if location['organizer_name']:
+        location_str += f" / {location['organizer_name']}"
+
+    result = {
+        'location_id': location['location_id'],
+        'item_id': location['item_id'],
+        'name': location['name'],
+        'aliases': location['aliases'],
+        'old_quantity': location['quantity'],
+        'new_quantity': new_quantity,
+        'amount_consumed': amount,
+        'min_quantity': location['min_quantity'],
+        'is_low_stock': is_low_stock,
+        'room': location['room_name'],
+        'cupboard': location['cupboard_name'],
+        'shelf': location['shelf_name'],
+        'organizer': location['organizer_name'],
+        'location': location_str
+    }
+
+    conn.close()
+    return result, None

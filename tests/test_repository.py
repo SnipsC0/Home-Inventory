@@ -347,3 +347,43 @@ def test_update_master_barcode_conflict(db_path, loc):
     (_, mb), _ = create(db_path, "B", quantity=1)
     count, _, err = master_patch(db_path, mb, {"barcode": "111"})
     assert count == 0 and "already exists" in err
+
+
+# ---------------- consume ----------------
+
+from home_inventory.db.repository import consume_item, consume_items  # noqa: E402
+
+
+def test_consume_not_found(db_path):
+    assert consume_item(db_path, "1", 1) == (None, "Item location not found")
+
+
+def test_consume_untracked_rejected(db_path, loc):
+    (loc_id, master_id), _ = create(db_path, track=False)
+    assert consume_item(db_path, str(master_id), loc_id) == (None, "Item does not have quantity tracking enabled")
+
+
+def test_consume_decrements_and_reports_low_stock(db_path, loc, q):
+    (loc_id, master_id), _ = create(db_path, quantity=3, min_quantity=2)
+    res, err = consume_item(db_path, str(master_id), loc_id)
+    assert err is None
+    assert (res["old_quantity"], res["new_quantity"], res["is_low_stock"]) == (3, 2, True)
+    assert res["location"] == "Kitchen / Cup / Top"
+    assert q(db_path, "SELECT quantity FROM item_locations WHERE id=?", (loc_id,)) == [(2,)]
+
+
+def test_consume_to_zero_not_low_stock_then_rejected(db_path, loc):
+    (loc_id, master_id), _ = create(db_path, quantity=1, min_quantity=2)
+    res, _ = consume_item(db_path, str(master_id), loc_id)
+    assert res["new_quantity"] == 0 and res["is_low_stock"] is False
+    assert consume_item(db_path, str(master_id), loc_id) == (None, "Item quantity is already 0 or not set")
+
+
+def test_consume_items_amount(db_path, loc, q):
+    (loc_id, master_id), _ = create(db_path, quantity=5, min_quantity=1)
+    res, err = consume_items(db_path, str(master_id), loc_id, 3)
+    assert err is None
+    assert (res["new_quantity"], res["amount_consumed"], res["is_low_stock"]) == (2, 3, False)
+    res, err = consume_items(db_path, str(master_id), loc_id, 5)
+    assert res is None and err == "Insufficient quantity. Available: 2, Requested: 5"
+    assert q(db_path, "SELECT quantity FROM item_locations WHERE id=?", (loc_id,)) == [(2,)]

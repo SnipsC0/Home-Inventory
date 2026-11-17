@@ -689,3 +689,239 @@ def get_low_stock_info(db_path, location_id):
                 "location": f"{room} / {cupboard} / {shelf}"
             }
     return None
+
+
+def delete_item_location(db_path, location_id):
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    try:
+        cur.execute(
+            '''
+            SELECT il.item_id, il.image, im.default_image, im.name
+            FROM item_locations il
+            JOIN items_master im ON il.item_id = im.id
+            WHERE il.id = ?
+            ''',
+            (location_id,)
+        )
+        loc = cur.fetchone()
+        if not loc:
+            return 0, [], "Location not found"
+
+        item_master_id, location_image, master_image, item_name = loc
+
+        cur.execute(
+            "SELECT COUNT(*) FROM item_locations WHERE item_id = ?",
+            (item_master_id,)
+        )
+        location_count = cur.fetchone()[0]
+
+        images_to_delete = []
+
+        if location_count == 1:
+            _LOGGER.info(
+                f"[ITEM DELETE] Last location for item '{item_name}' (ID={item_master_id}), "
+                f"deleting item_master"
+            )
+
+            # Collect images
+            if location_image:
+                images_to_delete.append(location_image)
+            if master_image and master_image != location_image:
+                images_to_delete.append(master_image)
+
+            # Delete location
+            cur.execute("DELETE FROM item_locations WHERE id = ?", (location_id,))
+
+            # Delete master
+            cur.execute("DELETE FROM items_master WHERE id = ?", (item_master_id,))
+
+            conn.commit()
+            _LOGGER.info(f"[ITEM DELETE] Deleted item_master {item_master_id} and location {location_id}")
+            return 1, images_to_delete, None
+
+        else:
+            # Multiple locations - delete only this location
+            _LOGGER.info(
+                f"[ITEM DELETE] Deleting location {location_id} "
+                f"(item '{item_name}' has {location_count} locations)"
+            )
+
+            # Only delete location-specific image
+            if location_image:
+                images_to_delete.append(location_image)
+
+            # Delete location
+            cur.execute("DELETE FROM item_locations WHERE id = ?", (location_id,))
+
+            conn.commit()
+            _LOGGER.info(f"[ITEM DELETE] Deleted location {location_id}")
+            return 1, images_to_delete, None
+
+    except Exception as e:
+        conn.rollback()
+        import traceback
+        _LOGGER.error(f"[ITEM DELETE] Error: {e}\n{traceback.format_exc()}")
+        return 0, [], str(e)
+    finally:
+        conn.close()
+
+
+def update_item_master(db_path, item_id, data, *, name, aliases, barcode, default_image, min_quantity):
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    try:
+        old_images_to_delete = []
+
+        # Get current master data
+        cur.execute(
+            "SELECT name, aliases, barcode, default_image, min_quantity FROM items_master WHERE id = ?",
+            (item_id,)
+        )
+        current = cur.fetchone()
+        if not current:
+            return 0, [], "Item master not found"
+
+        current_name, current_aliases, current_barcode, current_image, current_min = current
+
+        # Build update
+        updates = []
+        params = []
+
+        if name is not None:
+            updates.append("name = ?")
+            params.append(name)
+
+        if aliases is not None:
+            updates.append("aliases = ?")
+            params.append(aliases)
+
+        if barcode is not None:
+            # Check for barcode conflicts
+            check_name = name if name is not None else current_name
+            check_aliases = aliases if aliases is not None else current_aliases
+            cur.execute(
+                "SELECT id, name, aliases FROM items_master WHERE barcode = ? AND id != ?",
+                (barcode, item_id)
+            )
+            conflict = cur.fetchone()
+            if conflict:
+                if conflict[1] != check_name or conflict[2] != check_aliases:
+                    return 0, [], f"Barcode {barcode} already exists for different item"
+
+            updates.append("barcode = ?")
+            params.append(barcode)
+
+        if default_image is not None:
+            if current_image and current_image != default_image:
+                old_images_to_delete.append(current_image)
+            updates.append("default_image = ?")
+            params.append(default_image)
+
+        if "min_quantity" in data:
+            updates.append("min_quantity = ?")
+            params.append(min_quantity)
+
+        if updates:
+            params.append(item_id)
+            sql = f"UPDATE items_master SET {', '.join(updates)} WHERE id = ?"
+            _LOGGER.debug(f"[ITEM_MASTER PATCH] Executing: {sql} with params: {params}")
+            cur.execute(sql, params)
+
+        conn.commit()
+        return 1, old_images_to_delete, None
+
+    except sqlite3.IntegrityError as e:
+        conn.rollback()
+        _LOGGER.error(f"[ITEM_MASTER PATCH] IntegrityError: {e}")
+        return 0, [], f"Database constraint error: {str(e)}"
+    except Exception as e:
+        conn.rollback()
+        import traceback
+        _LOGGER.error(f"[ITEM_MASTER PATCH] Error: {e}\n{traceback.format_exc()}")
+        return 0, [], str(e)
+    finally:
+        conn.close()
+
+
+def delete_item_master(db_path, item_id):
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    try:
+        # Get master item info
+        cur.execute(
+            "SELECT name, default_image FROM items_master WHERE id = ?",
+            (item_id,)
+        )
+        master = cur.fetchone()
+        if not master:
+            return 0, [], [], "Item master not found"
+
+        master_name, master_image = master
+
+        # Get all locations and their images
+        cur.execute(
+            '''
+            SELECT
+                il.id,
+                il.image,
+                r.name as room_name,
+                c.name as cupboard_name,
+                s.name as shelf_name,
+                o.name as organizer_name
+            FROM item_locations il
+            JOIN shelves s ON il.shelf_id = s.id
+            JOIN cupboards c ON s.cupboard_id = c.id
+            JOIN rooms r ON c.room_id = r.id
+            LEFT JOIN organizers o ON il.organizer_id = o.id
+            WHERE il.item_id = ?
+            ''',
+            (item_id,)
+        )
+        locations = cur.fetchall()
+
+        images_to_delete = []
+        location_info = []
+
+        # Collect images and location info
+        for loc in locations:
+            loc_id, loc_image, room, cupboard, shelf, organizer = loc
+
+            # Collect location image
+            if loc_image:
+                images_to_delete.append(loc_image)
+
+            # Format location info
+            location_str = f"{room} / {cupboard} / {shelf}"
+            if organizer:
+                location_str += f" / {organizer}"
+            location_info.append(location_str)
+
+        # Add master image if exists
+        if master_image:
+            images_to_delete.append(master_image)
+
+        # Delete all locations (cascade)
+        cur.execute("DELETE FROM item_locations WHERE item_id = ?", (item_id,))
+
+        # Delete master item
+        cur.execute("DELETE FROM items_master WHERE id = ?", (item_id,))
+
+        conn.commit()
+        _LOGGER.info(
+            f"[ITEM_MASTER DELETE] Deleted item '{master_name}' (ID={item_id}) "
+            f"with {len(locations)} locations"
+        )
+
+        return 1, images_to_delete, location_info, None
+
+    except Exception as e:
+        conn.rollback()
+        import traceback
+        _LOGGER.error(f"[ITEM_MASTER DELETE] Error: {e}\n{traceback.format_exc()}")
+        return 0, [], [], str(e)
+    finally:
+        conn.close()

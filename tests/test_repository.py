@@ -266,3 +266,84 @@ def test_low_stock_untracked_or_missing(db_path, loc):
     (l, _), _ = create(db_path, "Hammer", track=False, min_quantity=5)
     assert get_low_stock_info(db_path, l) is None
     assert get_low_stock_info(db_path, 9999) is None
+
+
+# ---------------- delete location / master, update master ----------------
+
+from home_inventory.db.repository import (  # noqa: E402
+    delete_item_location,
+    delete_item_master,
+    update_item_master,
+)
+
+
+def master_patch(db_path, item_id, data, **kw):
+    args = dict(
+        name=data.get("name"), aliases=data.get("aliases"),
+        barcode=data.get("barcode"), default_image=data.get("default_image"),
+        min_quantity=data.get("min_quantity"),
+    )
+    args.update(kw)
+    return update_item_master(db_path, str(item_id), data, **args)
+
+
+def test_delete_location_not_found(db_path):
+    assert delete_item_location(db_path, "999") == (0, [], "Location not found")
+
+
+def test_delete_last_location_removes_master_and_images(db_path, loc, q):
+    (loc_id, master_id), _ = create(db_path, quantity=1, image={"default_path": "m.jpg", "path": "l.jpg"})
+    count, images, err = delete_item_location(db_path, str(loc_id))
+    assert (count, err) == (1, None)
+    assert sorted(images) == ["l.jpg", "m.jpg"]
+    assert q(db_path, "SELECT COUNT(*) FROM items_master")[0][0] == 0
+    assert q(db_path, "SELECT COUNT(*) FROM item_locations")[0][0] == 0
+
+
+def test_delete_one_of_many_keeps_master(db_path, loc, seed, q):
+    seed(db_path, "Kitchen", "Cup", "Bottom")
+    (l1, master_id), _ = create(db_path, quantity=1, image="l1.jpg")
+    (l2, _), _ = create(db_path, quantity=1, shelf="Bottom")
+    count, images, err = delete_item_location(db_path, str(l1))
+    assert (count, err) == (1, None)
+    assert images == ["l1.jpg"]
+    assert q(db_path, "SELECT COUNT(*) FROM items_master WHERE id=?", (master_id,))[0][0] == 1
+    assert q(db_path, "SELECT id FROM item_locations") == [(l2,)]
+
+
+def test_delete_master_cascades_locations(db_path, loc, seed, q):
+    seed(db_path, "Kitchen", "Cup", "Bottom")
+    (l1, master_id), _ = create(db_path, quantity=1, image="l1.jpg")
+    create(db_path, quantity=1, shelf="Bottom")
+    count, images, infos, err = delete_item_master(db_path, str(master_id))
+    assert (count, err) == (1, None)
+    assert "l1.jpg" in images
+    assert sorted(infos) == ["Kitchen / Cup / Bottom", "Kitchen / Cup / Top"]
+    assert q(db_path, "SELECT COUNT(*) FROM items_master")[0][0] == 0
+    assert q(db_path, "SELECT COUNT(*) FROM item_locations")[0][0] == 0
+
+
+def test_delete_master_not_found(db_path):
+    assert delete_item_master(db_path, "999") == (0, [], [], "Item master not found")
+
+
+def test_update_master_not_found(db_path):
+    assert master_patch(db_path, 999, {"name": "x"}) == (0, [], "Item master not found")
+
+
+def test_update_master_fields_and_old_image(db_path, loc, q):
+    (_, master_id), _ = create(db_path, quantity=1, image="old.jpg")
+    count, old, err = master_patch(
+        db_path, master_id,
+        {"name": "Rice2", "aliases": "r", "default_image": "new.jpg", "min_quantity": 4},
+    )
+    assert (count, err) == (1, None)
+    assert old == ["old.jpg"]
+    assert q(db_path, "SELECT name, aliases, default_image, min_quantity FROM items_master WHERE id=?", (master_id,)) == [("Rice2", "r", "new.jpg", 4)]
+
+
+def test_update_master_barcode_conflict(db_path, loc):
+    create(db_path, "A", quantity=1, barcode="111")
+    (_, mb), _ = create(db_path, "B", quantity=1)
+    count, _, err = master_patch(db_path, mb, {"barcode": "111"})
+    assert count == 0 and "already exists" in err

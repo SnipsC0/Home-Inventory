@@ -17,12 +17,15 @@ Branch: `feature/backend-tests`, creat din `dev`, doar local (fără push).
   - În `api/items.py`, `post`/`patch` apelează funcțiile prin `functools.partial`; numele variabilelor locale (`insert`, `update_item`, `check_low_stock`) au rămas aceleași.
   - pyflakes nu raportează nume nedefinite. Avertismentele rămase existau și înainte: importuri nefolosite și un f-string fără placeholder.
 
+- Pas 3, partea de teste (commit `81a6e65`): `tests/test_batch_input.py` și `tests/test_repository.py`. În total 49 de teste, toate trec. `item_id` e pasat ca string la `update_item`, ca în producție.
+- `CLAUDE.md` (local, e în `.gitignore`): secțiunea „Testing” are comenzile pytest.
+- Verificări statice: compileall ok, pyflakes fără nume nedefinite, `repository.py` nu importă HA/aiohttp.
+
 **Rămas:**
-1. `tests/test_batch_input.py` și `tests/test_repository.py`, cu cazurile din Pas 3 de mai jos. Commit: `test: cover item create/update repository`.
-   - Atenție: `item_id` vine din URL ca **string**. Testele de `update_item` trebuie să-l paseze tot ca string, ca în producție. Comparația `new_master_id == item_id` depinde de asta.
-2. Actualizarea locală a secțiunii „Testing” din `CLAUDE.md`, cu comenzile pytest.
-3. Verificarea în HA-ul de dev (secțiunea „Verificare” de mai jos). Refactorul **nu** a fost încă testat în HA real.
-4. Raportul către utilizator. Decizia de merge în `dev` e a lui.
+1. Verificarea în HA-ul de dev (secțiunea „Verificare” de mai jos, punctele 3 și 4). Refactorul **nu** a fost încă testat în HA real: `docker` nu era disponibil în shell-urile agentului, deci restartul și testul în UI le face utilizatorul.
+   - Dacă apare o eroare în HA, repară-o în `api/items.py` sau `db/repository.py` și adaugă un test care o acoperă.
+2. După verificare: marchez pasul 1 ca făcut. Decizia de merge în `dev` e a utilizatorului (branch-ul e doar local, fără push).
+3. Opțional, în sesiuni viitoare: extrage restul endpointurilor (`delete`, `HomeInventarItemMasterView`, `consume.py`) în `repository.py`, doar când ajungem să le modificăm.
 
 Comenzi: `.venv/Scripts/python -m pytest -q` (din `home_inventar/`).
 

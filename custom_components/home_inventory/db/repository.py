@@ -1309,3 +1309,82 @@ def delete_cupboard(db_path, cupboard_id):
     conn.close()
 
     return count, images_to_delete
+
+
+# --------------------------------------------------------------- shelves
+
+
+def list_shelves(db_path, room, cupboard):
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT s.id, s.name, COUNT(DISTINCT o.id), COUNT(DISTINCT il.id)
+        FROM shelves s
+        JOIN cupboards c ON s.cupboard_id = c.id
+        JOIN rooms r ON c.room_id = r.id
+        LEFT JOIN organizers o ON s.id = o.shelf_id
+        LEFT JOIN item_locations il ON s.id = il.shelf_id
+        WHERE r.name = ? AND c.name = ?
+        GROUP BY s.id, s.name
+        ORDER BY s.name
+    ''', (room, cupboard))
+    rows = cur.fetchall()
+    conn.close()
+    return [{"id": r[0], "name": r[1], "organizerCount": r[2], "itemCount": r[3]} for r in rows]
+
+
+def create_shelf(db_path, room, cupboard, name):
+    """Returns new id, or None if cupboard not found. Raises IntegrityError on duplicate."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    cur.execute('''
+        SELECT c.id FROM cupboards c
+        JOIN rooms r ON c.room_id = r.id
+        WHERE r.name = ? AND c.name = ?
+    ''', (room, cupboard))
+
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return None
+
+    cupboard_id = row[0]
+
+    cur.execute("INSERT INTO shelves (name, cupboard_id) VALUES (?, ?)", (name, cupboard_id))
+    conn.commit()
+    shelf_id = cur.lastrowid
+    conn.close()
+    return shelf_id
+
+
+def update_shelf(db_path, shelf_id, name):
+    """Returns rowcount. Raises IntegrityError on duplicate name."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    _LOGGER.info(f"Updating shelf {shelf_id} to name: {name}")
+    cur.execute("UPDATE shelves SET name = ? WHERE id = ?", (name, shelf_id))
+    conn.commit()
+    count = cur.rowcount
+    conn.close()
+    return count
+
+
+def delete_shelf(db_path, shelf_id):
+    """Returns (rowcount, images_to_delete)."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    cur.execute('''
+        SELECT image FROM item_locations
+        WHERE shelf_id = ? AND image IS NOT NULL AND image != ''
+    ''', (shelf_id,))
+    images_to_delete = [row[0] for row in cur.fetchall()]
+
+    cur.execute("DELETE FROM shelves WHERE id = ?", (shelf_id,))
+    conn.commit()
+    count = cur.rowcount
+    conn.close()
+
+    return count, images_to_delete

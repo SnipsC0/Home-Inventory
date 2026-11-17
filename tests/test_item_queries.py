@@ -86,3 +86,25 @@ def test_list_item_masters_shape(db_path, seed):
                           "location_count": 1, "total_quantity": 4}
     assert by["Plain"]["image"] is None and by["Plain"]["total_quantity"] is None
     assert by["Plain"]["track_quantity"] is False
+
+
+def test_sensor_queries(db_path, seed):
+    from home_inventory.db.repository import (
+        count_items_master, list_low_stock_sensor, list_tracked_sensor,
+    )
+    ids = seed(db_path, "Kitchen", "C1", "S1")
+    assert count_items_master(db_path) == 0
+    assert list_low_stock_sensor(db_path) == (0, []) and list_tracked_sensor(db_path) == (0, [])
+    add_item(db_path, "Low", ids["shelf_id"], track=1, min_q=5, qty=1)
+    add_item(db_path, "Zero", ids["shelf_id"], track=1, min_q=5, qty=0)
+    add_item(db_path, "Fine", ids["shelf_id"], track=1, min_q=2, qty=9)
+    add_item(db_path, "NoMin", ids["shelf_id"], track=1, qty=0)
+    add_item(db_path, "Untracked", ids["shelf_id"], min_q=5, qty=0)
+    assert count_items_master(db_path) == 5
+    n, low = list_low_stock_sensor(db_path)
+    # sensor keeps qty 0 (unlike the low-stock event), ordered by quantity
+    assert n == 2 and [i["name"] for i in low] == ["Zero", "Low"]
+    assert low[1]["location"] == "Kitchen / C1 / S1"
+    n, tracked = list_tracked_sensor(db_path)
+    assert n == 3 and [i["name"] for i in tracked] == ["Fine", "Low", "Zero"]
+    assert {i["name"]: i["is_low"] for i in tracked} == {"Fine": False, "Low": True, "Zero": True}

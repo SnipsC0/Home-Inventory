@@ -2028,3 +2028,83 @@ def list_item_masters(db_path, search, barcode):
         "location_count": r[7],
         "total_quantity": r[8] if r[8] else None
     } for r in rows]
+
+
+def count_items_master(db_path):
+    """Number of unique items (sensor: total items)."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM items_master")
+    count = cur.fetchone()[0]
+    conn.close()
+    return count
+
+
+def list_low_stock_sensor(db_path):
+    """(count, items) for the low-stock sensor: every tracked location with quantity <= min."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT 
+            im.id, im.name, il.quantity, im.min_quantity,
+            r.name as room, c.name as cupboard, s.name as shelf
+        FROM item_locations il
+        JOIN items_master im ON il.item_id = im.id
+        JOIN shelves s ON il.shelf_id = s.id
+        JOIN cupboards c ON s.cupboard_id = c.id
+        JOIN rooms r ON c.room_id = r.id
+        WHERE im.track_quantity = 1 
+        AND il.quantity IS NOT NULL 
+        AND im.min_quantity IS NOT NULL
+        AND il.quantity <= im.min_quantity
+        ORDER BY il.quantity ASC
+    ''')
+    rows = cur.fetchall()
+    conn.close()
+
+    items = [{
+        "id": r[0],
+        "name": r[1],
+        "quantity": r[2],
+        "min_quantity": r[3],
+        "room": r[4],
+        "cupboard": r[5],
+        "shelf": r[6],
+        "location": f"{r[4]} / {r[5]} / {r[6]}"
+    } for r in rows]
+
+    return len(items), items
+
+
+def list_tracked_sensor(db_path):
+    """(count, items) for the tracked-items sensor: every location of items with a min_quantity."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT 
+            im.id, im.name, il.quantity, im.min_quantity,
+            r.name as room, c.name as cupboard, s.name as shelf
+        FROM item_locations il
+        JOIN items_master im ON il.item_id = im.id
+        JOIN shelves s ON il.shelf_id = s.id
+        JOIN cupboards c ON s.cupboard_id = c.id
+        JOIN rooms r ON c.room_id = r.id
+        WHERE im.track_quantity = 1
+        AND im.min_quantity IS NOT NULL
+        ORDER BY im.name
+    ''')
+    rows = cur.fetchall()
+    conn.close()
+
+    items = [{
+        "id": r[0],
+        "name": r[1],
+        "quantity": r[2],
+        "min_quantity": r[3],
+        "room": r[4],
+        "cupboard": r[5],
+        "shelf": r[6],
+        "is_low": r[2] is not None and r[3] is not None and r[2] <= r[3]
+    } for r in rows]
+
+    return len(items), items

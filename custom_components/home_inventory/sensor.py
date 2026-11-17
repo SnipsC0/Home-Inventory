@@ -1,9 +1,11 @@
-import sqlite3, logging
+import logging
+from functools import partial
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import Entity
 from homeassistant.components.sensor import SensorEntity
 from datetime import timedelta
 from .const import DOMAIN, DB_PATH, INTEGRATION_NAME
+from .db import repository, devreload
 
 _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(minutes=1)
@@ -41,15 +43,10 @@ class InventoryTotalItemsSensor(SensorEntity):
         }
 
     async def async_update(self):
-        def fetch():
-            conn = sqlite3.connect(self._db_path)
-            cur = conn.cursor()
-            cur.execute("SELECT COUNT(*) FROM items_master")
-            count = cur.fetchone()[0]
-            conn.close()
-            return count
-        
-        self._state = await self._hass.async_add_executor_job(fetch)
+        devreload.reload_if_changed(repository)
+        self._state = await self._hass.async_add_executor_job(
+            partial(repository.count_items_master, self._db_path)
+        )
 
 
 class InventoryLowStockSensor(SensorEntity):
@@ -75,41 +72,10 @@ class InventoryLowStockSensor(SensorEntity):
         }
 
     async def async_update(self):
-        def fetch():
-            conn = sqlite3.connect(self._db_path)
-            cur = conn.cursor()
-            cur.execute('''
-                SELECT 
-                    im.id, im.name, il.quantity, im.min_quantity,
-                    r.name as room, c.name as cupboard, s.name as shelf
-                FROM item_locations il
-                JOIN items_master im ON il.item_id = im.id
-                JOIN shelves s ON il.shelf_id = s.id
-                JOIN cupboards c ON s.cupboard_id = c.id
-                JOIN rooms r ON c.room_id = r.id
-                WHERE im.track_quantity = 1 
-                AND il.quantity IS NOT NULL 
-                AND im.min_quantity IS NOT NULL
-                AND il.quantity <= im.min_quantity
-                ORDER BY il.quantity ASC
-            ''')
-            rows = cur.fetchall()
-            conn.close()
-            
-            items = [{
-                "id": r[0],
-                "name": r[1],
-                "quantity": r[2],
-                "min_quantity": r[3],
-                "room": r[4],
-                "cupboard": r[5],
-                "shelf": r[6],
-                "location": f"{r[4]} / {r[5]} / {r[6]}"
-            } for r in rows]
-            
-            return len(items), items
-        
-        self._state, self._items = await self._hass.async_add_executor_job(fetch)
+        devreload.reload_if_changed(repository)
+        self._state, self._items = await self._hass.async_add_executor_job(
+            partial(repository.list_low_stock_sensor, self._db_path)
+        )
 
 
 class InventoryTrackedItemsSensor(SensorEntity):
@@ -135,36 +101,7 @@ class InventoryTrackedItemsSensor(SensorEntity):
         }
 
     async def async_update(self):
-        def fetch():
-            conn = sqlite3.connect(self._db_path)
-            cur = conn.cursor()
-            cur.execute('''
-                SELECT 
-                    im.id, im.name, il.quantity, im.min_quantity,
-                    r.name as room, c.name as cupboard, s.name as shelf
-                FROM item_locations il
-                JOIN items_master im ON il.item_id = im.id
-                JOIN shelves s ON il.shelf_id = s.id
-                JOIN cupboards c ON s.cupboard_id = c.id
-                JOIN rooms r ON c.room_id = r.id
-                WHERE im.track_quantity = 1
-                AND im.min_quantity IS NOT NULL
-                ORDER BY im.name
-            ''')
-            rows = cur.fetchall()
-            conn.close()
-            
-            items = [{
-                "id": r[0],
-                "name": r[1],
-                "quantity": r[2],
-                "min_quantity": r[3],
-                "room": r[4],
-                "cupboard": r[5],
-                "shelf": r[6],
-                "is_low": r[2] is not None and r[3] is not None and r[2] <= r[3]
-            } for r in rows]
-            
-            return len(items), items
-        
-        self._state, self._items = await self._hass.async_add_executor_job(fetch)
+        devreload.reload_if_changed(repository)
+        self._state, self._items = await self._hass.async_add_executor_job(
+            partial(repository.list_tracked_sensor, self._db_path)
+        )

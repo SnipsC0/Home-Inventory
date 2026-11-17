@@ -40,7 +40,7 @@ Branch: `feature/backend-tests`, creat din `dev`, doar local (fără push).
    - `api/items.py` apelează funcțiile prin modul (`repository.update_item(...)`), nu prin `from ... import`, ca reload-ul să se vadă. Nu reîncărca `schema.py`.
    - Test: reload-ul e no-op fără variabilă; cu variabilă preia modificarea.
    - Verificare în HA: modific un mesaj de eroare în `repository.py`, salvez, repet acțiunea în UI, fără restart.
-2. **FĂCUT (2026-11-17, cod mutat + teste; 61 teste trec; așteaptă confirmare test manual în HA: șterge locație, șterge master, editează master).** Extrage în `repository.py` `delete` și `HomeInventarItemMasterView` / `HomeInventarItemMasterUpdateView` din `api/items.py`. Cod mutat verbatim, apoi teste în `tests/test_repository.py`.
+2. **FĂCUT (2026-11-17, cod mutat + teste; 61 teste trec; confirmat manual în HA: șterge locație, șterge master, editează master).** Extrage în `repository.py` `delete` și `HomeInventarItemMasterView` / `HomeInventarItemMasterUpdateView` din `api/items.py`. Cod mutat verbatim, apoi teste în `tests/test_repository.py`.
 3. **URMĂTORUL PAS:** extrage `api/consume.py` (low stock, scădere cantitate, batch-uri) în `repository.py`, cu teste.
 4. Aceeași extragere pentru `rooms`, `cupboards`, `shelves`, `organizers`, `all_items` (și logica din `upload.py` care atinge DB-ul), dacă vrem acoperire completă.
 5. După fiecare extragere: pytest, pyflakes, `grep` fără `homeassistant|aiohttp` în `repository.py`, apoi test manual în HA (confirmat de utilizator).

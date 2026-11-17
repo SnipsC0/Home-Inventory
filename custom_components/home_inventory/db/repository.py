@@ -1388,3 +1388,170 @@ def delete_shelf(db_path, shelf_id):
     conn.close()
 
     return count, images_to_delete
+
+
+# ------------------------------------------------------------ organizers
+
+
+def list_organizers(db_path, room, cupboard, shelf):
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    cur.execute('''
+        SELECT o.id, o.name, o.image, COUNT(DISTINCT il.id)
+        FROM organizers o
+        JOIN shelves s ON o.shelf_id = s.id
+        JOIN cupboards c ON s.cupboard_id = c.id
+        JOIN rooms r ON c.room_id = r.id
+        LEFT JOIN item_locations il ON o.id = il.organizer_id
+        WHERE r.name = ? AND c.name = ? AND s.name = ?
+        GROUP BY o.id, o.name, o.image
+        ORDER BY o.name
+    ''', (room, cupboard, shelf))
+
+    organizers = []
+    for r in cur.fetchall():
+        image = r[2] if r[2] else ""
+        organizers.append({
+            "id": r[0],
+            "name": r[1],
+            "image": image,
+            "itemCount": r[3]
+        })
+
+    cur.execute('''
+        SELECT COUNT(il.id)
+        FROM item_locations il
+        JOIN shelves s ON il.shelf_id = s.id
+        JOIN cupboards c ON s.cupboard_id = c.id
+        JOIN rooms r ON c.room_id = r.id
+        WHERE r.name = ? AND c.name = ? AND s.name = ?
+        AND il.organizer_id IS NULL
+    ''', (room, cupboard, shelf))
+
+    items_without_organizer = cur.fetchone()[0]
+    conn.close()
+
+    return {
+        "organizers": organizers,
+        "itemsWithoutOrganizer": items_without_organizer
+    }
+
+
+def create_organizer(db_path, room, cupboard, shelf, name, image):
+    """Returns new id, or None if shelf not found. Raises IntegrityError on duplicate."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    cur.execute('''
+        SELECT s.id FROM shelves s
+        JOIN cupboards c ON s.cupboard_id = c.id
+        JOIN rooms r ON c.room_id = r.id
+        WHERE r.name = ? AND c.name = ? AND s.name = ?
+    ''', (room, cupboard, shelf))
+
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return None
+
+    shelf_id = row[0]
+
+    cur.execute("INSERT INTO organizers (name, image, shelf_id) VALUES (?, ?, ?)",
+               (name, image, shelf_id))
+    conn.commit()
+    organizer_id = cur.lastrowid
+    conn.close()
+    return organizer_id
+
+
+def update_organizer(db_path, organizer_id, name, new_image, new_room, new_cupboard, new_shelf):
+    """Returns (rowcount, old_image_to_delete_or_None, error_or_None)."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    old_image = None
+    if new_image is not None:
+        cur.execute("SELECT image FROM organizers WHERE id = ?", (organizer_id,))
+        row = cur.fetchone()
+        if row:
+            old_image = row[0]
+
+    updates = []
+    params = []
+
+    if name is not None:
+        updates.append("name = ?")
+        params.append(name)
+
+    if new_image is not None:
+        updates.append("image = ?")
+        params.append(new_image)
+        _LOGGER.info(f"Updating organizer image to: '{new_image}'")
+
+    if new_room and new_cupboard and new_shelf:
+        _LOGGER.info(f"Moving organizer {organizer_id} to: {new_room}/{new_cupboard}/{new_shelf}")
+
+        cur.execute('''
+            SELECT s.id FROM shelves s
+            JOIN cupboards c ON s.cupboard_id = c.id
+            JOIN rooms r ON c.room_id = r.id
+            WHERE r.name = ? AND c.name = ? AND s.name = ?
+        ''', (new_room, new_cupboard, new_shelf))
+
+        shelf_row = cur.fetchone()
+        if not shelf_row:
+            conn.close()
+            return 0, None, "Destination shelf not found"
+
+        new_shelf_id = shelf_row[0]
+        updates.append("shelf_id = ?")
+        params.append(new_shelf_id)
+
+        _LOGGER.info(f"Moving all items from organizer {organizer_id} to shelf_id {new_shelf_id}")
+        cur.execute('''
+            UPDATE item_locations
+            SET shelf_id = ?
+            WHERE organizer_id = ?
+        ''', (new_shelf_id, organizer_id))
+        items_moved = cur.rowcount
+        _LOGGER.info(f"Moved {items_moved} items to new shelf")
+
+    if not updates:
+        conn.close()
+        return 0, None, None
+
+    params.append(organizer_id)
+    sql = f"UPDATE organizers SET {', '.join(updates)} WHERE id = ?"
+
+    _LOGGER.info(f"Executing: {sql} with params: {params}")
+    cur.execute(sql, params)
+    conn.commit()
+    count = cur.rowcount
+    conn.close()
+
+    return count, old_image if (new_image is not None and old_image and old_image != new_image) else None, None
+
+
+def hard_delete_organizer(db_path, organizer_id):
+    """Returns (deleted, organizer_image, item_images, items_deleted_count)."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    cur.execute("SELECT image FROM organizers WHERE id = ?", (organizer_id,))
+    org_row = cur.fetchone()
+    organizer_image = org_row[0] if org_row else None
+
+    cur.execute("SELECT id, image FROM item_locations WHERE organizer_id = ?", (organizer_id,))
+    items_to_delete = cur.fetchall()
+
+    cur.execute("DELETE FROM item_locations WHERE organizer_id = ?", (organizer_id,))
+
+    cur.execute("DELETE FROM organizers WHERE id = ?", (organizer_id,))
+    conn.commit()
+    deleted_organizer = cur.rowcount > 0
+
+    conn.close()
+
+    item_images = [img for (_, img) in items_to_delete]
+    return deleted_organizer, organizer_image, item_images, len(items_to_delete)

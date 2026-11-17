@@ -108,3 +108,4 @@ def test_sensor_queries(db_path, seed):
     n, tracked = list_tracked_sensor(db_path)
     assert n == 3 and [i["name"] for i in tracked] == ["Fine", "Low", "Zero"]
     assert {i["name"]: i["is_low"] for i in tracked} == {"Fine": False, "Low": True, "Zero": True}
+    assert tracked[1]["location"] == "Kitchen / C1 / S1"

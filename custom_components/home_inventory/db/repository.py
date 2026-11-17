@@ -2104,6 +2104,7 @@ def list_tracked_sensor(db_path):
         "room": r[4],
         "cupboard": r[5],
         "shelf": r[6],
+        "location": f"{r[4]} / {r[5]} / {r[6]}",
         "is_low": r[2] is not None and r[3] is not None and r[2] <= r[3]
     } for r in rows]
 

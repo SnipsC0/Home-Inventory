@@ -14,3 +14,9 @@ local_docs/
 CLAUDE.md
 .venv/
 .pytest_cache/
+# Agent files
+PLAN.md
+AGENTS.md
+GEMINI.md
+CLAUDE.local.md
+.claude/

@@ -21,7 +21,10 @@ Branch: `feature/backend-tests`, creat din `dev`, doar local (fără push).
 - `CLAUDE.md` (local, e în `.gitignore`): secțiunea „Testing” are comenzile pytest.
 - Verificări statice: compileall ok, pyflakes fără nume nedefinite, `repository.py` nu importă HA/aiohttp.
 
+**Instrucțiune pentru agent la reluare:** când utilizatorul spune să continui, **cere întâi confirmarea că a rulat testele manuale din HA** (punctul 1 de mai jos: restart, loguri, flow-ul din UI) și ce rezultat au avut. Nu continua și nu închide pasul 1 fără confirmarea lui.
+
 **Rămas:**
+**TODO utilizator:** de rulat testele manuale în HA înainte de sesiunea următoare.
 1. Verificarea în HA-ul de dev (secțiunea „Verificare” de mai jos, punctele 3 și 4). Refactorul **nu** a fost încă testat în HA real: `docker` nu era disponibil în shell-urile agentului, deci restartul și testul în UI le face utilizatorul.
    - Dacă apare o eroare în HA, repară-o în `api/items.py` sau `db/repository.py` și adaugă un test care o acoperă.
 2. După verificare: marchez pasul 1 ca făcut. Decizia de merge în `dev` e a utilizatorului (branch-ul e doar local, fără push).

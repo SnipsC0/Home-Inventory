@@ -1183,3 +1183,129 @@ def delete_room(db_path, room_id):
     conn.close()
 
     return count, images_to_delete
+
+
+# ------------------------------------------------------------ cupboards
+
+
+def list_cupboards(db_path, room):
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT c.id, c.name, c.image, COUNT(DISTINCT il.id)
+        FROM cupboards c
+        JOIN rooms r ON c.room_id = r.id
+        LEFT JOIN shelves s ON c.id = s.cupboard_id
+        LEFT JOIN item_locations il ON s.id = il.shelf_id
+        WHERE r.name = ?
+        GROUP BY c.id, c.name, c.image
+        ORDER BY c.name
+    ''', (room,))
+    rows = cur.fetchall()
+    conn.close()
+
+    result = []
+    for r in rows:
+        image = r[2] if r[2] else ""
+        cupboard = {
+            "id": r[0],
+            "name": r[1],
+            "image": image,
+            "itemCount": r[3]
+        }
+        _LOGGER.debug(f"Cupboard fetched - ID: {r[0]}, Name: {r[1]}, Image: '{image}'")
+        result.append(cupboard)
+
+    return result
+
+
+def create_cupboard(db_path, room, name, image):
+    """Returns new id, or None if room not found. Raises IntegrityError on duplicate."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    cur.execute("SELECT id FROM rooms WHERE name = ?", (room,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return None
+
+    room_id = row[0]
+
+    cur.execute("INSERT INTO cupboards (name, room_id, image) VALUES (?, ?, ?)", (name, room_id, image))
+    conn.commit()
+    cupboard_id = cur.lastrowid
+    conn.close()
+    return cupboard_id
+
+
+def update_cupboard(db_path, cupboard_id, name, new_image):
+    """Returns (rowcount, old_image_to_delete_or_None)."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    old_image = None
+    if new_image is not None:
+        cur.execute("SELECT image FROM cupboards WHERE id = ?", (cupboard_id,))
+        row = cur.fetchone()
+        if row:
+            old_image = row[0]
+
+    updates = []
+    params = []
+
+    if name is not None:
+        updates.append("name = ?")
+        params.append(name)
+        _LOGGER.info(f"Updating name to: {name}")
+
+    if new_image is not None:
+        updates.append("image = ?")
+        params.append(new_image)
+        _LOGGER.info(f"Updating image to: '{new_image}'")
+
+    if not updates:
+        conn.close()
+        _LOGGER.warning("No updates provided")
+        return 0, None
+
+    params.append(cupboard_id)
+    sql = f"UPDATE cupboards SET {', '.join(updates)} WHERE id = ?"
+
+    _LOGGER.info(f"Executing SQL: {sql} with params: {params}")
+    cur.execute(sql, params)
+    conn.commit()
+    count = cur.rowcount
+    conn.close()
+
+    return count, old_image if (new_image is not None and old_image != new_image) else None
+
+
+def delete_cupboard(db_path, cupboard_id):
+    """Returns (rowcount, images_to_delete)."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    images_to_delete = []
+
+    cur.execute('''
+        SELECT image FROM cupboards
+        WHERE id = ? AND image IS NOT NULL AND image != ''
+    ''', (cupboard_id,))
+    row = cur.fetchone()
+    if row:
+        images_to_delete.append(row[0])
+
+    cur.execute('''
+        SELECT il.image FROM item_locations il
+        JOIN shelves s ON il.shelf_id = s.id
+        WHERE s.cupboard_id = ? AND il.image IS NOT NULL AND il.image != ''
+    ''', (cupboard_id,))
+    images_to_delete.extend([row[0] for row in cur.fetchall()])
+
+    cur.execute("DELETE FROM cupboards WHERE id = ?", (cupboard_id,))
+    conn.commit()
+    count = cur.rowcount
+    conn.close()
+
+    return count, images_to_delete

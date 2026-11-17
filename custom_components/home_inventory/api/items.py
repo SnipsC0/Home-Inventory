@@ -57,157 +57,20 @@ class HomeInventarItemsView(HomeAssistantView):
         
         # Dacă avem item_id, returnăm toate locațiile acelui item
         if item_id:
-            def fetch_item_locations():
-                conn = sqlite3.connect(self.db_path)
-                cur = conn.cursor()
-                
-                cur.execute('''
-                    SELECT 
-                        il.id as location_id,
-                        im.id as item_id,
-                        im.name,
-                        im.default_image,
-                        im.barcode,
-                        im.min_quantity,
-                        im.track_quantity,
-                        im.aliases,
-                        il.quantity,
-                        il.expiration_dates,
-                        r.name as room_name,
-                        c.name as cupboard_name,
-                        s.name as shelf_name,
-                        o.name as organizer_name
-                    FROM item_locations il
-                    JOIN items_master im ON il.item_id = im.id
-                    JOIN shelves s ON il.shelf_id = s.id
-                    JOIN cupboards c ON s.cupboard_id = c.id
-                    JOIN rooms r ON c.room_id = r.id
-                    LEFT JOIN organizers o ON il.organizer_id = o.id
-                    WHERE im.id = ?
-                    ORDER BY il.created_at DESC
-                ''', (item_id,))
-                
-                rows = cur.fetchall()
-                conn.close()
-                
-                result = []
-                for r in rows:
-                    location = f"{r[10]} / {r[11]} / {r[12]}"
-                    if r[13]:
-                        location += f" / {r[13]}"
-                    
-                    item = {
-                        "location_id": r[0],
-                        "item_id": r[1],
-                        "name": r[2], 
-                        "image": r[3] if r[3] else "",
-                        "barcode": r[4],
-                        "min_quantity": r[5],
-                        "track_quantity": bool(r[6]),
-                        "aliases": r[7],
-                        "quantity": r[8],
-                        "expiration_date": r[9],
-                        "location": location,
-                        "room": r[10],
-                        "cupboard": r[11],
-                        "shelf": r[12],
-                        "organizer": r[13]
-                    }
-                    result.append(item)
-                
-                return result
-
-            data = await request.app["hass"].async_add_executor_job(fetch_item_locations)
+            devreload.reload_if_changed(repository)
+            data = await request.app["hass"].async_add_executor_job(
+                partial(repository.list_item_locations, self.db_path, item_id)
+            )
             return web.json_response(data)
         
         # Altfel, returnăm itemele dintr-o locație specifică
         if not room or not cupboard or not shelf:
             return web.json_response({"error": "Missing params"}, status=400)
 
-        def fetch():
-            conn = sqlite3.connect(self.db_path)
-            cur = conn.cursor()
-            
-            if organizer:
-                cur.execute('''
-                    SELECT 
-                        il.id as location_id,
-                        im.id as item_id,
-                        im.name,
-                        im.default_image,
-                        im.barcode,
-                        im.min_quantity,
-                        im.track_quantity,
-                        im.aliases,
-                        il.quantity,
-                        il.expiration_dates,
-                        r.name as room_name,
-                        c.name as cupboard_name,
-                        s.name as shelf_name,
-                        o.name as organizer_name
-                    FROM item_locations il
-                    JOIN items_master im ON il.item_id = im.id
-                    JOIN shelves s ON il.shelf_id = s.id
-                    JOIN cupboards c ON s.cupboard_id = c.id
-                    JOIN rooms r ON c.room_id = r.id
-                    JOIN organizers o ON il.organizer_id = o.id
-                    WHERE r.name = ? AND c.name = ? AND s.name = ? AND o.name = ?
-                    ORDER BY il.created_at DESC
-                ''', (room, cupboard, shelf, organizer))
-            else:
-                cur.execute('''
-                    SELECT 
-                        il.id as location_id,
-                        im.id as item_id,
-                        im.name,
-                        im.default_image,
-                        im.barcode,
-                        im.min_quantity,
-                        im.track_quantity,
-                        im.aliases,
-                        il.quantity,
-                        il.expiration_dates,
-                        r.name as room_name,
-                        c.name as cupboard_name,
-                        s.name as shelf_name,
-                        NULL as organizer_name
-                    FROM item_locations il
-                    JOIN items_master im ON il.item_id = im.id
-                    JOIN shelves s ON il.shelf_id = s.id
-                    JOIN cupboards c ON s.cupboard_id = c.id
-                    JOIN rooms r ON c.room_id = r.id
-                    WHERE r.name = ? AND c.name = ? AND s.name = ? AND il.organizer_id IS NULL
-                    ORDER BY il.created_at DESC
-                ''', (room, cupboard, shelf))
-            
-            rows = cur.fetchall()
-            conn.close()
-            
-            result = []
-            for r in rows:
-                location = f"{r[10]} / {r[11]} / {r[12]}"
-                if r[13]:
-                    location += f" / {r[13]}"
-                
-                item = {
-                    "location_id": r[0],
-                    "item_id": r[1],
-                    "name": r[2], 
-                    "image": r[3] if r[3] else "",
-                    "barcode": r[4],
-                    "min_quantity": r[5],
-                    "track_quantity": bool(r[6]),
-                    "aliases": r[7],
-                    "quantity": r[8],
-                    "expiration_date": r[9],
-                    "location": location
-                }
-                _LOGGER.debug(f"Item fetched - Location ID: {r[0]}, Item ID: {r[1]}, Name: {r[2]}, Location: '{location}'")
-                result.append(item)
-            
-            return result
-
-        data = await request.app["hass"].async_add_executor_job(fetch)
+        devreload.reload_if_changed(repository)
+        data = await request.app["hass"].async_add_executor_job(
+            partial(repository.list_items_at_location, self.db_path, room, cupboard, shelf, organizer)
+        )
         return web.json_response(data)
 
     async def post(self, request):
@@ -471,59 +334,10 @@ class HomeInventarItemMasterView(HomeAssistantView):
         search = request.query.get("search", "").strip()
         barcode = request.query.get("barcode", "").strip()
         
-        def fetch():
-            conn = sqlite3.connect(self.db_path)
-            cur = conn.cursor()
-            
-            query = '''
-                SELECT 
-                    im.id,
-                    im.name,
-                    im.aliases,
-                    im.default_image,
-                    im.barcode,
-                    im.min_quantity,
-                    im.track_quantity,
-                    COUNT(DISTINCT il.id) as location_count,
-                    COALESCE(SUM(il.quantity), 0) as total_quantity
-                FROM items_master im
-                LEFT JOIN item_locations il ON im.id = il.item_id
-            '''
-            
-            params = []
-            conditions = []
-            
-            if search:
-                conditions.append("(im.name LIKE ? OR im.aliases LIKE ?)")
-                search_param = f"%{search}%"
-                params.extend([search_param, search_param])
-            
-            if barcode:
-                conditions.append("im.barcode = ?")
-                params.append(barcode)
-            
-            if conditions:
-                query += " WHERE " + " AND ".join(conditions)
-            
-            query += " GROUP BY im.id ORDER BY im.name"
-            
-            cur.execute(query, params)
-            rows = cur.fetchall()
-            conn.close()
-            
-            return [{
-                "id": r[0],
-                "name": r[1],
-                "aliases": r[2],
-                "image": r[3] if r[3] else None,
-                "barcode": r[4],
-                "min_quantity": r[5],
-                "track_quantity": bool(r[6]),
-                "location_count": r[7],
-                "total_quantity": r[8] if r[8] else None
-            } for r in rows]
-
-        data = await request.app["hass"].async_add_executor_job(fetch)
+        devreload.reload_if_changed(repository)
+        data = await request.app["hass"].async_add_executor_job(
+            partial(repository.list_item_masters, self.db_path, search, barcode)
+        )
         return web.json_response(data)
 
 

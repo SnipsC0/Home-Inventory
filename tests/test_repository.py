@@ -387,3 +387,15 @@ def test_consume_items_amount(db_path, loc, q):
     res, err = consume_items(db_path, str(master_id), loc_id, 5)
     assert res is None and err == "Insufficient quantity. Available: 2, Requested: 5"
     assert q(db_path, "SELECT quantity FROM item_locations WHERE id=?", (loc_id,)) == [(2,)]
+
+
+def test_consume_keeps_batches_in_sync(db_path, loc, q):
+    create(db_path, quantity=2, exp_obj={"quantity": 2, "date": "2026-12-01"})
+    (loc_id, master_id), _ = create(db_path, quantity=1, exp_obj={"quantity": 1, "date": "2026-01-01"})
+    create(db_path, quantity=1)  # undated batch
+    assert batches(q, db_path, loc_id) is not None
+    consume_item(db_path, str(master_id), loc_id)  # earliest date first
+    assert {b["date"]: b["quantity"] for b in batches(q, db_path, loc_id)} == {"2026-12-01": 2, None: 1}
+    consume_items(db_path, str(master_id), loc_id, 3)
+    assert batches(q, db_path, loc_id) is None
+    assert q(db_path, "SELECT quantity FROM item_locations WHERE id=?", (loc_id,)) == [(0,)]

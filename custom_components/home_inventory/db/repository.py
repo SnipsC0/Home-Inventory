@@ -927,6 +927,23 @@ def delete_item_master(db_path, item_id):
         conn.close()
 
 
+def _consume_from_batches(raw, amount):
+    """Remove ``amount`` units from the expiration batches (earliest date first,
+    undated last) and return the new JSON string. Keeps the batches in sync with
+    ``item_locations.quantity``; returns ``raw`` unchanged when there are none."""
+    batches = _load_exp_list(raw)
+    if not batches:
+        return raw
+    batches.sort(key=lambda b: (_norm_date(b.get("date")) is None, _norm_date(b.get("date")) or ""))
+    remaining = amount
+    for b in batches:
+        take = min(b.get("quantity") or 0, remaining)
+        b["quantity"] = (b.get("quantity") or 0) - take
+        remaining -= take
+    batches = [b for b in batches if (b.get("quantity") or 0) > 0]
+    return json.dumps(batches) if batches else None
+
+
 def consume_item(db_path, item_id, location_id):
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -937,6 +954,7 @@ def consume_item(db_path, item_id, location_id):
         SELECT 
             il.id as location_id,
             il.quantity,
+            il.expiration_dates,
             im.id as item_id,
             im.name,
             im.aliases,
@@ -974,9 +992,9 @@ def consume_item(db_path, item_id, location_id):
     # Actualizăm cantitatea
     cur.execute("""
         UPDATE item_locations 
-        SET quantity = ? 
+        SET quantity = ?, expiration_dates = ?
         WHERE id = ?
-    """, (new_quantity, location_id))
+    """, (new_quantity, _consume_from_batches(location['expiration_dates'], 1), location_id))
 
     conn.commit()
 
@@ -1020,6 +1038,7 @@ def consume_items(db_path, item_id, location_id, amount):
         SELECT 
             il.id as location_id,
             il.quantity,
+            il.expiration_dates,
             im.id as item_id,
             im.name,
             im.aliases,
@@ -1056,9 +1075,9 @@ def consume_items(db_path, item_id, location_id, amount):
 
     cur.execute("""
         UPDATE item_locations 
-        SET quantity = ? 
+        SET quantity = ?, expiration_dates = ?
         WHERE id = ?
-    """, (new_quantity, location_id))
+    """, (new_quantity, _consume_from_batches(location['expiration_dates'], amount), location_id))
 
     conn.commit()
 

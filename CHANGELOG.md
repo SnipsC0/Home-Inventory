@@ -1,5 +1,28 @@
 ## 🏷️ 3.0.0 - Migrate to DBv2
 
+### ⚠️ Requirements
+
+- Requires Home Assistant **2026.11.0** or newer and installation through the built-in **Marketplace** (the successor of HACS). Older Home Assistant versions stay on 2.0.3.
+
+### Changed
+
+- Database upgraded to schema v2: an item can now exist in multiple locations, each with its own quantity, expiration dates and image (`items_master` + `item_locations`). Existing data is migrated automatically on first start.
+- Releases now ship a ready-made `home_inventory.zip` (frontend included) attached to the GitHub release, so the Marketplace/HACS download counter works.
+
+### Added
+
+- Tracked items sensor now includes the item location.
+
+### Fixed
+
+- Consuming an item now also decrements its expiration batches.
+- The organizer Delete button now opens the delete confirmation dialog.
+
+### Internal
+
+- All SQL moved to `db/repository.py`, with a pytest suite covering the database layer.
+
+
 ## 🏷️ 2.0.3 - UI Improvements & Compatibility Update
 
 ### Improved

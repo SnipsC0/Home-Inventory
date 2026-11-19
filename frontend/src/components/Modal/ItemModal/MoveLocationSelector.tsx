@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Cupboard, Shelf, Organizer, Room } from '../../../types';
 import { ApiService } from '../../../services/api';
 import { useTranslation } from '../../../i18n/I18nContext';
+import SmartImage from '../../SmartImage';
 
 interface MoveLocationSelectorProps {
   api: ApiService;
@@ -39,7 +40,22 @@ export default function MoveLocationSelector({
 
   const [rooms, setRooms] = useState<Room[]>([]);
 
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
+
+  const selRoom = rooms.find((r) => r.name === room);
+  const selCupboard = cupboards.find((c) => c.name === cupboard);
+  const selShelf = shelves.find((s) => s.name === shelf);
+  const selOrganizer = organizers.find((o) => o.name === organizer);
+
+  const renderThumb = (src?: string | null, alt?: string) =>
+    src ? (
+      <SmartImage
+        src={src}
+        alt={alt ?? ''}
+        width={96}
+        wrapperClassName="w-24 h-24 rounded-md mt-2"
+      />
+    ) : null;
 
   useEffect(() => {
     (async () => {
@@ -97,7 +113,7 @@ export default function MoveLocationSelector({
   return (
     <div className="border border-ha-primary rounded-lg p-4 space-y-3 bg-ha-card">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-ha-text font-semibold text-sm">🚚 Mută în:</span>
+        <span className="text-ha-text font-semibold text-sm">{t.items.moveTo}</span>
         <button
           onClick={onCancel}
           className="text-ha-error text-xs hover:underline"
@@ -106,7 +122,7 @@ export default function MoveLocationSelector({
         </button>
       </div>
 
-      {/* Cameră */}
+      {/* Room */}
       <div>
         <label className="text-ha-text text-xs block mb-1">
           {t.rooms.room} *
@@ -122,7 +138,7 @@ export default function MoveLocationSelector({
               organizer: '',
             }))
           }
-          className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
+          className="field"
         >
           <option value="">
             {t.common.select} {t.rooms.room.toLowerCase()}
@@ -133,9 +149,10 @@ export default function MoveLocationSelector({
             </option>
           ))}
         </select>
+        {renderThumb(selRoom?.image, room)}
       </div>
 
-      {/* Dulap */}
+      {/* Cupboard */}
       {room && (
         <div>
           <label className="text-ha-text text-xs block mb-1">
@@ -151,7 +168,7 @@ export default function MoveLocationSelector({
                 organizer: '',
               }))
             }
-            className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
+            className="field"
           >
             <option value="">
               {t.common.select} {t.cupboards.cupboard.toLowerCase()}
@@ -162,10 +179,11 @@ export default function MoveLocationSelector({
               </option>
             ))}
           </select>
+          {renderThumb(selCupboard?.image, cupboard)}
         </div>
       )}
 
-      {/* Raft */}
+      {/* Shelf */}
       {cupboard && (
         <div>
           <label className="text-ha-text text-xs block mb-1">
@@ -180,7 +198,7 @@ export default function MoveLocationSelector({
                 organizer: '',
               }))
             }
-            className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
+            className="field"
           >
             <option value="">
               {t.common.select} {t.shelves.shelf.toLowerCase()}
@@ -191,6 +209,7 @@ export default function MoveLocationSelector({
               </option>
             ))}
           </select>
+          {renderThumb(selShelf?.image, shelf)}
         </div>
       )}
 
@@ -198,14 +217,14 @@ export default function MoveLocationSelector({
       {shelf && (
         <div>
           <label className="text-ha-text text-xs block mb-1">
-            Organizator (opțional)
+            {t.items.organizerOptional}
           </label>
           <select
             value={organizer}
             onChange={(e) =>
               setState((s) => ({ ...s, organizer: e.target.value }))
             }
-            className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
+            className="field"
           >
             <option value="">
               {t.items.addItemWithoutOrganizer} (
@@ -217,13 +236,14 @@ export default function MoveLocationSelector({
               </option>
             ))}
           </select>
+          {renderThumb(selOrganizer?.image, organizer)}
         </div>
       )}
 
-      {/* Preview locație nouă */}
+      {/* New location preview */}
       {room && cupboard && shelf && (
         <div className="bg-ha-secondary-bg p-2 rounded text-xs text-ha-text/70">
-          📍 {language === 'en' ? 'New' : 'Noua'} {t.items.location}:{' '}
+          {t.items.newLocation}{' '}
           <span className="font-semibold">
             {room} › {cupboard} › {shelf}
             {organizer && ` › ${organizer}`}

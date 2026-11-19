@@ -1,0 +1,74 @@
+{
+  "title": "Home Inventory",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Home Inventory",
+        "description": "Manage your household inventory locally, without the cloud.\n\n**Structure:** {structure_info}\n\n- 4 automatic sensors\n- Low stock and expiry event notifications\n- 100% local storage",
+        "data": {
+          "language": "Interface language",
+          "allow_structure_modification": "Allow editing the structure",
+          "show_qr_nfc": "Show QR / NFC buttons"
+        },
+        "data_description": {
+          "language": "Language used by the Home Inventory panel.",
+          "allow_structure_modification": "When off, rooms, cupboards and shelves cannot be added, edited or deleted from the panel.",
+          "show_qr_nfc": "When off, the QR / NFC button is hidden on cupboards and shelves."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Home Inventory is already configured. Only one instance is allowed."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Home Inventory settings",
+        "description": "**Structure:** {structure_info}\n\n**Sensors:** {sensor_count}\n\n**Events:** {event_info}",
+        "data": {
+          "language": "Interface language",
+          "allow_structure_modification": "Allow editing the structure",
+          "show_qr_nfc": "Show QR / NFC buttons"
+        },
+        "data_description": {
+          "language": "Language used by the Home Inventory panel.",
+          "allow_structure_modification": "When off, rooms, cupboards and shelves cannot be added, edited or deleted from the panel.",
+          "show_qr_nfc": "When off, the QR / NFC button is hidden on cupboards and shelves."
+        },
+        "sections": {
+          "expiry": {
+            "name": "Warn before expiry",
+            "description": "Get notified before a batch expires (max 31 days or 12 months).",
+            "data": {
+              "expiry_warning_value": "Notify me",
+              "expiry_warning_unit": "Unit"
+            },
+            "data_description": {
+              "expiry_warning_value": "Number of days / months.",
+              "expiry_warning_unit": "Days or months."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_expiry_value": "Enter 1–31 for days or 1–12 for months."
+    }
+  },
+  "selector": {
+    "language": {
+      "options": {
+        "en": "English",
+        "ro": "Română",
+        "ru": "Русский"
+      }
+    },
+    "expiry_unit": {
+      "options": {
+        "days": "Days",
+        "months": "Months"
+      }
+    }
+  }
+}

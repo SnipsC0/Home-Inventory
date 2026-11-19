@@ -1,0 +1,50 @@
+name: Build release zip
+
+# A release is published ONLY on push to main. Every other branch just builds the zip
+# and uploads it as a workflow artifact (invisible to HACS), plus a publish dry run.
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build zip
+        run: bash scripts/build_release_zip.sh
+
+      - name: Verify zip structure
+        run: |
+          unzip -l dist/home_inventory.zip
+          for f in manifest.json __init__.py panel/panel-wrapper.js; do
+            unzip -l dist/home_inventory.zip | grep -qE " ${f}$" || { echo "missing $f"; exit 1; }
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: home_inventory-zip
+          path: dist/home_inventory.zip
+          if-no-files-found: error
+
+      - name: Publish release (main only) / dry run (other branches)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISH: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}
+        run: bash scripts/publish_release.sh

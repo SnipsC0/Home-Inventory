@@ -108,6 +108,7 @@ export const useAppStore = create<AppStore>((set, get) => {
         case 'all-items':
           set({ currentView: 'rooms' });
           break;
+        case 'expiring':
         case 'tracked-items':
           set({ currentView: 'rooms' });
           break;

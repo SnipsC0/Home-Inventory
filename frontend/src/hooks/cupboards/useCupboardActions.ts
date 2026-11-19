@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ApiService } from '../../services/api';
 import { useAppStore } from '../../store/useAppStore';
+import type { ImagePickerValue } from '../../components/Modal/ImagePickerField';
+import { resolveImageField } from '../../utils/imageUpload';
 
 export function useCupboardActions(api: ApiService) {
   const queryClient = useQueryClient();
@@ -11,20 +13,16 @@ export function useCupboardActions(api: ApiService) {
   const addCupboard = useMutation({
     mutationFn: async ({
       name,
-      imageFile,
+      image,
     }: {
       name: string;
-      imageFile: File | null;
+      image?: ImagePickerValue;
     }) => {
-      let imagePath = '';
-      if (imageFile) {
-        setUploadStatus('Se încarcă imaginea...');
-        imagePath = await api.uploadImage(imageFile, {
-          room: selectedRoom!,
-          cupboard: name,
-        });
-        setUploadStatus('✓ Imagine încărcată');
-      }
+      if (image?.file) setUploadStatus('Uploading image...');
+      const imagePath = await resolveImageField(api, image, {
+        room: selectedRoom!,
+        cupboard: name,
+      });
       await api.addCupboard(selectedRoom!, name, imagePath);
     },
     onSuccess: () => {
@@ -40,22 +38,17 @@ export function useCupboardActions(api: ApiService) {
     mutationFn: async ({
       id,
       name,
-      imageFile,
+      image,
     }: {
       id: number;
       name?: string;
-      imageFile?: File | null;
+      image?: ImagePickerValue;
     }) => {
-      let imagePath: string | undefined = undefined;
-
-      if (imageFile) {
-        setUploadStatus('Se încarcă imaginea...');
-        imagePath = await api.uploadImage(imageFile, {
-          room: selectedRoom!,
-          cupboard: name || '',
-        });
-        setUploadStatus('✓ Imagine încărcată');
-      }
+      if (image?.file) setUploadStatus('Uploading image...');
+      const imagePath = await resolveImageField(api, image, {
+        room: selectedRoom!,
+        cupboard: name || '',
+      });
 
       const updateData: { name?: string; image?: string } = {};
       if (name !== undefined) updateData.name = name;
@@ -75,7 +68,10 @@ export function useCupboardActions(api: ApiService) {
   const deleteCupboard = useMutation({
     mutationFn: (id: number) => api.deleteCupboard(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cupboards', selectedRoom] });
+      // Cascade delete: refresh every dependent cache (items, totals, hierarchy)
+      for (const key of ['rooms', 'cupboards', 'shelves', 'organizers', 'global-items']) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
     },
   });
 

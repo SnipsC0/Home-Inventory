@@ -10,6 +10,7 @@ export function useRoomNavigation() {
       setView('cupboards');
     },
     goToAllItems: () => setView('all-items'),
+    goToExpiring: () => setView('expiring'),
     goToTrackedItems: () => setView('tracked-items'),
   };
 }

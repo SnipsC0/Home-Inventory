@@ -25,7 +25,7 @@ export default function CupboardAddForm({
         placeholder={`${t.cupboards.cupboardName} (${t.cupboards.example})`}
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
+        className="field"
       />
 
       <input
@@ -41,13 +41,13 @@ export default function CupboardAddForm({
         <button
           disabled={pending}
           onClick={() => onSubmit(name, file)}
-          className="flex-1 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition disabled:opacity-50"
+          className="btn btn-primary flex-1"
         >
           {pending ? t.common.saving : t.common.save}
         </button>
         <button
           onClick={onCancel}
-          className="flex-1 py-2 bg-ha-secondary-bg border border-ha-divider text-ha-text rounded hover:bg-ha-card transition"
+          className="btn btn-secondary flex-1"
         >
           {t.common.cancel}
         </button>

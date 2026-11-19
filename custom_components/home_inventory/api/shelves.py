@@ -1,7 +1,10 @@
 import sqlite3, logging, os
+from functools import partial
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from ..const import DOMAIN
+from ..db import repository, devreload
+from ._images import delete_image_file
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,27 +18,7 @@ class HomeInventarShelvesView(HomeAssistantView):
         self.hass = hass
 
     def _delete_image_file(self, image_path):
-        if not image_path:
-            return
-        
-        try:
-            if image_path.startswith(f'/api/{DOMAIN}/images/'):
-                filename = image_path.split('/')[-1].split('?')[0]
-            elif image_path.startswith('/local/'):
-                return
-            else:
-                filename = image_path
-            
-            full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
-            
-            if os.path.exists(full_path):
-                os.remove(full_path)
-                _LOGGER.info(f"[HomeInventar] 🗑️ Deleted image file: {full_path}")
-            else:
-                _LOGGER.debug(f"[HomeInventar] Image file not found: {full_path}")
-                
-        except Exception as e:
-            _LOGGER.error(f"[HomeInventar] Error deleting image file: {e}", exc_info=True)
+        delete_image_file(self.hass, image_path)
 
     async def get(self, request):
         room = request.query.get("room")
@@ -43,25 +26,10 @@ class HomeInventarShelvesView(HomeAssistantView):
         if not room or not cupboard:
             return web.json_response({"error": "Room and cupboard required"}, status=400)
 
-        def fetch():
-            conn = sqlite3.connect(self.db_path)
-            cur = conn.cursor()
-            cur.execute('''
-                SELECT s.id, s.name, COUNT(DISTINCT o.id), COUNT(DISTINCT i.id)
-                FROM shelves s
-                JOIN cupboards c ON s.cupboard_id = c.id
-                JOIN rooms r ON c.room_id = r.id
-                LEFT JOIN organizers o ON s.id = o.shelf_id
-                LEFT JOIN items i ON s.id = i.shelf_id
-                WHERE r.name = ? AND c.name = ?
-                GROUP BY s.id, s.name
-                ORDER BY s.name
-            ''', (room, cupboard))
-            rows = cur.fetchall()
-            conn.close()
-            return [{"id": r[0], "name": r[1], "organizerCount": r[2], "itemCount": r[3]} for r in rows]
-
-        data = await request.app["hass"].async_add_executor_job(fetch)
+        devreload.reload_if_changed(repository)
+        data = await request.app["hass"].async_add_executor_job(
+            partial(repository.list_shelves, self.db_path, room, cupboard)
+        )
         return web.json_response(data)
 
     async def post(self, request):
@@ -69,38 +37,19 @@ class HomeInventarShelvesView(HomeAssistantView):
         room = data.get("room", "").strip()
         cupboard = data.get("cupboard", "").strip()
         name = data.get("name", "").strip()
-        
+        image = data.get("image") or None
+
         if not room or not cupboard or not name:
             return web.json_response({"error": "Room, cupboard and name required"}, status=400)
 
-        def insert_shelf():
-            conn = sqlite3.connect(self.db_path)
-            cur = conn.cursor()
-            
-            cur.execute('''
-                SELECT c.id FROM cupboards c
-                JOIN rooms r ON c.room_id = r.id
-                WHERE r.name = ? AND c.name = ?
-            ''', (room, cupboard))
-            
-            row = cur.fetchone()
-            if not row:
-                conn.close()
-                return None
-            
-            cupboard_id = row[0]
-            
-            cur.execute("INSERT INTO shelves (name, cupboard_id) VALUES (?, ?)", (name, cupboard_id))
-            conn.commit()
-            shelf_id = cur.lastrowid
-            conn.close()
-            return shelf_id
-
+        devreload.reload_if_changed(repository)
         try:
-            shelf_id = await request.app["hass"].async_add_executor_job(insert_shelf)
+            shelf_id = await request.app["hass"].async_add_executor_job(
+                partial(repository.create_shelf, self.db_path, room, cupboard, name, image)
+            )
             if shelf_id is None:
                 return web.json_response({"error": "Cupboard not found"}, status=404)
-            return web.json_response({"id": shelf_id, "name": name})
+            return web.json_response({"id": shelf_id, "name": name, "image": image or ""})
         except sqlite3.IntegrityError:
             return web.json_response({"error": "Shelf already exists"}, status=400)
 
@@ -111,6 +60,7 @@ class HomeInventarShelvesView(HomeAssistantView):
             
             shelf_id = data.get("id")
             name = data.get("name")
+            new_image = data.get("image")
 
             if not shelf_id:
                 _LOGGER.error("PATCH shelves - missing shelf ID")
@@ -120,21 +70,16 @@ class HomeInventarShelvesView(HomeAssistantView):
                 _LOGGER.error("PATCH shelves - missing shelf name")
                 return web.json_response({"error": "Shelf name required"}, status=400)
 
-            def update_shelf():
-                conn = sqlite3.connect(self.db_path)
-                cur = conn.cursor()
-                
-                _LOGGER.info(f"Updating shelf {shelf_id} to name: {name}")
-                cur.execute("UPDATE shelves SET name = ? WHERE id = ?", (name, shelf_id))
-                conn.commit()
-                count = cur.rowcount
-                conn.close()
-                return count
-
-            count = await request.app["hass"].async_add_executor_job(update_shelf)
+            devreload.reload_if_changed(repository)
+            count, old_image = await request.app["hass"].async_add_executor_job(
+                partial(repository.update_shelf, self.db_path, shelf_id, name, new_image)
+            )
             if count == 0:
                 _LOGGER.error(f"Shelf not found with ID: {shelf_id}")
                 return web.json_response({"error": "Shelf not found"}, status=404)
+
+            if old_image:
+                self._delete_image_file(old_image)
             
             _LOGGER.info(f"Shelf {shelf_id} updated successfully")
             return web.json_response({"message": "Updated"})
@@ -153,24 +98,10 @@ class HomeInventarShelvesView(HomeAssistantView):
             if not shelf_id:
                 return web.json_response({"error": "Shelf ID required"}, status=400)
 
-            def delete_shelf():
-                conn = sqlite3.connect(self.db_path)
-                cur = conn.cursor()
-                
-                cur.execute('''
-                    SELECT image FROM items 
-                    WHERE shelf_id = ? AND image IS NOT NULL AND image != ''
-                ''', (shelf_id,))
-                images_to_delete = [row[0] for row in cur.fetchall()]
-                
-                cur.execute("DELETE FROM shelves WHERE id = ?", (shelf_id,))
-                conn.commit()
-                count = cur.rowcount
-                conn.close()
-                
-                return count, images_to_delete
-
-            count, images_to_delete = await request.app["hass"].async_add_executor_job(delete_shelf)
+            devreload.reload_if_changed(repository)
+            count, images_to_delete = await request.app["hass"].async_add_executor_job(
+                partial(repository.delete_shelf, self.db_path, shelf_id)
+            )
             
             if count == 0:
                 return web.json_response({"error": "Shelf not found"}, status=404)

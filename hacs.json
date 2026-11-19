@@ -1,6 +1,8 @@
 {
   "name": "Home Inventory",
   "content_in_root": false,
-  "homeassistant": "2025.10.1",
-  "render_readme": true
+  "homeassistant": "2026.11.0",
+  "render_readme": true,
+  "zip_release": true,
+  "filename": "home_inventory.zip"
 }

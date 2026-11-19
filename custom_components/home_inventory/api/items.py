@@ -1,11 +1,21 @@
-import sqlite3, logging, os
+import sqlite3, logging, os, json
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
+from datetime import date, timedelta
+from typing import List, Dict, Optional, Tuple
+from functools import partial
 from ..const import DOMAIN
+from ..db import repository, devreload
+from ._images import delete_image_file
 
 _LOGGER = logging.getLogger(__name__)
 
+# ============================================================================
+# API VIEW CLASSES
+# ============================================================================
+
 class HomeInventarItemsView(HomeAssistantView):
+    """API for viewing and creating items"""
     url = f"/api/{DOMAIN}/items"
     name = f"api:{DOMAIN}_items"
     requires_auth = True
@@ -15,173 +25,143 @@ class HomeInventarItemsView(HomeAssistantView):
         self.hass = hass
 
     def _delete_image_file(self, image_path):
-        """Șterge fizic fișierul imaginii de pe disk"""
-        if not image_path:
-            return
-        
-        try:
-            if image_path.startswith(f'/api/{DOMAIN}/images/'):
-                filename = image_path.split('/')[-1].split('?')[0]
-            elif image_path.startswith('/local/'):
-                return
-            else:
-                filename = image_path
-            
-            full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
-            
-            if os.path.exists(full_path):
-                os.remove(full_path)
-                _LOGGER.info(f"[HomeInventar] 🗑️ Deleted image file: {full_path}")
-            else:
-                _LOGGER.debug(f"[HomeInventar] Image file not found: {full_path}")
-                
-        except Exception as e:
-            _LOGGER.error(f"[HomeInventar] Error deleting image file: {e}", exc_info=True)
+        delete_image_file(self.hass, image_path)
 
     async def get(self, request):
+        """Get items from a specific location, or all locations of a master item"""
         room = request.query.get("room")
         cupboard = request.query.get("cupboard")
         shelf = request.query.get("shelf")
         organizer = request.query.get("organizer") 
+        item_id = request.query.get("item_id")  # New: look up all locations of an item
         
+        # If item_id is given, return all locations of that item
+        if item_id:
+            devreload.reload_if_changed(repository)
+            data = await request.app["hass"].async_add_executor_job(
+                partial(repository.list_item_locations, self.db_path, item_id)
+            )
+            return web.json_response(data)
+        
+        # Otherwise, return the items at a specific location
         if not room or not cupboard or not shelf:
             return web.json_response({"error": "Missing params"}, status=400)
 
-        def fetch():
-            conn = sqlite3.connect(self.db_path)
-            cur = conn.cursor()
-            
-            if organizer:
-                cur.execute('''
-                    SELECT i.id, i.name, i.image, i.quantity, i.min_quantity, i.track_quantity, i.aliases,
-                        r.name as room_name,
-                        c.name as cupboard_name,
-                        s.name as shelf_name,
-                        o.name as organizer_name
-                    FROM items i
-                    JOIN organizers o ON i.organizer_id = o.id
-                    JOIN shelves s ON i.shelf_id = s.id
-                    JOIN cupboards c ON s.cupboard_id = c.id
-                    JOIN rooms r ON c.room_id = r.id
-                    WHERE r.name = ? AND c.name = ? AND s.name = ? AND o.name = ?
-                    ORDER BY i.created_at DESC
-                ''', (room, cupboard, shelf, organizer))
-            else:
-                cur.execute('''
-                    SELECT i.id, i.name, i.image, i.quantity, i.min_quantity, i.track_quantity, i.aliases, 
-                        r.name as room_name,
-                        c.name as cupboard_name,
-                        s.name as shelf_name,
-                        NULL as organizer_name
-                    FROM items i
-                    JOIN shelves s ON i.shelf_id = s.id
-                    JOIN cupboards c ON s.cupboard_id = c.id
-                    JOIN rooms r ON c.room_id = r.id
-                    WHERE r.name = ? AND c.name = ? AND s.name = ? AND i.organizer_id IS NULL
-                    ORDER BY i.created_at DESC
-                ''', (room, cupboard, shelf))
-            
-            rows = cur.fetchall()
-            conn.close()
-            
-            result = []
-            for r in rows:
-                image = r[2] if r[2] else ""
-                location = f"{r[7]} / {r[8]} / {r[9]}"
-                if r[10]:
-                    location += f" / {r[10]}"
-                
-                item = {
-                    "id": r[0], 
-                    "name": r[1], 
-                    "image": image,
-                    "quantity": r[3],
-                    "min_quantity": r[4],
-                    "track_quantity": bool(r[5]),
-                    "aliases": r[6],
-                    "location": location
-                }
-                _LOGGER.debug(f"Item fetched - ID: {r[0]}, Name: {r[1]}, Location: '{location}'")
-                result.append(item)
-            
-            return result
-
-        data = await request.app["hass"].async_add_executor_job(fetch)
+        devreload.reload_if_changed(repository)
+        data = await request.app["hass"].async_add_executor_job(
+            partial(repository.list_items_at_location, self.db_path, room, cupboard, shelf, organizer)
+        )
         return web.json_response(data)
 
     async def post(self, request):
+        
         data = await request.json()
-        room = data.get("room", "").strip()
-        cupboard = data.get("cupboard", "").strip()
-        shelf = data.get("shelf", "").strip()
-        organizer = data.get("organizer", "").strip() if data.get("organizer") else None
-        name = data.get("name", "").strip()
-        image = data.get("image", "")
+
+        # 1) Extract & normalize
+        room = (data.get("room") or "").strip()
+        cupboard = (data.get("cupboard") or "").strip()
+        shelf = (data.get("shelf") or "").strip()
+        organizer = (data.get("organizer") or None) or None
+        if isinstance(organizer, str):
+            organizer = organizer.strip() or None
+
+        name = (data.get("name") or "").strip()
+        aliases = (data.get("aliases") or None)
+        if isinstance(aliases, str):
+            aliases = aliases.strip() or None
+        image = data.get("image") or None
+        barcode = (data.get("barcode") or None)
+        if isinstance(barcode, str):
+            barcode = barcode.strip() or None
+
+        variant = data.get("variant")
+        if isinstance(variant, str):
+            variant = variant.strip() or None
+        merge_location_id = data.get("merge_location_id") or None
+        new_row = bool(data.get("new_row", False))
+
+        # numeric fields
         quantity = data.get("quantity")
         min_quantity = data.get("min_quantity")
-        track_quantity = data.get("track_quantity", False)
+        track_quantity = bool(data.get("track_quantity", False))
 
-        if not all([room, cupboard, shelf, name]):
-            return web.json_response({"error": "Missing required params"}, status=400)
+        # new single object: {"quantity": X, "date": "YYYY-MM-DD"} or None
+        exp_obj = data.get("expiration_date")
 
-        _LOGGER.debug(f"Creating item - Name: {name}, Image: '{image}', Organizer: '{organizer}'")
+        if isinstance(exp_obj, str):
+            try:
+                exp_obj = json.loads(exp_obj)
+            except Exception:
+                exp_obj = None
 
-        def insert():
-            conn = sqlite3.connect(self.db_path)
-            cur = conn.cursor()
-            
-            cur.execute('''
-                SELECT s.id FROM shelves s
-                JOIN cupboards c ON s.cupboard_id = c.id
-                JOIN rooms r ON c.room_id = r.id
-                WHERE r.name = ? AND c.name = ? AND s.name = ?
-            ''', (room, cupboard, shelf))
-            
-            row = cur.fetchone()
-            if not row:
-                conn.close()
-                return None
-            
-            shelf_id = row[0]
-            
-            organizer_id = None
-            if organizer:
-                cur.execute('''
-                    SELECT o.id FROM organizers o
-                    JOIN shelves s ON o.shelf_id = s.id
-                    JOIN cupboards c ON s.cupboard_id = c.id
-                    JOIN rooms r ON c.room_id = r.id
-                    WHERE r.name = ? AND c.name = ? AND s.name = ? AND o.name = ?
-                ''', (room, cupboard, shelf, organizer))
-                
-                org_row = cur.fetchone()
-                if org_row:
-                    organizer_id = org_row[0]
-                    _LOGGER.info(f"Found organizer_id: {organizer_id} for '{organizer}'")
-                else:
-                    _LOGGER.warning(f"Organizer '{organizer}' not found!")
-            
-            cur.execute('''
-                INSERT INTO items (name, image, shelf_id, organizer_id, quantity, min_quantity, track_quantity)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (name, image, shelf_id, organizer_id, quantity, min_quantity, 1 if track_quantity else 0))
-            
-            conn.commit()
-            item_id = cur.lastrowid
-            conn.close()
-            return item_id
+        _LOGGER.debug(f"[ITEM CREATE] All data input: {data}")
 
+        # If not tracking, quantities/expiration are cleared
+        if not track_quantity:
+            quantity = None
+            min_quantity = None
+            exp_obj = None
+
+        # Basic validation
+        if not all([room, cupboard, shelf]):
+            return web.json_response(
+                {"error": "Missing required location params (room, cupboard, shelf)."},
+                status=400
+            )
+        if not name and not barcode:
+            return web.json_response(
+                {"error": "Either 'name' or 'barcode' must be provided."},
+                status=400
+            )
+
+        _LOGGER.debug(f"[ITEM CREATE] Processing item: Barcode={barcode}, Name={name}, Aliases={aliases}")
+
+        devreload.reload_if_changed(repository)
+        add_total_qty, add_batch_qty, batch_date = repository.normalize_batch_input(quantity, exp_obj)
+        _LOGGER.debug(f"[ITEM CREATE] After add_total_qty={add_total_qty}, add_batch_qty={add_batch_qty}, batch_date={batch_date}")
+
+        insert = partial(
+            repository.create_item_location,
+            self.db_path,
+            room=room,
+            cupboard=cupboard,
+            shelf=shelf,
+            organizer=organizer,
+            name=name,
+            aliases=aliases,
+            image=image,
+            barcode=barcode,
+            min_quantity=min_quantity,
+            track_quantity=track_quantity,
+            exp_obj=exp_obj,
+            add_total_qty=add_total_qty,
+            add_batch_qty=add_batch_qty,
+            batch_date=batch_date,
+            variant=variant,
+            merge_location_id=merge_location_id,
+            new_row=new_row,
+        )
+
+
+        # 4) Execute in executor, return response
         try:
-            item_id = await request.app["hass"].async_add_executor_job(insert)
-            if item_id is None:
-                return web.json_response({"error": "Shelf not found"}, status=404)
-            return web.json_response({"id": item_id, "name": name})
+            result, error = await request.app["hass"].async_add_executor_job(insert)
+            if error:
+                return web.json_response({"error": error}, status=400)
+
+            location_id, master_item_id = result
+            return web.json_response({
+                "status": "success",
+                "message": "Item location created or updated successfully.",
+                "location_id": location_id,
+                "item_id": master_item_id,
+                "name": name
+            })
         except Exception as e:
-            _LOGGER.error(f"Error adding item: {e}")
-            return web.json_response({"error": str(e)}, status=500)
-
-
+            _LOGGER.error(f"[ITEM CREATE] Fatal thread error: {e}", exc_info=True)
+            return web.json_response({"error": "Internal server error during item processing."}, status=500)
 class HomeInventarItemView(HomeAssistantView):
+    """API for updating and deleting items"""
     url = f"/api/{DOMAIN}/items/{'{item_id}'}"
     name = f"api:{DOMAIN}_item"
     requires_auth = True
@@ -191,200 +171,81 @@ class HomeInventarItemView(HomeAssistantView):
         self.hass = hass
 
     def _delete_image_file(self, image_path):
-        if not image_path:
-            return
-        
-        try:
-            if image_path.startswith(f'/api/{DOMAIN}/images/'):
-                filename = image_path.split('/')[-1].split('?')[0]
-            elif image_path.startswith('/local/'):
-                return
-            else:
-                filename = image_path
-            
-            full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
-            
-            if os.path.exists(full_path):
-                os.remove(full_path)
-                _LOGGER.debug(f"[HomeInventar] 🗑️ Deleted image file: {full_path}")
-            else:
-                _LOGGER.debug(f"[HomeInventar] Image file not found: {full_path}")
-                
-        except Exception as e:
-            _LOGGER.error(f"[HomeInventar] Error deleting image file: {e}", exc_info=True)
+        delete_image_file(self.hass, image_path)
 
     async def patch(self, request, item_id):
-        """Update item details - cu suport pentru mutare și cleanup imagine veche"""
+        """Update item details with smart master item merging/splitting logic"""
         try:
             data = await request.json()
-            _LOGGER.debug(f"PATCH item {item_id} - received data: {data}")
-            
+            _LOGGER.debug(f"[ITEM PATCH] item {item_id} - received data: {data}")
+
+            location_id = data.get("location_id")
             name = data.get("name")
             aliases = data.get("aliases")
+            barcode = data.get("barcode")
             new_image = data.get("image")
-            quantity = data.get("quantity") if "quantity" in data else None
             min_quantity = data.get("min_quantity") if "min_quantity" in data else None
             track_quantity = data.get("track_quantity")
-            
+            expiration_dates = data.get("expiration_dates")
+
+            # Location move parameters
             new_room = data.get("room")
             new_cupboard = data.get("cupboard")
             new_shelf = data.get("shelf")
             new_organizer = data.get("organizer")
 
-            def update_item():
-                conn = sqlite3.connect(self.db_path)
-                cur = conn.cursor()
-                
-                old_image = None
-                if new_image is not None:
-                    cur.execute("SELECT image FROM items WHERE id = ?", (item_id,))
-                    row = cur.fetchone()
-                    if row:
-                        old_image = row[0]
-                
-                updates = []
-                params = []
-                
-                if name is not None:
-                    updates.append("name = ?")
-                    params.append(name)
-                
-                if aliases is not None:
-                    updates.append("aliases = ?")
-                    params.append(aliases)
-                
-                if new_image is not None:
-                    updates.append("image = ?")
-                    params.append(new_image)
-                    _LOGGER.debug(f"Updating item image to: '{new_image}'")
-                
-                if "quantity" in data:
-                    updates.append("quantity = ?")
-                    params.append(quantity)
-                    _LOGGER.debug(f"Updating quantity to: {quantity}")
-                
-                if "min_quantity" in data:
-                    updates.append("min_quantity = ?")
-                    params.append(min_quantity)
-                    _LOGGER.debug(f"Updating min_quantity to: {min_quantity}")
-                
-                if track_quantity is not None:
-                    updates.append("track_quantity = ?")
-                    params.append(1 if track_quantity else 0)
-                
-                if new_room and new_cupboard and new_shelf:
-                    _LOGGER.info(f"Moving item {item_id} to: {new_room}/{new_cupboard}/{new_shelf}/{new_organizer or 'direct'}")
-                    
-                    if new_image is not None and old_image is None:
-                        cur.execute("SELECT image FROM items WHERE id = ?", (item_id,))
-                        img_row = cur.fetchone()
-                        if img_row and img_row[0]:
-                            old_image = img_row[0]
-                    
-                    cur.execute('''
-                        SELECT s.id FROM shelves s
-                        JOIN cupboards c ON s.cupboard_id = c.id
-                        JOIN rooms r ON c.room_id = r.id
-                        WHERE r.name = ? AND c.name = ? AND s.name = ?
-                    ''', (new_room, new_cupboard, new_shelf))
-                    
-                    shelf_row = cur.fetchone()
-                    if not shelf_row:
-                        conn.close()
-                        return 0, None, "Destination shelf not found"
-                    
-                    new_shelf_id = shelf_row[0]
-                    updates.append("shelf_id = ?")
-                    params.append(new_shelf_id)
-                    
-                    new_organizer_id = None
-                    if new_organizer:
-                        cur.execute('''
-                            SELECT o.id FROM organizers o
-                            JOIN shelves s ON o.shelf_id = s.id
-                            JOIN cupboards c ON s.cupboard_id = c.id
-                            JOIN rooms r ON c.room_id = r.id
-                            WHERE r.name = ? AND c.name = ? AND s.name = ? AND o.name = ?
-                        ''', (new_room, new_cupboard, new_shelf, new_organizer))
-                        
-                        org_row = cur.fetchone()
-                        if org_row:
-                            new_organizer_id = org_row[0]
-                            _LOGGER.info(f"Found organizer_id: {new_organizer_id} for '{new_organizer}'")
-                        else:
-                            conn.close()
-                            return 0, None, f"Organizer '{new_organizer}' not found"
-                    
-                    updates.append("organizer_id = ?")
-                    params.append(new_organizer_id)
-                
-                if not updates:
-                    conn.close()
-                    return 0, None, None
-                
-                params.append(item_id)
-                sql = f"UPDATE items SET {', '.join(updates)} WHERE id = ?"
-                
-                _LOGGER.debug(f"Executing: {sql} with params: {params}")
-                cur.execute(sql, params)
-                conn.commit()
-                count = cur.rowcount
-                conn.close()
-                
-                return count, old_image if (new_image is not None and old_image and old_image != new_image) else None, None
+            # Validation: track_quantity
+            if track_quantity is not None and not track_quantity:
+                min_quantity = None
+                expiration_dates = None
 
-            count, old_image, error = await request.app["hass"].async_add_executor_job(update_item)
-            
+            # Validation: min_quantity >= 0
+            if min_quantity is not None and min_quantity < 0:
+                return web.json_response({"error": "min_quantity must be >= 0"}, status=400)
+
+            devreload.reload_if_changed(repository)
+            update_item = partial(
+                repository.update_item,
+                self.db_path,
+                item_id,
+                data,
+                location_id=location_id,
+                name=name,
+                aliases=aliases,
+                barcode=barcode,
+                new_image=new_image,
+                min_quantity=min_quantity,
+                track_quantity=track_quantity,
+                expiration_dates=expiration_dates,
+                new_room=new_room,
+                new_cupboard=new_cupboard,
+                new_shelf=new_shelf,
+                new_organizer=new_organizer,
+                variant=data.get("variant"),
+                variant_barcode=data.get("variant_barcode"),
+            )
+
+            count, old_images, error = await request.app["hass"].async_add_executor_job(update_item)
+
             if error:
-                return web.json_response({"error": error}, status=404)
-            
+                return web.json_response({"error": error}, status=400)
+
             if count == 0:
                 return web.json_response({"error": "Item not found"}, status=404)
-            
-            if old_image:
-                self._delete_image_file(old_image)
-                _LOGGER.debug(f"Old image cleaned: {old_image}")
-            
-            if "quantity" in data:
-                def check_low_stock():
-                    conn = sqlite3.connect(self.db_path)
-                    cur = conn.cursor()
-                    
-                    cur.execute('''
-                        SELECT i.id, i.name, i.quantity, i.min_quantity, i.track_quantity, i.aliases,
-                            r.name as room_name, c.name as cupboard_name, s.name as shelf_name
-                        FROM items i
-                        JOIN shelves s ON i.shelf_id = s.id
-                        JOIN cupboards c ON s.cupboard_id = c.id
-                        JOIN rooms r ON c.room_id = r.id
-                        WHERE i.id = ?
-                    ''', (item_id,))
-                    
-                    row = cur.fetchone()
-                    conn.close()
-                    
-                    if not row:
-                        return None
-                    
-                    item_id_db, name, qty, min_qty, track_qty, aliases, room, cupboard, shelf = row
-                    
-                    if track_qty and qty is not None and min_qty is not None:
-                        if qty <= min_qty:
-                            return {
-                                "item_id": item_id_db,
-                                "name": name,
-                                "aliases": aliases,
-                                "quantity": qty,
-                                "min_quantity": min_qty,
-                                "room": room,
-                                "cupboard": cupboard,
-                                "shelf": shelf,
-                                "location": f"{room} / {cupboard} / {shelf}"
-                            }
-                    return None
-                
+
+            # Clean up old images
+            for old_image in old_images:
+                if old_image:
+                    self._delete_image_file(old_image)
+                    _LOGGER.debug(f"[ITEM PATCH] Old image cleaned: {old_image}")
+
+            # Check low stock
+            if expiration_dates is not None and location_id:
+                devreload.reload_if_changed(repository)
+                check_low_stock = partial(repository.get_low_stock_info, self.db_path, location_id)
+
                 low_stock_data = await request.app["hass"].async_add_executor_job(check_low_stock)
-                
+
                 if low_stock_data:
                     _LOGGER.debug(
                         f"🔔 Low stock detected for item {low_stock_data['item_id']}: "
@@ -395,42 +256,141 @@ class HomeInventarItemView(HomeAssistantView):
                         "home_inventory_low_stock",
                         low_stock_data
                     )
-            
+
             return web.json_response({"message": "Updated"})
-            
+
         except Exception as e:
             _LOGGER.error(f"Error updating item: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
 
     async def delete(self, request, item_id):
-        """Delete item + cleanup image"""
         try:
-            def delete_item():
-                conn = sqlite3.connect(self.db_path)
-                cur = conn.cursor()
-                
-                cur.execute("SELECT image FROM items WHERE id = ?", (item_id,))
-                row = cur.fetchone()
-                old_image = row[0] if row else None
-                
-                cur.execute("DELETE FROM items WHERE id = ?", (item_id,))
-                conn.commit()
-                count = cur.rowcount
-                conn.close()
-                
-                return count, old_image
+            # item_id from URL path is actually location_id
+            location_id = item_id
+            _LOGGER.info(f"[ITEM DELETE] Deleting location {location_id}")
 
-            count, old_image = await request.app["hass"].async_add_executor_job(delete_item)
-            
+            devreload.reload_if_changed(repository)
+            delete_location = partial(repository.delete_item_location, self.db_path, location_id)
+
+            count, images, error = await request.app["hass"].async_add_executor_job(delete_location)
+
+            if error:
+                return web.json_response({"error": error}, status=400)
+
             if count == 0:
-                return web.json_response({"error": "Item not found"}, status=404)
-            
-            if old_image:
-                self._delete_image_file(old_image)
-            
-            _LOGGER.debug(f"Item {item_id} deleted successfully" + (" (image cleaned)" if old_image else ""))
-            return web.json_response({"message": "Deleted"})
-            
+                return web.json_response({"error": "Location not found"}, status=404)
+
+            # Clean up images
+            for image in images:
+                if image:
+                    self._delete_image_file(image)
+                    _LOGGER.debug(f"[ITEM DELETE] Image deleted: {image}")
+
+            return web.json_response({"message": "Location deleted successfully"})
+
         except Exception as e:
-            _LOGGER.error(f"Error deleting item: {e}", exc_info=True)
+            _LOGGER.error(f"Error deleting location: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
+class HomeInventarItemMasterView(HomeAssistantView):
+    url = f"/api/{DOMAIN}/items_master"
+    name = f"api:{DOMAIN}_items_master"
+    requires_auth = True
+
+    def __init__(self, db_path, hass):
+        self.db_path = db_path
+        self.hass = hass
+
+    async def get(self, request):
+        search = request.query.get("search", "").strip()
+        barcode = request.query.get("barcode", "").strip()
+        
+        devreload.reload_if_changed(repository)
+        data = await request.app["hass"].async_add_executor_job(
+            partial(repository.list_item_masters, self.db_path, search, barcode)
+        )
+        return web.json_response(data)
+
+
+class HomeInventarItemMasterUpdateView(HomeAssistantView):
+    """API for updating a master item"""
+    url = f"/api/{DOMAIN}/items_master/{'{item_id}'}"
+    name = f"api:{DOMAIN}_items_master_update"
+    requires_auth = True
+
+    def __init__(self, db_path, hass):
+        self.db_path = db_path
+        self.hass = hass
+
+    def _delete_image_file(self, image_path):
+        delete_image_file(self.hass, image_path)
+
+    async def patch(self, request, item_id):
+        """Update item master details"""
+        try:
+            data = await request.json()
+            _LOGGER.debug(f"[ITEM_MASTER PATCH] item {item_id} - received data: {data}")
+
+            name = data.get("name")
+            aliases = data.get("aliases")
+            barcode = data.get("barcode")
+            default_image = data.get("default_image")
+            min_quantity = data.get("min_quantity") if "min_quantity" in data else None
+
+            devreload.reload_if_changed(repository)
+            update_master = partial(
+                repository.update_item_master, self.db_path, item_id, data,
+                name=name, aliases=aliases, barcode=barcode,
+                default_image=default_image, min_quantity=min_quantity,
+            )
+
+            count, old_images, error = await request.app["hass"].async_add_executor_job(update_master)
+
+            if error:
+                return web.json_response({"error": error}, status=400)
+
+            if count == 0:
+                return web.json_response({"error": "Item master not found"}, status=404)
+
+            # Clean up old images
+            for old_image in old_images:
+                if old_image:
+                    self._delete_image_file(old_image)
+                    _LOGGER.debug(f"[ITEM_MASTER PATCH] Old image cleaned: {old_image}")
+
+            return web.json_response({"message": "Updated"})
+
+        except Exception as e:
+            _LOGGER.error(f"Error updating item master: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def delete(self, request, item_id):
+        """Delete item master with cascade deletion of all locations and images"""
+        try:
+            _LOGGER.info(f"[ITEM_MASTER DELETE] Deleting item master {item_id}")
+
+            devreload.reload_if_changed(repository)
+            delete_master = partial(repository.delete_item_master, self.db_path, item_id)
+
+            count, images, locations, error = await request.app["hass"].async_add_executor_job(delete_master)
+
+            if error:
+                return web.json_response({"error": error}, status=400)
+
+            if count == 0:
+                return web.json_response({"error": "Item master not found"}, status=404)
+
+            # Clean up all images
+            for image in images:
+                if image:
+                    self._delete_image_file(image)
+                    _LOGGER.debug(f"[ITEM_MASTER DELETE] Image deleted: {image}")
+
+            return web.json_response({
+                "message": "Item master deleted successfully",
+                "deleted_locations": len(locations)
+            })
+
+        except Exception as e:
+            _LOGGER.error(f"Error deleting item master: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)

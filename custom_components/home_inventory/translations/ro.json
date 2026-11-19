@@ -3,15 +3,17 @@
   "config": {
     "step": {
       "user": {
-        "title": "Configurează Home Inventory",
-        "description": "Configurează sistemul tău local de gestionare a inventarului.\n\n📦 **Structură**: {structure_info}\n\n✅ 3 senzori automați pentru monitorizare\n✅ Notificări pentru stoc redus\n✅ 100% stocare locală (fără cloud)",
+        "title": "Configurare Home Inventory",
+        "description": "Gestionează inventarul casei local, fără cloud.\n\n**Structură:** {structure_info}\n\n- 4 senzori automați\n- Notificări pentru stoc redus și expirare\n- Stocare 100% locală",
         "data": {
-          "allow_structure_modification": "Permite modificarea structurii (camere, dulapuri, rafturi)",
-          "language": "Limba interfeței"
+          "language": "Limba interfeței",
+          "allow_structure_modification": "Permite editarea structurii",
+          "show_qr_nfc": "Afișează butoanele QR / NFC"
         },
         "data_description": {
-          "allow_structure_modification": "Dacă este dezactivat, nu poți adăuga/edita/șterge camere, dulapuri sau rafturi din UI",
-          "language": "Alege limba preferată pentru interfață"
+          "language": "Limba folosită de panoul Home Inventory.",
+          "allow_structure_modification": "Când este oprit, camerele, dulapurile și rafturile nu pot fi adăugate, editate sau șterse din panou.",
+          "show_qr_nfc": "Când este oprit, butonul QR / NFC este ascuns la dulapuri și rafturi."
         }
       }
     },
@@ -22,24 +24,50 @@
   "options": {
     "step": {
       "init": {
-        "title": "Opțiuni Home Inventory",
-        "description": "Modifică setările inventarului tău.\n\n📦 **Structură**: {structure_info}\n📊 **Senzori**: {sensor_count}\n📢 **Evenimente**: {event_info}",
+        "title": "Setări Home Inventory",
+        "description": "**Structură:** {structure_info}\n\n**Senzori:** {sensor_count}\n\n**Evenimente:** {event_info}",
         "data": {
-          "allow_structure_modification": "Permite modificarea structurii",
-          "language": "Limba interfeței"
+          "language": "Limba interfeței",
+          "allow_structure_modification": "Permite editarea structurii",
+          "show_qr_nfc": "Afișează butoanele QR / NFC"
         },
         "data_description": {
-          "allow_structure_modification": "Activează/dezactivează posibilitatea de a modifica camere, dulapuri și rafturi",
-          "language": "Preferință de limbă pentru UI"
+          "language": "Limba folosită de panoul Home Inventory.",
+          "allow_structure_modification": "Când este oprit, camerele, dulapurile și rafturile nu pot fi adăugate, editate sau șterse din panou.",
+          "show_qr_nfc": "Când este oprit, butonul QR / NFC este ascuns la dulapuri și rafturi."
+        },
+        "sections": {
+          "expiry": {
+            "name": "Anunță înainte de expirare",
+            "description": "Primești o notificare înainte ca un lot să expire (maxim 31 zile sau 12 luni).",
+            "data": {
+              "expiry_warning_value": "Anunță cu",
+              "expiry_warning_unit": "Unitate"
+            },
+            "data_description": {
+              "expiry_warning_value": "Număr de zile / luni.",
+              "expiry_warning_unit": "Zile sau luni."
+            }
+          }
         }
       }
+    },
+    "error": {
+      "invalid_expiry_value": "Introdu 1–31 pentru zile sau 1–12 pentru luni."
     }
   },
   "selector": {
     "language": {
       "options": {
         "en": "English",
-        "ro": "Română"
+        "ro": "Română",
+        "ru": "Русский"
+      }
+    },
+    "expiry_unit": {
+      "options": {
+        "days": "Zile",
+        "months": "Luni"
       }
     }
   }

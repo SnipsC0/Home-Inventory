@@ -1,0 +1,74 @@
+{
+  "title": "Home Inventory",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Настройка Home Inventory",
+        "description": "Управляйте домашним инвентарём локально, без облака.\n\n**Структура:** {structure_info}\n\n- 4 автоматических датчика\n- Уведомления о низком запасе и истечении срока годности\n- 100% локальное хранение",
+        "data": {
+          "language": "Язык интерфейса",
+          "allow_structure_modification": "Разрешить редактирование структуры",
+          "show_qr_nfc": "Показывать кнопки QR / NFC"
+        },
+        "data_description": {
+          "language": "Язык, используемый панелью Home Inventory.",
+          "allow_structure_modification": "Если выключено, комнаты, шкафы и полки нельзя добавлять, изменять или удалять из панели.",
+          "show_qr_nfc": "Если выключено, кнопка QR / NFC скрыта у шкафов и полок."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Home Inventory уже настроен. Допускается только один экземпляр."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Настройки Home Inventory",
+        "description": "**Структура:** {structure_info}\n\n**Датчики:** {sensor_count}\n\n**События:** {event_info}",
+        "data": {
+          "language": "Язык интерфейса",
+          "allow_structure_modification": "Разрешить редактирование структуры",
+          "show_qr_nfc": "Показывать кнопки QR / NFC"
+        },
+        "data_description": {
+          "language": "Язык, используемый панелью Home Inventory.",
+          "allow_structure_modification": "Если выключено, комнаты, шкафы и полки нельзя добавлять, изменять или удалять из панели.",
+          "show_qr_nfc": "Если выключено, кнопка QR / NFC скрыта у шкафов и полок."
+        },
+        "sections": {
+          "expiry": {
+            "name": "Предупреждать до истечения срока",
+            "description": "Вы получите уведомление до истечения срока годности партии (максимум 31 день или 12 месяцев).",
+            "data": {
+              "expiry_warning_value": "Предупреждать за",
+              "expiry_warning_unit": "Единица"
+            },
+            "data_description": {
+              "expiry_warning_value": "Количество дней / месяцев.",
+              "expiry_warning_unit": "Дни или месяцы."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_expiry_value": "Введите 1–31 для дней или 1–12 для месяцев."
+    }
+  },
+  "selector": {
+    "language": {
+      "options": {
+        "en": "English",
+        "ro": "Română",
+        "ru": "Русский"
+      }
+    },
+    "expiry_unit": {
+      "options": {
+        "days": "Дни",
+        "months": "Месяцы"
+      }
+    }
+  }
+}

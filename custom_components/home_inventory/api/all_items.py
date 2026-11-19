@@ -1,11 +1,14 @@
-import sqlite3, logging
+import logging
+from functools import partial
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from ..const import DOMAIN
+from ..db import repository, devreload
 
 _LOGGER = logging.getLogger(__name__)
 
 class HomeInventarAllItemsView(HomeAssistantView):
+    """Return all items with all their locations"""
     url = f"/api/{DOMAIN}/all_items"
     name = f"api:{DOMAIN}_all_items"
     requires_auth = True
@@ -14,50 +17,21 @@ class HomeInventarAllItemsView(HomeAssistantView):
         self.db_path = db_path
 
     async def get(self, request):
-        def fetch():
-            conn = sqlite3.connect(self.db_path)
-            cur = conn.cursor()
-            cur.execute('''
-                SELECT 
-                    i.id, 
-                    i.name, 
-                    i.image,
-                    i.quantity,
-                    i.min_quantity,
-                    i.track_quantity,
-                    i.aliases,
-                    r.name as room_name,
-                    c.name as cupboard_name,
-                    s.name as shelf_name,
-                    o.name as organizer_name
-                FROM items i
-                JOIN shelves s ON i.shelf_id = s.id
-                JOIN cupboards c ON s.cupboard_id = c.id
-                JOIN rooms r ON c.room_id = r.id
-                LEFT JOIN organizers o ON i.organizer_id = o.id
-                ORDER BY i.created_at DESC
-            ''')
-            rows = cur.fetchall()
-            conn.close()
-            
-            return [{
-                "id": r[0],
-                "name": r[1],
-                "image": r[2],
-                "quantity": r[3],
-                "min_quantity": r[4],
-                "track_quantity": bool(r[5]),
-                "aliases": r[6],
-                "room": r[7],
-                "cupboard": r[8],
-                "shelf": r[9],
-                "location": f"{r[7]} / {r[8]} / {r[9]}" + (f" / {r[10]}" if r[10] else "")
-            } for r in rows]
-
-        data = await request.app["hass"].async_add_executor_job(fetch)
+        """Get all items with their locations"""
+        search = request.query.get("search", "").strip()
+        barcode = request.query.get("barcode", "").strip()
+        low_stock_only = request.query.get("low_stock_only", "false").lower() == "true"
+        expired_only = request.query.get("expired_only", "false").lower() == "true"
+        
+        devreload.reload_if_changed(repository)
+        data = await request.app["hass"].async_add_executor_job(
+            partial(repository.list_all_items, self.db_path, search, barcode, low_stock_only, expired_only)
+        )
         return web.json_response(data)
 
+
 class HomeInventarUpdateItemQuantityView(HomeAssistantView):
+    """Update the quantity of an item at a specific location"""
     url = f"/api/{DOMAIN}/items/{'{item_id}'}/quantity"
     name = f"api:{DOMAIN}_item_quantity"
     requires_auth = True
@@ -67,85 +41,29 @@ class HomeInventarUpdateItemQuantityView(HomeAssistantView):
 
     async def patch(self, request, item_id):
         data = await request.json()
+        location_id = data.get("location_id")
         quantity = data.get("quantity")
         min_quantity = data.get("min_quantity")
         track_quantity = data.get("track_quantity")
+        expiration_dates = data.get("expiration_dates")
 
-        def update():
-            conn = sqlite3.connect(self.db_path)
-            cur = conn.cursor()
-            
-            updates = []
-            params = []
-            
-            if quantity is not None:
-                updates.append("quantity = ?")
-                params.append(quantity)
-            
-            if min_quantity is not None:
-                updates.append("min_quantity = ?")
-                params.append(min_quantity)
-            
-            if track_quantity is not None:
-                updates.append("track_quantity = ?")
-                params.append(1 if track_quantity else 0)
-            
-            if not updates:
-                conn.close()
-                return None
-            
-            params.append(item_id)
-            sql = f"UPDATE items SET {', '.join(updates)} WHERE id = ?"
-            
-            cur.execute(sql, params)
-            conn.commit()
+        if not location_id:
+            return web.json_response({"error": "location_id required"}, status=400)
 
-            count = cur.rowcount
-            conn.close()
-            return count
-
-        count = await request.app["hass"].async_add_executor_job(update)
+        devreload.reload_if_changed(repository)
+        count = await request.app["hass"].async_add_executor_job(
+            partial(
+                repository.update_item_quantity, self.db_path, item_id, location_id,
+                quantity, min_quantity, track_quantity, expiration_dates,
+            )
+        )
         if count == 0:
-            return web.json_response({"error": "Item not found"}, status=404)
+            return web.json_response({"error": "Item location not found"}, status=404)
         
-        def check_low_stock():
-            conn = sqlite3.connect(self.db_path)
-            cur = conn.cursor()
-            
-            cur.execute('''
-                SELECT i.id, i.name, i.quantity, i.min_quantity, i.track_quantity, i.aliases,
-                       r.name as room_name, c.name as cupboard_name, s.name as shelf_name
-                FROM items i
-                JOIN shelves s ON i.shelf_id = s.id
-                JOIN cupboards c ON s.cupboard_id = c.id
-                JOIN rooms r ON c.room_id = r.id
-                WHERE i.id = ?
-            ''', (item_id,))
-            
-            row = cur.fetchone()
-            conn.close()
-            
-            if not row:
-                return None
-            
-            item_id_db, name, qty, min_qty, track_qty, aliases, room, cupboard, shelf = row
-            
-            if track_qty and qty is not None and min_qty is not None:
-                if qty <= min_qty:
-                    return {
-                        "item_id": item_id_db,
-                        "name": name,
-                        "aliases": aliases,
-                        "quantity": qty,
-                        "min_quantity": min_qty,
-                        "room": room,
-                        "cupboard": cupboard,
-                        "shelf": shelf,
-                        "location": f"{room} / {cupboard} / {shelf}"
-                    }
-            return None
-        
-        low_stock_data = await request.app["hass"].async_add_executor_job(check_low_stock)
+        # Check low stock
+        low_stock_data = await request.app["hass"].async_add_executor_job(
+            partial(repository.get_quantity_update_low_stock, self.db_path, location_id)
+        )
         
         if low_stock_data:
             _LOGGER.debug(
@@ -159,3 +77,27 @@ class HomeInventarUpdateItemQuantityView(HomeAssistantView):
             )
         
         return web.json_response({"message": "Updated"})
+
+
+class HomeInventarItemSearchView(HomeAssistantView):
+    """Advanced item search"""
+    url = f"/api/{DOMAIN}/items/search"
+    name = f"api:{DOMAIN}_items_search"
+    requires_auth = True
+
+    def __init__(self, db_path):
+        self.db_path = db_path
+
+    async def get(self, request):
+        """Search items by name, alias, or barcode"""
+        query = request.query.get("q", "").strip()
+        barcode = request.query.get("barcode", "").strip()
+        
+        if not query and not barcode:
+            return web.json_response({"error": "Query or barcode required"}, status=400)
+        
+        devreload.reload_if_changed(repository)
+        data = await request.app["hass"].async_add_executor_job(
+            partial(repository.search_items, self.db_path, query, barcode)
+        )
+        return web.json_response(data)

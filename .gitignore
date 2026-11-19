@@ -10,3 +10,16 @@ __pycache__/
 *.zip
 frontend/.env
 frontend/node_modules
+local_docs/
+docs/
+CLAUDE.md
+.venv/
+.pytest_cache/
+# Agent files
+PLAN.md
+AGENTS.md
+GEMINI.md
+CLAUDE.local.md
+.claude/
+dist/
+dist/

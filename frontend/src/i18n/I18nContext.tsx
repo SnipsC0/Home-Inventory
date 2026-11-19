@@ -5,9 +5,13 @@ import {
   useEffect,
   ReactNode,
 } from 'react';
-import { Language, Translations, translations } from './translations';
-
-const STORAGE_KEY = 'home_inventory_language';
+import {
+  Language,
+  LANGUAGES,
+  LANGUAGE_STORAGE_KEY as STORAGE_KEY,
+  Translations,
+  translations,
+} from './translations';
 
 interface I18nContextType {
   language: Language;
@@ -24,17 +28,21 @@ interface I18nProviderProps {
 export function I18nProvider({ children, configLanguage }: I18nProviderProps) {
   const [language, setLanguage] = useState<Language>(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as Language | null;
-    if (stored && (stored === 'en' || stored === 'ro')) {
+    if (stored && LANGUAGES.includes(stored)) {
       return stored;
     }
     return configLanguage || 'en';
   });
 
+  // The integration option is the source of truth; localStorage only caches it
+  // for screens shown before the config has loaded.
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored && configLanguage && configLanguage !== language) {
-      setLanguage(configLanguage);
+    if (!configLanguage) return;
+    if (configLanguage !== language) setLanguage(configLanguage);
+    try {
       localStorage.setItem(STORAGE_KEY, configLanguage);
+    } catch {
+      /* storage unavailable */
     }
   }, [configLanguage]);
 

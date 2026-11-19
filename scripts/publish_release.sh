@@ -33,6 +33,8 @@ SHA="$(git -C "$ROOT" rev-parse HEAD)"
 
 # PR that introduced this commit: GitHub API first, then a "(#N)" in the commit subject.
 PR_NUMBER="$(gh api "repos/{owner}/{repo}/commits/$SHA/pulls" --jq '.[0].number // empty' 2>/dev/null || true)"
+# gh prints the error body on stdout when the call fails: accept digits only.
+case "$PR_NUMBER" in ''|*[!0-9]*) PR_NUMBER="" ;; esac
 if [ -z "$PR_NUMBER" ]; then
   PR_NUMBER="$(git -C "$ROOT" log -1 --format=%s "$SHA" | grep -oE '\(#[0-9]+\)' | tail -1 | tr -dc '0-9' || true)"
 fi

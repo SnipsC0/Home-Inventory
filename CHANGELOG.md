@@ -1,3 +1,63 @@
+## 🏷️ 3.0.1
+
+> Home Inventory 3.0 is a big update: one item can now be stored in several places, with variants, barcodes, expiry alerts and photos for every location. Version 3.0.1 is the first one you should install - it also makes sure your browser or the Home Assistant app shows the new look right after updating.
+
+### ⚠️ Before you update
+
+- You need Home Assistant **2026.11.0** or newer, and the integration must be installed from the built-in **Marketplace** (it replaces HACS). If you have an older Home Assistant, stay on version 2.0.3.
+- **Your data is upgraded automatically** the first time Home Assistant starts with this version. Nothing to do on your side.
+- **A backup is made for you first**, right before the upgrade: `<config>/data/home_inventory_backup.zip` (usually `/config/data/home_inventory_backup.zip`). It contains your database and all your photos. It never overwrites an older backup (a date is added to the name instead). If the backup can't be created, the upgrade is not applied and your data stays untouched.
+- **To go back to the old version:** stop Home Assistant, unzip the backup into `<config>/data/` (it contains the `home_inventory` folder), then reinstall 2.0.3.
+
+### What's new in 3.0.1
+
+- **No more stale screens after updating.** Previously your browser or the Home Assistant app could keep showing the old panel after an update until you refreshed manually. It now picks up the new version by itself.
+- If you already installed 3.0.0 and still see the old interface, do one hard refresh (Ctrl+F5, or clear the app cache) - after that it stays up to date.
+
+### Highlights of version 3
+
+- **One item, many places** - keep the same item in several locations, each with its own quantity, expiry dates and photo.
+- **Variants and barcodes** - e.g. "small jar" and "large jar" as separate entries, each with its own barcode.
+- **Expiry alerts** - a new "Expiring" view, plus a sensor and an event you can use in Home Assistant automations and notifications.
+- **Photos everywhere** - rooms, shelves and every place where an item is stored, with fast-loading previews.
+- **QR / NFC links that last** - they keep working even if you rename a room, cupboard or shelf. Already printed QR codes still work.
+- **Russian translation** - the panel and the integration settings (pick the language in the options).
+
+### New features
+
+**Items and barcodes**
+
+- **Variants**: the same item placed in the same spot can be kept as separate entries, each with an optional label (e.g. "500 g"). When adding, you choose an existing entry or start a new one.
+- **Barcode per variant**: scan or type a barcode and the item, variant and entry are selected for you. Items without variants have one editable barcode.
+- **Find by barcode**: scan or type a barcode from the top bar to jump straight to the item.
+
+**Expiry**
+
+- **Expiry warnings**: choose how early you want to be warned (1-31 days or 1-12 months, 7 days by default).
+- Home Assistant gets a `sensor.home_inventory_expiring_batches` sensor and a `home_inventory_expiring_soon` event for your automations.
+- Typing an expiry date is easier: it formats itself as `YYYY/MM/DD`, and the dates of one item are sorted when you edit it.
+
+**Places and photos**
+
+- You can add a photo to rooms and shelves, and remove photos from anything that has one.
+- All items, Move location and the organizer move menu show the photo of the place (room › cupboard › shelf › organizer), so it's easier to recognise where things are.
+- Photos load as small previews first, with a smooth loading animation and automatic retry.
+- **QR / NFC window** for cupboards and shelves: download the QR code as an image or copy the link to write on an NFC tag.
+- **Delete preview**: before deleting a room, cupboard or shelf you see exactly what will disappear with it (contents, items, photos).
+
+**Home Assistant**
+
+- The "tracked items" sensor now also tells you where each item is.
+
+### Changes
+
+- A refreshed look: new cards, headers, windows and views, and a new loading animation.
+- All texts are translated (Romanian and English), following the language you selected in the settings.
+- Barcode "Video scan" now uses the built-in scanner of the Home Assistant Companion app (works even without https). Uploading a photo of the barcode and typing it in still work. Barcodes can only contain digits.
+- QR codes are created on your own Home Assistant, without any online service.
+- Items and organizers can be edited and deleted even when "allow structure modification" is off - that setting now only protects rooms, cupboards and shelves.
+- The settings screen uses a language dropdown and simple on/off switches.
+
 ## 🏷️ 3.0.0
 
 > Items can now live in several places at once, with variants, per-variant barcodes, expiry alerts, photos for every location and a refreshed UI.

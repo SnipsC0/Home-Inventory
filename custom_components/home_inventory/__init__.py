@@ -1,5 +1,5 @@
 # custom_components/home_inventory/__init__.py
-import logging, os, time, random
+import json, logging, os
 import voluptuous as vol
 from homeassistant.helpers import config_validation as cv
 
@@ -31,7 +31,18 @@ from .const import DOMAIN
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
-VERSION = f"2.0.0.{int(time.time())}{random.randint(1000, 9999)}"
+
+
+def _read_manifest_version() -> str:
+    # Read once at import time (integration modules load in an executor, not the event loop)
+    try:
+        with open(os.path.join(os.path.dirname(__file__), "manifest.json"), encoding="utf-8") as f:
+            return str(json.load(f)["version"])
+    except (OSError, ValueError, KeyError):
+        return "0"
+
+
+VERSION = _read_manifest_version()
 
 
 def ensure_data_folders(hass: HomeAssistant):
@@ -106,7 +117,7 @@ async def async_setup_entry(hass, entry):
             config={
                 "_panel_custom": {
                     "name": "home-inventory-app",
-                    "module_url": f"/{DOMAIN}_static/panel-wrapper.js",
+                    "module_url": f"/{DOMAIN}_static/panel-wrapper.js?v={VERSION}",
                 }
             },
             require_admin=False,

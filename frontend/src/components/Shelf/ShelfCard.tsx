@@ -1,12 +1,16 @@
 import { FC, ReactElement } from 'react';
+import { Library } from 'lucide-react';
 import { Shelf } from '../../types';
 import { useInteractions } from '../../hooks/global/useInteractions';
 import { useTranslation } from '../../i18n/I18nContext';
+import SmartImage from '../SmartImage';
+import LocationLinkButton from '../Card/LocationLinkButton';
 
 interface Props {
   shelf: Shelf;
   onClick: () => void;
   onEdit: () => void;
+  onLinks?: () => void;
   editable?: boolean;
 }
 
@@ -14,6 +18,7 @@ const ShelfCard: FC<Props> = ({
   shelf,
   onClick,
   onEdit,
+  onLinks,
   editable,
 }): ReactElement => {
   const { t } = useTranslation();
@@ -25,18 +30,35 @@ const ShelfCard: FC<Props> = ({
     enabled: editable ?? false,
   });
 
+  const linkButton = onLinks && (
+    <LocationLinkButton onClick={onLinks} />
+  );
+
   return (
     <div
       {...interactionHandlers}
-      className="bg-ha-card p-4 rounded-lg shadow-ha select-none"
+      className="surface surface-interactive p-3 select-none overflow-hidden"
     >
-      <div className="cursor-pointer p-3 rounded text-center hover:bg-ha-secondary-bg transition">
-        <div className="text-3xl mb-2">📚</div>
-        <div className="font-semibold text-ha-text mb-1">{shelf.name}</div>
-        <div className="text-ha-primary text-sm">
-          {shelf.itemCount} {t.items.title.toLowerCase()}
+      {shelf.image ? (
+        <SmartImage
+          src={shelf.image}
+          alt={shelf.name}
+          wrapperClassName="w-full h-[180px] rounded-xl mb-3"
+          width={480}
+          fallback={<Library size={40} strokeWidth={1.5} />}
+        />
+      ) : (
+        <div className="w-full h-[180px] rounded-xl flex items-center justify-center mb-3 text-ha-primary bg-ha-primary/10">
+          <Library size={40} strokeWidth={1.5} />
         </div>
+      )}
+      <div className="px-3 pb-2 text-center">
+        <div className="font-bold text-ha-text mb-2">{shelf.name}</div>
+        <span className="count-badge">
+          {shelf.itemCount} {t.items.title.toLowerCase()}
+        </span>
       </div>
+      {linkButton}
     </div>
   );
 };

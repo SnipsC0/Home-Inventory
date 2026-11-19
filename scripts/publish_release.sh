@@ -29,6 +29,20 @@ if git -C "$ROOT" ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/nul
   exit 0
 fi
 
+SHA="$(git -C "$ROOT" rev-parse HEAD)"
+
+# PR that introduced this commit: GitHub API first, then a "(#N)" in the commit subject.
+PR_NUMBER="$(gh api "repos/{owner}/{repo}/commits/$SHA/pulls" --jq '.[0].number // empty' 2>/dev/null || true)"
+if [ -z "$PR_NUMBER" ]; then
+  PR_NUMBER="$(git -C "$ROOT" log -1 --format=%s "$SHA" | grep -oE '\(#[0-9]+\)' | tail -1 | tr -dc '0-9' || true)"
+fi
+if [ -n "$PR_NUMBER" ]; then
+  NOTES="$NOTES
+
+---
+Changes: PR #$PR_NUMBER"
+fi
+
 if [ "${PUBLISH:-false}" != "true" ]; then
   echo "DRY RUN: would create tag+release $TAG with $(basename "$ZIP") and notes:"
   echo "-----"; echo "$NOTES"; echo "-----"
@@ -38,5 +52,5 @@ fi
 NOTES_FILE="$(mktemp)"
 trap 'rm -f "$NOTES_FILE"' EXIT
 printf '%s\n' "$NOTES" > "$NOTES_FILE"
-gh release create "$TAG" "$ZIP" --target "$(git -C "$ROOT" rev-parse HEAD)" --title "$TAG" --notes-file "$NOTES_FILE"
+gh release create "$TAG" "$ZIP" --target "$SHA" --title "$TAG" --notes-file "$NOTES_FILE"
 echo "Published $TAG"

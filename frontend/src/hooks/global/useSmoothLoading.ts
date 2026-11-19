@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 
 /**
  * 🧠 useSmoothLoading
- * - Arată loader-ul imediat când începe loading-ul
- * - Îl păstrează minim `minDuration` ms pe ecran
- * - Ascunde loader-ul doar după ce datele sunt gata ȘI a trecut durata minimă
+ * - Shows the loader immediately when loading starts
+ * - Keeps it on screen for at least `minDuration` ms
+ * - Hides the loader only once the data is ready AND the minimum duration has passed
  */
 export function useSmoothLoading(
   isLoading: boolean,
@@ -14,19 +14,19 @@ export function useSmoothLoading(
   const [startTime, setStartTime] = useState<number | null>(null);
 
   useEffect(() => {
-    // 🚀 Când începe loading-ul
+    // When loading starts
     if (isLoading) {
       setShowLoader(true);
       setStartTime(Date.now());
       return;
     }
 
-    // 🕒 Când loading-ul s-a terminat, verificăm cât timp a trecut
+    // When loading has finished, check how much time has passed
     if (!isLoading && startTime) {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(minDuration - elapsed, 0);
 
-      // asigurăm durata minimă de afișare
+      // ensure the minimum display duration
       const timer = setTimeout(() => {
         setShowLoader(false);
         setStartTime(null);

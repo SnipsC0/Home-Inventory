@@ -9,7 +9,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class HomeInventarConsumeView(HomeAssistantView):
-    """Consumă un item dintr-o locație specifică"""
+    """Consume an item from a specific location"""
     url = f"/api/{DOMAIN}/consume/{'{item_id}'}"
     name = f"api:{DOMAIN}:consume"
     requires_auth = True
@@ -21,7 +21,7 @@ class HomeInventarConsumeView(HomeAssistantView):
     async def post(self, request, item_id):
         try:
             data = await request.json()
-            location_id = data.get("location_id")  # Nou: specificăm locația
+            location_id = data.get("location_id")  # New: specify the location
             
             if not location_id:
                 return web.json_response(
@@ -40,7 +40,7 @@ class HomeInventarConsumeView(HomeAssistantView):
                     status=400
                 )
             
-            # Trimitem eveniment low stock dacă e cazul
+            # Fire low stock event if needed
             if result['is_low_stock']:
                 _LOGGER.debug(
                     f"🔔 Low stock detected (consume) for item {result['item_id']}: "
@@ -64,7 +64,7 @@ class HomeInventarConsumeView(HomeAssistantView):
                     }
                 )
             
-            # Trimitem eveniment item consumed
+            # Fire item consumed event
             self.hass.bus.async_fire(
                 "home_inventory_item_consumed",
                 {
@@ -94,7 +94,7 @@ class HomeInventarConsumeView(HomeAssistantView):
 
 
 class HomeInventarConsumeMultipleView(HomeAssistantView):
-    """Consumă mai multe unități dintr-o locație"""
+    """Consume multiple units from a location"""
     url = f"/api/{DOMAIN}/consume_multiple/{'{item_id}'}"
     name = f"api:{DOMAIN}:consume_multiple"
     requires_auth = True
@@ -174,7 +174,7 @@ class HomeInventarConsumeMultipleView(HomeAssistantView):
 
 
 class HomeInventarItemDeepLinkView(HomeAssistantView):
-    """Generează link-uri pentru consumul rapid"""
+    """Generate links for quick consumption"""
     url = f"/api/{DOMAIN}/items/{'{item_id}'}/consume_link"
     name = f"api:{DOMAIN}:item_consume_link"
     requires_auth = True

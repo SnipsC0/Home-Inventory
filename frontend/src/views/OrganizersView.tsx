@@ -12,12 +12,12 @@ import { useOrganizerActions } from '../hooks/organizers/useOrganizerActions';
 import { useOrganizerNavigation } from '../hooks/organizers/useOrganizerNavigation';
 import { useGlobalItems } from '../hooks/items/useItems';
 import { useItemActions } from '../hooks/items/useItemActions';
-import { useHomeInventarConfig } from '../hooks/global/useHomeInventarConfig';
 import { useAppStore } from '../store/useAppStore';
 import { useTranslation } from '../i18n/I18nContext';
 
 import type { ApiService } from '../services/api';
 import type { Organizer } from '../types';
+import type { ImagePickerValue } from '../components/Modal/ImagePickerField';
 import {
   getSpecificLocations,
   normalizeValue,
@@ -36,7 +36,6 @@ export default function OrganizersView({ api }: { api: ApiService }) {
   const { data: organizersData, isLoading: organizersLoading } =
     useOrganizers(api);
   const { data: allItemsData, isLoading: itemsLoading } = useGlobalItems(api);
-  const { data: config } = useHomeInventarConfig(api);
 
   const organizers = organizersData?.organizers || [];
   const allItems = allItemsData || [];
@@ -67,7 +66,9 @@ export default function OrganizersView({ api }: { api: ApiService }) {
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
 
   // Derived flags
-  const allowEdit = !!config?.allow_structure_modification;
+  // Organizers and items are never locked by allow_structure_modification
+  // (it only protects rooms, cupboards and shelves).
+  const allowEdit = true;
   const hasNoOrganizers = organizers.length === 0;
   const itemsWithoutOrganizer = directItems.length;
 
@@ -97,17 +98,16 @@ export default function OrganizersView({ api }: { api: ApiService }) {
   }, []);
 
   const handleSaveOrganizer = useCallback(
-    async (name: string, imageFile?: File | null, moveData?: any) => {
-      const normalizedFile = imageFile ?? null;
+    async (name: string, image: ImagePickerValue, moveData?: any) => {
       if (editingOrganizer) {
         await updateOrganizer.mutateAsync({
           id: editingOrganizer.id,
           name,
-          imageFile: normalizedFile,
+          image,
           moveData,
         });
       } else {
-        await addOrganizer.mutateAsync({ name, imageFile: normalizedFile });
+        await addOrganizer.mutateAsync({ name, image });
       }
       handleCloseOrganizerModal();
     },
@@ -191,7 +191,7 @@ export default function OrganizersView({ api }: { api: ApiService }) {
       />
 
       {/* Organizer grid */}
-      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
+      <div className="stagger grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
         {hasNoOrganizers ? (
           <p className="text-center text-ha-text py-10">
             {t.organizers.noOrganizers}.
@@ -206,15 +206,15 @@ export default function OrganizersView({ api }: { api: ApiService }) {
 
       {/* Items without organizer */}
       {itemsWithoutOrganizer > 0 && (
-        <div className="bg-ha-secondary-bg border-ha-primary rounded-lg p-4">
-          <h3 className="text-ha-text font-semibold mb-3 text-lg">
-            📦{' '}
+        <div className="surface p-5">
+          <h3 className="text-ha-text font-bold mb-4 text-lg">
+            
             {`${t.items.title} ${t.organizers.withoutOrganizer.toLowerCase()} `}
             ({itemsWithoutOrganizer})
           </h3>
           <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(140px,1fr))]">
-            {itemCards.map((props, i) => (
-              <ItemCard key={props.item.id + i} {...props} />
+            {itemCards.map((props) => (
+              <ItemCard key={props.specificLocation.location_id} {...props} />
             ))}
           </div>
         </div>

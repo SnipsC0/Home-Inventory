@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from PIL import Image
 from ..const import DOMAIN, DB_PATH
 from ..db import repository, devreload
+from .. import images
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -137,6 +138,11 @@ class HomeInventarUpload(HomeAssistantView):
                 await self.hass.async_add_executor_job(_write_file, default_storage_path, resized_data)
                 _LOGGER.debug(f"[Home Inventory] Created default copy: {default_filename}")
 
+            for name in filter(None, [filename, default_filename]):
+                await self.hass.async_add_executor_job(
+                    images.create_upload_thumbnails, base_path, name
+                )
+
             original_size = len(image_data) / 1024
             final_size = len(resized_data) / 1024
             _LOGGER.debug(
@@ -187,7 +193,7 @@ class HomeInventarUpload(HomeAssistantView):
                     return True
                 return False
             
-            # Rulează operația în executor pentru a nu bloca
+            # Run the operation in an executor to avoid blocking
             import asyncio
             asyncio.create_task(
                 self.hass.async_add_executor_job(_check_and_delete)
@@ -258,6 +264,13 @@ class HomeInventarImageView(HomeAssistantView):
             if not os.path.exists(image_path):
                 _LOGGER.warning(f"[Home Inventory] Image not found: {image_path}")
                 return web.Response(status=404, text="Image not found")
+
+            width = images.parse_width(request.query.get("w"))
+            if width:
+                images_dir = self.hass.config.path(f"data/{DOMAIN}/images")
+                image_path = await self.hass.async_add_executor_job(
+                    images.ensure_thumbnail, images_dir, filename, width
+                )
 
             def _read_file(path):
                 with open(path, "rb") as f:

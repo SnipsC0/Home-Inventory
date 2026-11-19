@@ -13,18 +13,18 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.17.0",
-    "@zxing/browser": "^0.1.5",
     "clsx": "^2.1.0",
     "lucide-react": "^0.546.0",
+    "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-zxing": "^2.1.0",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.14",
     "@tanstack/react-query-devtools": "^5.90.2",
     "@types/node": "^24.8.1",
+    "@types/qrcode": "^1.5.5",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@typescript-eslint/eslint-plugin": "^8.46.1",

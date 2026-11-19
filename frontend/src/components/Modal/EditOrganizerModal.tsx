@@ -8,6 +8,8 @@ import { useTranslation } from '../../i18n/I18nContext';
 import DeleteModal from './DeleteModal';
 import { useOrganizerActions } from '../../hooks/organizers/useOrganizerActions';
 import { useApi } from '../../contexts/ApiContext';
+import SmartImage from '../SmartImage';
+import ImagePickerField, { type ImagePickerValue } from './ImagePickerField';
 
 interface EditOrganizerModalProps {
   organizer: Organizer | null;
@@ -15,7 +17,7 @@ interface EditOrganizerModalProps {
   onClose: () => void;
   onSave: (
     newName: string,
-    imageFile: File | null,
+    image: ImagePickerValue,
     moveData?: { room: string; cupboard: string; shelf: string }
   ) => Promise<void>;
   currentName: string;
@@ -32,7 +34,7 @@ export default function EditOrganizerModal({
   currentImage,
   api,
 }: EditOrganizerModalProps) {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const currentRoom = useAppStore((state) => state.selectedRoom);
@@ -40,8 +42,10 @@ export default function EditOrganizerModal({
   const currentShelf = useAppStore((state) => state.selectedShelf);
 
   const [name, setName] = useState(organizer?.name || '');
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(currentImage || null);
+  const [image, setImage] = useState<ImagePickerValue>({
+    file: null,
+    removed: false,
+  });
   const [loading, setLoading] = useState(false);
 
   const [showMove, setShowMove] = useState(false);
@@ -56,6 +60,22 @@ export default function EditOrganizerModal({
   const [availableShelves, setAvailableShelves] = useState<Shelf[]>([]);
 
   const { deleteOrganizer } = useOrganizerActions(api);
+
+  const roomImage = rooms.find((r) => r.name === moveRoom)?.image;
+  const cupboardImage = availableCupboards.find(
+    (c) => c.name === moveCupboard
+  )?.image;
+  const shelfImage = availableShelves.find((s) => s.name === moveShelf)?.image;
+
+  const renderThumb = (src?: string | null, alt?: string) =>
+    src ? (
+      <SmartImage
+        src={src}
+        alt={alt ?? ''}
+        width={96}
+        wrapperClassName="w-24 h-24 rounded-md mt-2"
+      />
+    ) : null;
 
   useEffect(() => {
     if (moveRoom && api) {
@@ -72,17 +92,6 @@ export default function EditOrganizerModal({
       setAvailableShelves([]);
     }
   }, [moveRoom, moveCupboard, api]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setImageFile(file);
-
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => setPreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleStartMove = () => {
     setShowMove(true);
@@ -120,7 +129,7 @@ export default function EditOrganizerModal({
           ? { room: moveRoom, cupboard: moveCupboard, shelf: moveShelf }
           : undefined;
 
-      await onSave(name.trim(), imageFile, moveData);
+      await onSave(name.trim(), image, moveData);
       onClose();
     } finally {
       setLoading(false);
@@ -134,50 +143,35 @@ export default function EditOrganizerModal({
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalHeader onClose={onClose}>
           {isEditMode
-            ? `✏️ ${t.common.edit} ${t.organizers.organizer}`
-            : `➕ ${t.common.add} ${t.organizers.organizer}`}
+            ? `${t.common.edit} ${t.organizers.organizer}`
+            : `${t.common.add} ${t.organizers.organizer}`}
         </ModalHeader>
 
         <div className="space-y-4">
           <div>
             <label className="text-ha-text text-sm block mb-1">
-              {language === 'en' ? 'Name' : 'Nume'} *
+              {t.common.name} *
             </label>
             <input
               type="text"
-              className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
+              className="field"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t.organizers.organizerName}
             />
           </div>
 
-          {/* Preview imagine */}
-          {preview && (
-            <img
-              src={preview}
-              alt="Preview"
-              className="w-full h-[20rem] object-cover rounded border border-ha-divider"
-            />
-          )}
-
-          {/* Upload imagine */}
-          <div>
-            <label className="text-ha-text text-sm block mb-1">
-              {t.items.image} ({t.common.optional})
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="w-full text-ha-text text-sm"
-            />
-          </div>
+          <ImagePickerField
+            initialImage={currentImage}
+            onChange={setImage}
+            label={`${t.items.image} (${t.common.optional})`}
+            previewClassName="w-full h-[20rem] object-cover rounded border border-ha-divider"
+          />
 
           {isEditMode && (
             <div className="bg-ha-secondary-bg p-3 rounded">
               <div className="text-ha-text text-sm mb-1">
-                📍 {t.trackedItems.locationLabel}
+                {t.trackedItems.locationLabel}
               </div>
               <div className="text-ha-text/70 text-xs">
                 {currentRoom} › {currentCupboard} › {currentShelf}
@@ -199,20 +193,17 @@ export default function EditOrganizerModal({
             <div className="border border-ha-primary rounded-lg p-4 space-y-3 bg-ha-card">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-ha-text font-semibold text-sm">
-                  🚚{' '}
-                  {`${t.organizers.moveOrganizer.split(' ')[0]} ${
-                    language === 'en' ? 'in' : 'în'
-                  }:`}
+                  🚚 {t.organizers.moveIn}
                 </span>
                 <button
                   onClick={handleCancelMove}
                   className="text-ha-error text-xs hover:underline"
                 >
-                  {t.common.cancel} {language === 'en' ? 'move' : 'mutarea'}
+                  {t.organizers.cancelMove}
                 </button>
               </div>
 
-              {/* Cameră */}
+              {/* Room */}
               <div>
                 <label className="text-ha-text text-xs block mb-1">
                   {t.rooms.room} *
@@ -224,7 +215,7 @@ export default function EditOrganizerModal({
                     setMoveCupboard('');
                     setMoveShelf('');
                   }}
-                  className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
+                  className="field"
                 >
                   <option value="">
                     {t.common.select} {t.rooms.room.toLowerCase()}
@@ -235,9 +226,10 @@ export default function EditOrganizerModal({
                     </option>
                   ))}
                 </select>
+                {renderThumb(roomImage, moveRoom)}
               </div>
 
-              {/* Dulap */}
+              {/* Cupboard */}
               {moveRoom && (
                 <div>
                   <label className="text-ha-text text-xs block mb-1">
@@ -249,7 +241,7 @@ export default function EditOrganizerModal({
                       setMoveCupboard(e.target.value);
                       setMoveShelf('');
                     }}
-                    className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
+                    className="field"
                   >
                     <option value="">
                       {t.common.select} {t.cupboards.cupboard.toLowerCase()}
@@ -260,10 +252,11 @@ export default function EditOrganizerModal({
                       </option>
                     ))}
                   </select>
+                  {renderThumb(cupboardImage, moveCupboard)}
                 </div>
               )}
 
-              {/* Raft */}
+              {/* Shelf */}
               {moveCupboard && (
                 <div>
                   <label className="text-ha-text text-xs block mb-1">
@@ -272,7 +265,7 @@ export default function EditOrganizerModal({
                   <select
                     value={moveShelf}
                     onChange={(e) => setMoveShelf(e.target.value)}
-                    className="w-full px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded text-sm"
+                    className="field"
                   >
                     <option value="">
                       {t.common.select} {t.shelves.shelf.toLowerCase()}
@@ -283,13 +276,13 @@ export default function EditOrganizerModal({
                       </option>
                     ))}
                   </select>
+                  {renderThumb(shelfImage, moveShelf)}
                 </div>
               )}
 
               {moveRoom && moveCupboard && moveShelf && (
                 <div className="bg-ha-secondary-bg p-2 rounded text-xs text-ha-text/70">
-                  📍 {language === 'en' ? 'New' : 'Noua'}{' '}
-                  {t.trackedItems.locationLabel}{' '}
+                  {t.items.newLocation}{' '}
                   <span className="font-semibold">
                     {moveRoom} › {moveCupboard} › {moveShelf}
                   </span>
@@ -306,14 +299,14 @@ export default function EditOrganizerModal({
               !name.trim() ||
               (showMove && (!moveRoom || !moveCupboard || !moveShelf))
             }
-            className="flex-1 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition disabled:opacity-50"
+            className="btn btn-primary flex-1"
           >
-            {loading ? t.common.saving : `💾 ${t.common.save}`}
+            {loading ? t.common.saving : `${t.common.save}`}
           </button>
           <button
             onClick={onClose}
             disabled={loading}
-            className="flex-1 py-2 bg-ha-secondary-bg border border-ha-divider text-ha-text rounded hover:bg-ha-card transition"
+            className="btn btn-secondary flex-1"
           >
             {t.common.cancel}
           </button>
@@ -322,9 +315,9 @@ export default function EditOrganizerModal({
               e.stopPropagation();
               setShowDeleteModal(true);
             }}
-            className="flex-1 py-2 bg-ha-error text-white text-sm rounded hover:opacity-90 transition"
+            className="btn btn-danger flex-1"
           >
-            🗑️ {t.common.delete}
+            {t.common.delete}
           </button>
         </ModalFooter>
       </Modal>
@@ -334,6 +327,7 @@ export default function EditOrganizerModal({
           itemName={name}
           itemType={t.organizers.organizer}
           itemCount={organizer?.itemCount}
+          cascade={{ type: 'organizer', id: organizer.id }}
           onClose={() => setShowDeleteModal(false)}
           onConfirm={async () => {
             await deleteOrganizer.mutateAsync(organizer.id);

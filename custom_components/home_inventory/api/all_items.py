@@ -8,7 +8,7 @@ from ..db import repository, devreload
 _LOGGER = logging.getLogger(__name__)
 
 class HomeInventarAllItemsView(HomeAssistantView):
-    """Returnează toate itemele cu toate locațiile lor"""
+    """Return all items with all their locations"""
     url = f"/api/{DOMAIN}/all_items"
     name = f"api:{DOMAIN}_all_items"
     requires_auth = True
@@ -17,7 +17,7 @@ class HomeInventarAllItemsView(HomeAssistantView):
         self.db_path = db_path
 
     async def get(self, request):
-        """Obține toate itemele cu locațiile lor"""
+        """Get all items with their locations"""
         search = request.query.get("search", "").strip()
         barcode = request.query.get("barcode", "").strip()
         low_stock_only = request.query.get("low_stock_only", "false").lower() == "true"
@@ -31,7 +31,7 @@ class HomeInventarAllItemsView(HomeAssistantView):
 
 
 class HomeInventarUpdateItemQuantityView(HomeAssistantView):
-    """Actualizează cantitatea unui item într-o locație specifică"""
+    """Update the quantity of an item at a specific location"""
     url = f"/api/{DOMAIN}/items/{'{item_id}'}/quantity"
     name = f"api:{DOMAIN}_item_quantity"
     requires_auth = True
@@ -60,7 +60,7 @@ class HomeInventarUpdateItemQuantityView(HomeAssistantView):
         if count == 0:
             return web.json_response({"error": "Item location not found"}, status=404)
         
-        # Verificăm low stock
+        # Check low stock
         low_stock_data = await request.app["hass"].async_add_executor_job(
             partial(repository.get_quantity_update_low_stock, self.db_path, location_id)
         )
@@ -80,7 +80,7 @@ class HomeInventarUpdateItemQuantityView(HomeAssistantView):
 
 
 class HomeInventarItemSearchView(HomeAssistantView):
-    """Căutare avansată de items"""
+    """Advanced item search"""
     url = f"/api/{DOMAIN}/items/search"
     name = f"api:{DOMAIN}_items_search"
     requires_auth = True
@@ -89,7 +89,7 @@ class HomeInventarItemSearchView(HomeAssistantView):
         self.db_path = db_path
 
     async def get(self, request):
-        """Căutare items după nume, alias, sau barcode"""
+        """Search items by name, alias, or barcode"""
         query = request.query.get("q", "").strip()
         barcode = request.query.get("barcode", "").strip()
         

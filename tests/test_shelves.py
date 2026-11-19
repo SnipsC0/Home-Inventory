@@ -31,8 +31,8 @@ def test_create_shelf_unknown_cupboard_and_duplicate(db_path, seed):
 
 def test_update_shelf(db_path, seed):
     sid = seed(db_path, "Kitchen", "C1", "S1")["shelf_id"]
-    assert update_shelf(db_path, sid, "S9") == 1
-    assert update_shelf(db_path, 999, "X") == 0
+    assert update_shelf(db_path, sid, "S9") == (1, None)
+    assert update_shelf(db_path, 999, "X") == (0, None)
     other = create_shelf(db_path, "Kitchen", "C1", "S2")
     with pytest.raises(sqlite3.IntegrityError):
         update_shelf(db_path, other, "S9")

@@ -1,6 +1,8 @@
+import { Archive } from 'lucide-react';
 import { useInteractions } from '../../hooks/global/useInteractions';
 import { useTranslation } from '../../i18n/I18nContext';
-import { ClickOrTouchEvent } from '../../types';
+import SmartImage from '../SmartImage';
+import LocationLinkButton from '../Card/LocationLinkButton';
 
 interface Props {
   name: string;
@@ -9,7 +11,7 @@ interface Props {
   editable?: boolean;
   onClick?: () => void;
   onEdit: () => void;
-  onQR?: (e: ClickOrTouchEvent) => void;
+  onLinks?: () => void;
 }
 
 export default function CupboardCard({
@@ -19,7 +21,7 @@ export default function CupboardCard({
   editable,
   onClick,
   onEdit,
-  onQR,
+  onLinks,
 }: Props) {
   const { t } = useTranslation();
 
@@ -33,40 +35,31 @@ export default function CupboardCard({
   return (
     <div
       {...interactionHandlers}
-      className="bg-ha-card p-3 rounded-4xl shadow-ha cursor-pointer select-none"
+      className="surface surface-interactive p-3 select-none overflow-hidden"
     >
-      {/* Imagine */}
+      {/* Image */}
       {image ? (
-        <img
+        <SmartImage
           src={image}
           alt={name}
-          className="w-[25rem] h-[250px] object-cover rounded-2xl mb-3 m-auto drag-none"
+          wrapperClassName="w-full h-[220px] rounded-xl mb-3"
+          width={480}
+          fallback={<Archive size={44} strokeWidth={1.5} />}
         />
       ) : (
-        <div className="w-full h-[150px] bg-ha-divider rounded-md flex items-center justify-center text-4xl mb-3">
-          🗄️
+        <div className="w-full h-[220px] rounded-xl flex items-center justify-center mb-3 text-ha-primary bg-ha-primary/10">
+          <Archive size={44} strokeWidth={1.5} />
         </div>
       )}
 
-      {/* Click open */}
-      <div className="p-3 rounded text-center hover:bg-ha-secondary-bg transition">
-        <div className="font-semibold text-ha-text mb-1">{name}</div>
-        <div className="text-ha-primary text-sm">
+      <div className="px-3 pb-2 text-center">
+        <div className="font-bold text-ha-text mb-2">{name}</div>
+        <span className="count-badge">
           {count} {t.items.title.toLowerCase()}
-        </div>
+        </span>
       </div>
 
-      {/* Actiuni */}
-      {editable && (
-        <div className="mt-1 space-y-2 flex">
-          <button
-            onClick={onQR}
-            className="m-auto p-3 bg-ha-secondary-bg text-ha-text border border-ha-divider text-sm rounded hover:bg-ha-card transition"
-          >
-            📱 QR
-          </button>
-        </div>
-      )}
+      {onLinks && <LocationLinkButton onClick={onLinks} />}
     </div>
   );
 }

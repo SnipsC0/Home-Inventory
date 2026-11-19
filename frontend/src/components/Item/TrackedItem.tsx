@@ -1,6 +1,13 @@
 import { FC } from 'react';
 import { Item } from '../../types';
-import { AlertCircle, ArrowRight, CheckCircle, MapPin } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle,
+  MapPin,
+  Package,
+} from 'lucide-react';
+import SmartImage from '../SmartImage';
 import { useInteractions } from '../../hooks/global/useInteractions';
 import { useTranslation } from '../../i18n/I18nContext';
 
@@ -28,14 +35,14 @@ const TrackedItem: FC<TrackedItemProps> = ({ item, onView, onEdit }) => {
     excludeSelector: '.qty-btn',
   });
 
-  // ✅ Cantitatea totală
+  // Total quantity
   const totalQuantity = item.total_quantity ?? 0;
 
   const getStatusColor = () => {
     if (totalQuantity <= item.min_quantity!) {
-      return 'border-l-4 border-ha-error';
+      return '!border-ha-error/60';
     }
-    return 'border-l-4 border-transparent';
+    return '';
   };
 
   const getStatusIcon = () => {
@@ -45,35 +52,27 @@ const TrackedItem: FC<TrackedItemProps> = ({ item, onView, onEdit }) => {
     return <CheckCircle className="w-5 h-5 text-green-500" />;
   };
 
-  // ✅ Folosim imaginea default
+  // Use the default image
   const imageSrc = item.default_image;
 
   return (
     <div
       {...interactionHandlers}
-      className={`p-4 rounded-lg border-2 transition bg-ha-card cursor-pointer select-none ${getStatusColor()}`}
+      className={`surface surface-interactive p-4 select-none ${getStatusColor()}`}
     >
       <div className="flex gap-4 items-center">
         {/* Image */}
         {imageSrc ? (
-          <img
+          <SmartImage
             src={imageSrc}
             alt={item.name}
-            className="w-32 h-40 object-cover rounded-lg"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              const parent = e.currentTarget.parentElement as HTMLElement;
-              if (parent) {
-                parent.innerHTML =
-                  '<div style="display:flex;align-items:center;justify-content:center;width:128px;height:160px;font-size:3em;">📦</div>';
-              }
-            }}
+            wrapperClassName="w-28 h-36 rounded-xl flex-shrink-0"
+            width={480}
+            fallback={<Package size={40} strokeWidth={1.5} />}
           />
         ) : (
-          <div className="w-32 h-40 flex border-[1px] rounded-lg flex-shrink-0">
-            <div className="bg-ha-secondary-bg flex items-center justify-center m-auto text-4xl rounded-lg">
-              📦
-            </div>
+          <div className="w-28 h-36 flex items-center justify-center rounded-xl flex-shrink-0 bg-ha-secondary-bg text-ha-text/30">
+            <Package size={40} strokeWidth={1.5} />
           </div>
         )}
 
@@ -82,7 +81,7 @@ const TrackedItem: FC<TrackedItemProps> = ({ item, onView, onEdit }) => {
           {/* Header */}
           <div className="flex items-start justify-between gap-2 mb-3">
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-ha-text text-lg truncate">
+              <h3 className="font-bold text-ha-text text-lg truncate">
                 {item.name}
               </h3>
               {item.aliases && (
@@ -98,7 +97,7 @@ const TrackedItem: FC<TrackedItemProps> = ({ item, onView, onEdit }) => {
           <div className="mb-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-ha-secondary">
-                {`${t.trackedItems.quantityLabel} (Total): `}
+                {`${t.trackedItems.quantityLabel} (${t.items.total}): `}
                 <span
                   className={`font-semibold text-lg ${
                     totalQuantity <= item.min_quantity!
@@ -124,8 +123,12 @@ const TrackedItem: FC<TrackedItemProps> = ({ item, onView, onEdit }) => {
           <div className="space-y-2 mb-3">
             <div className="text-sm font-semibold text-ha-text flex items-center gap-1">
               <MapPin className="w-4 h-4" />
-              Produsul se afla in {item.locations?.length || 0}{' '}
-              {item.locations?.length > 1 ? 'locuri' : 'loc'}
+              {(item.locations?.length ?? 0) === 1
+                ? t.items.productInLocation
+                : t.items.productInLocations.replace(
+                    '{n}',
+                    String(item.locations?.length ?? 0)
+                  )}
             </div>
 
             <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -133,13 +136,14 @@ const TrackedItem: FC<TrackedItemProps> = ({ item, onView, onEdit }) => {
                 return (
                   <div
                     key={loc.location_id}
-                    className={`p-0.5 rounded bg-ha-secondary-bg border-ha-divider max-sm:hidden`}
+                    className="px-2.5 py-1.5 rounded-lg bg-ha-secondary-bg/70 max-sm:hidden"
                   >
                     <div className="flex items-center max-w-2xl justify-between gap-2">
                       {/* Location Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex max-sm:flex-col items-center gap-2 text-xs text-ha-text truncate ">
-                          📍 {loc.location} {<ArrowRight size={'1rem'} />}
+                          <MapPin size={14} className="text-ha-primary" />
+                          {loc.location} {<ArrowRight size={'1rem'} />}
                           <span className="text-lg text-green-600">
                             {loc.quantity}
                           </span>

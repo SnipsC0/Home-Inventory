@@ -4,6 +4,7 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from ..const import DOMAIN
 from ..db import repository, devreload
+from ._images import delete_image_file
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,27 +18,7 @@ class HomeInventarRoomsView(HomeAssistantView):
         self.hass = hass
 
     def _delete_image_file(self, image_path):
-        if not image_path:
-            return
-        
-        try:
-            if image_path.startswith(f'/api/{DOMAIN}/images/'):
-                filename = image_path.split('/')[-1].split('?')[0]
-            elif image_path.startswith('/local/'):
-                return
-            else:
-                filename = image_path
-            
-            full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
-            
-            if os.path.exists(full_path):
-                os.remove(full_path)
-                _LOGGER.info(f"[HomeInventar] 🗑️ Deleted image file: {full_path}")
-            else:
-                _LOGGER.debug(f"[HomeInventar] Image file not found: {full_path}")
-                
-        except Exception as e:
-            _LOGGER.error(f"[HomeInventar] Error deleting image file: {e}", exc_info=True)
+        delete_image_file(self.hass, image_path)
 
     async def get(self, request):
         devreload.reload_if_changed(repository)
@@ -47,15 +28,16 @@ class HomeInventarRoomsView(HomeAssistantView):
     async def post(self, request):
         data = await request.json()
         name = data.get("name", "").strip()
+        image = data.get("image") or None
         if not name:
             return web.json_response({"error": "Name required"}, status=400)
 
         devreload.reload_if_changed(repository)
         try:
             rid = await request.app["hass"].async_add_executor_job(
-                partial(repository.create_room, self.db_path, name)
+                partial(repository.create_room, self.db_path, name, image)
             )
-            return web.json_response({"id": rid, "name": name})
+            return web.json_response({"id": rid, "name": name, "image": image or ""})
         except sqlite3.IntegrityError:
             return web.json_response({"error": "Room already exists"}, status=400)
 
@@ -66,6 +48,7 @@ class HomeInventarRoomsView(HomeAssistantView):
             
             room_id = data.get("id")
             name = data.get("name")
+            new_image = data.get("image")
 
             if not room_id:
                 _LOGGER.error("PATCH rooms - missing room ID")
@@ -76,12 +59,15 @@ class HomeInventarRoomsView(HomeAssistantView):
                 return web.json_response({"error": "Room name required"}, status=400)
 
             devreload.reload_if_changed(repository)
-            count = await request.app["hass"].async_add_executor_job(
-                partial(repository.update_room, self.db_path, room_id, name)
+            count, old_image = await request.app["hass"].async_add_executor_job(
+                partial(repository.update_room, self.db_path, room_id, name, new_image)
             )
             if count == 0:
                 _LOGGER.error(f"Room not found with ID: {room_id}")
                 return web.json_response({"error": "Room not found"}, status=404)
+
+            if old_image:
+                self._delete_image_file(old_image)
             
             _LOGGER.info(f"Room {room_id} updated successfully")
             return web.json_response({"message": "Updated"})

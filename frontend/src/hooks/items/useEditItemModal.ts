@@ -3,7 +3,9 @@ import { ExpirationBatch, Item, ItemLocation } from '../../types';
 import { ApiService } from '../../services/api';
 import { useMoveLocation } from '../global/useMoveLocation';
 import { validateDate } from '../../utils/helpers';
+import { sortBatchesByDate } from '../../utils/items/expiryUtils';
 import { useItemActions } from './useItemActions';
+import { useTranslation } from '../../i18n/I18nContext';
 
 interface Props {
   item: Item;
@@ -23,6 +25,7 @@ export default function useEditItemModal({
   onClose,
 }: Props) {
   const { deleteItem, updateItem } = useItemActions();
+  const { t } = useTranslation();
 
   const loc: ItemLocation | undefined = location;
 
@@ -32,6 +35,19 @@ export default function useEditItemModal({
   const selectedOrganizer = loc?.organizer ?? organizer ?? null;
 
   const [file, setFile] = useState<File | null>(null);
+  const [variant, setVariant] = useState<string>(location?.variant ?? '');
+  const initialVariantBarcode =
+    item.variant_barcodes?.find((vb) => vb.variant === (location?.variant ?? null))
+      ?.barcode ?? '';
+  const [variantBarcode, setVariantBarcode] = useState<string>(initialVariantBarcode);
+  // Without a variant the field edits the item's main barcode (items_master.barcode),
+  // shared by all locations of the item.
+  const initialMasterBarcode = item.barcode ?? '';
+  const [masterBarcode, setMasterBarcode] = useState<string>(initialMasterBarcode);
+  const hasVariant = variant.trim() !== '';
+  const barcodeValue = hasVariant ? variantBarcode : masterBarcode;
+  const setBarcodeValue = (v: string) =>
+    hasVariant ? setVariantBarcode(v) : setMasterBarcode(v);
   const [track, setTrack] = useState(item.track_quantity);
   const [preview, setPreview] = useState<string | null>(
     loc?.image || item.default_image || null
@@ -43,9 +59,9 @@ export default function useEditItemModal({
           return loc?.quantity ? [{ quantity: loc.quantity, date: '' }] : [];
         }
         if (typeof loc.expiration_dates === 'string') {
-          return JSON.parse(loc.expiration_dates);
+          return sortBatchesByDate(JSON.parse(loc.expiration_dates));
         }
-        return loc.expiration_dates as ExpirationBatch[];
+        return sortBatchesByDate(loc.expiration_dates as ExpirationBatch[]);
       } catch {
         return loc?.quantity ? [{ quantity: loc.quantity, date: '' }] : [];
       }
@@ -111,14 +127,12 @@ export default function useEditItemModal({
       track &&
       expirationBatches.some((batch) => !validateDate(batch.date || ''))
     ) {
-      alert(
-        'Datele de expirare trebuie să fie în formatul YYYY/MM/DD sau goale!'
-      );
+      alert(t.errors.invalidDates);
       return;
     }
 
     if (showMove && isSameLocation(moveState)) {
-      alert('Obiectul este deja în această locație!');
+      alert(t.errors.alreadyInLocation);
       return;
     }
 
@@ -139,6 +153,21 @@ export default function useEditItemModal({
 
       if (track && expirationBatches.length > 0) {
         data.expiration_dates = JSON.stringify(expirationBatches);
+      }
+
+      if ((variant.trim() || null) !== (loc?.variant ?? null)) {
+        data.variant = variant.trim();
+      }
+
+      if (hasVariant) {
+        if (variantBarcode.trim() !== initialVariantBarcode) {
+          data.variant_barcode = variantBarcode.trim();
+        }
+      } else if (
+        masterBarcode.trim() &&
+        masterBarcode.trim() !== initialMasterBarcode
+      ) {
+        data.barcode = masterBarcode.trim();
       }
 
       if (showMove) Object.assign(data, moveState);
@@ -186,15 +215,21 @@ export default function useEditItemModal({
     onSuccess,
     onClose,
     expirationBatches,
+    variant,
+    hasVariant,
+    variantBarcode,
+    initialVariantBarcode,
+    masterBarcode,
+    initialMasterBarcode,
     updateItem,
     selectedRoom,
     selectedCupboard,
     selectedShelf,
     selectedOrganizer,
+    t,
   ]);
 
   const handleDelete = useCallback(async () => {
-    if (!confirm(`Ștergi "${item.name}"?`)) return;
     setLoading(true);
     try {
       await deleteItem.mutateAsync({ itemId: item.id, locationId: loc.location_id });
@@ -219,6 +254,11 @@ export default function useEditItemModal({
 
     // setters
     setTrack,
+    variant,
+    setVariant,
+    hasVariant,
+    barcodeValue,
+    setBarcodeValue,
 
     // move
     showMove,

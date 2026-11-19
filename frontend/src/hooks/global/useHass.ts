@@ -64,7 +64,7 @@ export function useHass(maxAttempts = 100, delayMs = 100) {
       }
 
       if (mounted) {
-        setError(new Error('Nu s-a putut conecta la Home Assistant'));
+        setError(new Error('Could not connect to Home Assistant'));
         setLoading(false);
       }
     };

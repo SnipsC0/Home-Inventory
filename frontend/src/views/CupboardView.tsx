@@ -12,11 +12,11 @@ import EditCupboardModal from '../components/Modal/EditCupboardModal';
 import DeleteModal from '../components/Modal/DeleteModal';
 import Breadcrumb from '../components/Layout/BreadCrumb';
 import Loading from '../components/Loading';
-
-import { downloadQRCode } from '../utils/qr-generator';
+import LocationLinkModal from '../components/Modal/LocationLinkModal';
+import type { ImagePickerValue } from '../components/Modal/ImagePickerField';
 
 import type { ApiService } from '../services/api';
-import type { ClickOrTouchEvent, Cupboard } from '../types';
+import type { Cupboard } from '../types';
 
 interface Props {
   api: ApiService;
@@ -45,9 +45,11 @@ export default function CupboardsView({ api }: Props) {
   const [deletingCupboard, setDeletingCupboard] = useState<Cupboard | null>(
     null
   );
+  const [linkCupboard, setLinkCupboard] = useState<Cupboard | null>(null);
 
   // derived
   const allowEdit = !!config?.allow_structure_modification;
+  const showQr = config?.show_qr_nfc !== false;
   const hasNoCupboards = cupboards.length === 0;
 
   // handlers
@@ -67,27 +69,20 @@ export default function CupboardsView({ api }: Props) {
   }, []);
 
   const handleSave = useCallback(
-    async (name: string, imageFile?: File | null) => {
+    async (name: string, image: ImagePickerValue) => {
       try {
-        const normalizedImageFile = imageFile ?? null;
         if (editingCupboard) {
           await updateCupboard.mutateAsync({
             id: editingCupboard.id,
             name,
-            imageFile: normalizedImageFile,
+            image,
           });
         } else {
-          await addCupboard.mutateAsync({
-            name,
-            imageFile: normalizedImageFile,
-          });
+          await addCupboard.mutateAsync({ name, image });
         }
         handleCloseModal();
       } catch (err: any) {
-        const message =
-          err?.response?.data?.error ||
-          t.errors?.unexpected ||
-          'Unexpected error';
+        const message = err?.response?.data?.error || t.errors.unexpected;
         alert(message);
       }
     },
@@ -104,22 +99,10 @@ export default function CupboardsView({ api }: Props) {
       await deleteCupboard.mutateAsync(deletingCupboard.id);
       setDeletingCupboard(null);
     } catch (err: any) {
-      const message =
-        err?.response?.data?.error ||
-        t.errors?.unexpected ||
-        'Unexpected error';
+      const message = err?.response?.data?.error || t.errors.unexpected;
       alert(message);
     }
   }, [deletingCupboard, deleteCupboard, t]);
-
-  const handleDownloadQR = useCallback(
-    (e: ClickOrTouchEvent, cupboardName: string) => {
-      e.preventDefault();
-      e.stopPropagation();
-      downloadQRCode(selectedRoom, cupboardName);
-    },
-    [selectedRoom]
-  );
 
   const cards = useMemo(
     () =>
@@ -131,15 +114,15 @@ export default function CupboardsView({ api }: Props) {
         editable: allowEdit,
         onClick: () => goToCupboard(cupboard.name),
         onEdit: () => handleEdit(cupboard),
-        onQR: (e: ClickOrTouchEvent) => handleDownloadQR(e, cupboard.name),
+        onLinks: showQr ? () => setLinkCupboard(cupboard) : undefined,
         onDelete: allowEdit ? () => handleDeleteRequest(cupboard) : undefined,
       })),
     [
       cupboards,
       allowEdit,
+      showQr,
       goToCupboard,
       handleEdit,
-      handleDownloadQR,
       handleDeleteRequest,
     ]
   );
@@ -160,7 +143,7 @@ export default function CupboardsView({ api }: Props) {
 
       <CupboardHeader allowEdit={allowEdit} onToggleForm={handleAdd} />
 
-      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
+      <div className="stagger grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
         {hasNoCupboards ? (
           <p className="text-center text-ha-text py-10">
             {t.cupboards.noCupboards}
@@ -181,6 +164,17 @@ export default function CupboardsView({ api }: Props) {
         />
       )}
 
+      {/* QR / NFC */}
+      {showQr && linkCupboard && (
+        <LocationLinkModal
+          target="cupboard"
+          id={linkCupboard.id}
+          label={`${selectedRoom} › ${linkCupboard.name}`}
+          linkBase={config?.qr_redirect_url}
+          onClose={() => setLinkCupboard(null)}
+        />
+      )}
+
       {/* Delete */}
       {deletingCupboard && (
         <DeleteModal
@@ -188,6 +182,7 @@ export default function CupboardsView({ api }: Props) {
           itemName={deletingCupboard.name}
           itemType={t.cupboards.cupboard}
           itemCount={deletingCupboard.itemCount}
+          cascade={{ type: 'cupboard', id: deletingCupboard.id }}
           onClose={() => setDeletingCupboard(null)}
           onConfirm={handleDeleteConfirm}
         />

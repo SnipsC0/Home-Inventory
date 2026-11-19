@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
 from .db.schema import initialize_db
+from .images import prune_thumbnails
 from .api.rooms import HomeInventarRoomsView
 from .api.cupboards import HomeInventarCupboardsView
 from .api.shelves import HomeInventarShelvesView
@@ -18,9 +19,12 @@ from .api.all_items import (
     HomeInventarAllItemsView,
     HomeInventarUpdateItemQuantityView,
 )
+from .api.delete_preview import HomeInventarDeletePreviewView
 from .api.upload import HomeInventarUpload, HomeInventarImageView
 from .api.config import HomeInventarConfigView
 from .api.consume import HomeInventarConsumeView, HomeInventarItemDeepLinkView
+from .api.locate import HomeInventarLocateView
+from .api.expiring import HomeInventarExpiringBatchesView
 
 from .const import DOMAIN
 
@@ -50,8 +54,15 @@ async def async_setup_entry(hass, entry):
     base_path = ensure_data_folders(hass)
     db_path = os.path.join(base_path, "db", "inventar.db")
 
-    await hass.async_add_executor_job(initialize_db, db_path)
+    await hass.async_add_executor_job(
+        initialize_db, db_path, base_path, os.path.dirname(base_path)
+    )
     _LOGGER.debug(f"[Home Inventory] ✅ DB initialized at {db_path}")
+
+    images_dir = os.path.join(base_path, "images")
+    pruned = await hass.async_add_executor_job(prune_thumbnails, images_dir)
+    if pruned:
+        _LOGGER.debug(f"[Home Inventory] Pruned {pruned} orphaned thumbnails")
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["entry"] = entry
@@ -71,7 +82,10 @@ async def async_setup_entry(hass, entry):
         HomeInventarImageView(hass),
         HomeInventarConfigView(hass),
         HomeInventarConsumeView(hass, db_path),
-        HomeInventarItemDeepLinkView(hass)
+        HomeInventarItemDeepLinkView(hass),
+        HomeInventarLocateView(db_path, hass),
+        HomeInventarDeletePreviewView(db_path, hass),
+        HomeInventarExpiringBatchesView(db_path, hass),
     ]:
         hass.http.register_view(view)
     _LOGGER.debug("[Home Inventory] ✅ APIs registered")

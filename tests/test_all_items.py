@@ -95,3 +95,19 @@ def test_count_default_image_refs(db_path):
     conn.close()
     assert count_default_image_refs(db_path, "a.jpg") == 1
     assert count_default_image_refs(db_path, "b.jpg") == 0
+
+
+def test_list_all_items_location_images(db_path, seed):
+    ids = seed(db_path, "Kitchen", "C1", "S1", "Box")
+    conn = sqlite3.connect(db_path)
+    conn.execute("UPDATE rooms SET image = 'r.jpg' WHERE id = ?", (ids["room_id"],))
+    conn.execute("UPDATE cupboards SET image = 'c.jpg' WHERE id = ?", (ids["cupboard_id"],))
+    conn.execute("UPDATE shelves SET image = 's.jpg' WHERE id = ?", (ids["shelf_id"],))
+    conn.commit()
+    conn.close()
+    add_item(db_path, "Rice", ids["shelf_id"], qty=1, organizer_id=ids["organizer_id"])
+    loc = list_all_items(db_path, "", "", False, False)[0]["locations"][0]
+    assert loc["room_image"] == "r.jpg"
+    assert loc["cupboard_image"] == "c.jpg"
+    assert loc["shelf_image"] == "s.jpg"
+    assert loc["organizer_image"] is None

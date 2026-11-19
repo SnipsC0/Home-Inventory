@@ -122,15 +122,15 @@ def test_v2_normalizes_empty_aliases_and_image(tmp_path, q):
     assert q(path, "SELECT COUNT(*) FROM item_locations") == [(2,)]
 
 
-def test_v2_sums_tracked_duplicates_in_same_location(tmp_path, q):
+def test_v2_keeps_tracked_rows_separate_in_same_location(tmp_path, q):
     path, conn = _v1_db(tmp_path)
     _add_v1_item(conn, "Orez", 1, quantity=2, min_quantity=1, track=1)
     _add_v1_item(conn, "Orez", 1, quantity=3, min_quantity=1, track=1)
     _add_v1_item(conn, "Orez", 2, quantity=5, min_quantity=1, track=1)
     _migrate(conn, path)
 
-    rows = q(path, "SELECT shelf_id, quantity, expiration_dates FROM item_locations ORDER BY shelf_id")
-    assert [(r[0], r[1]) for r in rows] == [(1, 5), (2, 5)]
+    rows = q(path, "SELECT shelf_id, quantity, expiration_dates FROM item_locations ORDER BY shelf_id, id")
+    assert [(r[0], r[1]) for r in rows] == [(1, 2), (1, 3), (2, 5)]
     for _, qty, exp in rows:
         assert json.loads(exp) == [{"quantity": qty, "date": None}]
     assert q(path, "SELECT track_quantity FROM items_master") == [(1,)]
@@ -192,3 +192,64 @@ def test_initialize_db_migrates_existing_v1_db(tmp_path, q):
 
     assert _version(path) == 2
     assert q(path, "SELECT name FROM items_master") == [("Zahar",)]
+
+
+def test_initialize_db_backs_up_before_migrating(tmp_path, q):
+    import zipfile
+
+    data = tmp_path / "data" / "home_inventory"
+    (data / "db").mkdir(parents=True)
+    (data / "images").mkdir()
+    (data / "images" / "a.jpg").write_bytes(b"img")
+    path = str(data / "db" / "inventar.db")
+    import sqlite3
+
+    conn = sqlite3.connect(path)
+    migrate_to_v1(conn)
+    conn.execute("INSERT INTO rooms (name) VALUES ('Kitchen')")
+    conn.commit()
+    conn.close()
+
+    initialize_db(path, str(data), str(tmp_path / "data"))
+
+    assert _version(path) == 2
+    zip_path = tmp_path / "data" / "home_inventory_backup.zip"
+    with zipfile.ZipFile(zip_path) as zf:
+        assert set(zf.namelist()) == {
+            "home_inventory/db/inventar.db",
+            "home_inventory/images/a.jpg",
+        }
+        zf.extract("home_inventory/db/inventar.db", tmp_path / "x")
+    old = sqlite3.connect(tmp_path / "x" / "home_inventory" / "db" / "inventar.db")
+    assert old.execute("SELECT version FROM schema_version").fetchall() == [(1,)]
+    assert old.execute("SELECT name FROM rooms").fetchall() == [("Kitchen",)]
+    old.close()
+
+    # already v2: no second backup
+    initialize_db(path, str(data), str(tmp_path / "data"))
+    assert [p.name for p in (tmp_path / "data").glob("*.zip")] == ["home_inventory_backup.zip"]
+
+
+def test_initialize_db_backs_up_legacy_db_without_schema_version(tmp_path):
+    import sqlite3
+
+    data = tmp_path / "data" / "home_inventory"
+    (data / "db").mkdir(parents=True)
+    path = str(data / "db" / "inventar.db")
+    conn = sqlite3.connect(path)
+    conn.executescript("CREATE TABLE rooms (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL);"
+                       "INSERT INTO rooms (name) VALUES ('Kitchen');")
+    conn.close()
+
+    initialize_db(path, str(data), str(tmp_path / "data"))
+
+    assert (tmp_path / "data" / "home_inventory_backup.zip").exists()
+
+
+def test_initialize_db_fresh_install_makes_no_backup(tmp_path):
+    data = tmp_path / "data" / "home_inventory"
+    (data / "db").mkdir(parents=True)
+
+    initialize_db(str(data / "db" / "inventar.db"), str(data), str(tmp_path / "data"))
+
+    assert not list((tmp_path / "data").glob("*.zip"))

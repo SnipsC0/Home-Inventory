@@ -75,6 +75,7 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
 
   const handleItemEdit = useCallback((item: Item) => {
     setSelectedItem(item);
+    setSelectedLocation(item.locations[0]);
     setShowEditModal(true);
   }, []);
 
@@ -84,14 +85,11 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
     <>
       <div className="max-w-4xl mx-auto space-y-4">
         {/* header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-ha-text flex items-center gap-2">
-            <Package className="w-6 h-6" />
-            <Breadcrumb onBack={goBack} currentLabel={t.trackedItems.title} />
-          </h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Breadcrumb onBack={goBack} currentLabel={t.trackedItems.title} />
 
           {lowStockCount > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
+            <div className="count-badge !text-red-600 !bg-red-500/10 !text-sm !px-3 !py-1">
               <TrendingDown className="w-4 h-4" />
               {lowStockCount} {t.trackedItems.belowStock.toLowerCase()}
             </div>
@@ -101,13 +99,13 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
         {/* search + filter bar */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ha-secondary" />
+            <Search className="absolute left-4 inset-y-0 my-auto w-[18px] h-[18px] text-ha-text/50 pointer-events-none" />
             <input
               type="text"
               placeholder={t.trackedItems.searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-ha-card border border-ha-divider rounded-lg text-ha-text placeholder-ha-secondary focus:outline-none focus:ring-2 focus:ring-ha-primary"
+              className="field !pl-11 !py-3 !rounded-2xl"
             />
           </div>
 
@@ -116,21 +114,21 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
               <button
                 key={status}
                 onClick={() => setFilterStatus(status)}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
+                className={`btn ${
                   filterStatus === status
                     ? status === 'low'
-                      ? 'bg-red-500 text-white'
+                      ? 'btn-danger'
                       : status === 'ok'
-                      ? 'bg-green-500 text-white'
-                      : 'bg-ha-primary text-white'
-                    : 'bg-ha-card text-ha-text border border-ha-divider hover:bg-ha-divider'
+                      ? '!bg-green-500 text-white'
+                      : 'btn-primary'
+                    : 'btn-secondary'
                 }`}
               >
                 {status === 'all'
                   ? `${t.trackedItems.all} (${trackedItems.length})`
                   : status === 'low'
                   ? `${t.trackedItems.belowStock} (${lowStockCount})`
-                  : `OK (${trackedItems.length - lowStockCount})`}
+                  : `${t.trackedItems.ok} (${trackedItems.length - lowStockCount})`}
               </button>
             ))}
           </div>
@@ -138,7 +136,7 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
 
         {/* items list */}
         {filteredItems.length === 0 ? (
-          <div className="text-center py-12 bg-ha-card rounded-lg border border-ha-divider">
+          <div className="surface text-center py-12">
             <Package className="w-12 h-12 text-ha-secondary mx-auto mb-3" />
             <p className="text-ha-text font-medium mb-1">
               {searchTerm || filterStatus !== 'all'
@@ -152,7 +150,7 @@ const TrackedItemsView: FC<Props> = ({ api }): ReactElement => {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="stagger space-y-3">
             {filteredItems.map((item) => (
               <TrackedItem
                 key={item.id}

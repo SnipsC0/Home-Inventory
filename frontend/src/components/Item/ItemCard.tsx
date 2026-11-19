@@ -1,19 +1,20 @@
 import { useState } from 'react';
+import { Package } from 'lucide-react';
 import ViewItemModal from '../Modal/ItemModal/ViewItemModal';
 import EditItemModal from '../Modal/ItemModal/EditItemModal';
 import SelectLocationModal from '../Modal/SelectLocationModal';
 import { useInteractions } from '../../hooks/global/useInteractions';
 import type { Item, ItemLocation } from '../../types';
 import type { ApiService } from '../../services/api';
-import { useLoadingImage } from '../../hooks/global/useLoadingImage';
-import LoadingSpinner from '../LoadingImg';
+import SmartImage from '../SmartImage';
 import { useApi } from '../../contexts/ApiContext';
+import { useTranslation } from '../../i18n/I18nContext';
 
 interface ItemCardProps {
   item: Item;
   organizer?: string | null;
   variant?: 'normal' | 'compact';
-  // ✅ Nou: permite specificarea unei locații când știm exact care locație să afișăm
+  // Allows specifying a location when we know exactly which one to display
   specificLocation?: ItemLocation;
   showMultipleLocations?: boolean;
 }
@@ -33,6 +34,7 @@ export default function ItemCard({
   );
 
   const api = useApi();
+  const { t } = useTranslation();
 
   const hasMultipleLocations = (item.locations?.length || 0) > 1;
 
@@ -40,6 +42,11 @@ export default function ItemCard({
     specificLocation ||
     selectedLocation ||
     (item.track_quantity && !specificLocation ? item.locations[0] : null);
+
+  // Aggregated cards (all rows of an item) must not show one row's variant.
+  const variantLabel =
+    specificLocation?.variant ??
+    (hasMultipleLocations ? null : activeLocation?.variant);
 
   const interactionHandlers = useInteractions({
     onSingleClick: () => {
@@ -75,19 +82,13 @@ export default function ItemCard({
       ? item.default_image
       : activeLocation?.image || item.default_image);
 
-  const { imageError, setImageError, loadingImage, setLoadingImage } =
-    useLoadingImage(imageSrc);
-
   const quantity =
     hasMultipleLocations && showMultipleLocations
       ? item.total_quantity
       : activeLocation?.quantity ?? null;
 
-  const isLowStock =
-    item.track_quantity &&
-    quantity !== null &&
-    item.min_quantity !== null &&
-    quantity <= item.min_quantity;
+  // Low stock is evaluated on the item's total, not on this row's quantity
+  const isLowStock = item.track_quantity && item.is_low_stock;
 
   const quantityDisplay =
     item.track_quantity && quantity !== null
@@ -123,61 +124,43 @@ export default function ItemCard({
     <>
       <div
         {...interactionHandlers}
-        className={`bg-ha-card p-3 rounded-lg shadow-ha cursor-pointer select-none flex flex-col justify-between text-center relative
-        ${
-          isLowStock
-            ? 'border-l-4 border-ha-error'
-            : 'border-l-4 border-transparent'
-        }`}
+        className={`surface surface-interactive p-3 select-none flex flex-col justify-between text-center relative overflow-hidden
+        ${isLowStock ? '!border-ha-error/60' : ''}`}
       >
         {hasMultipleLocations && showMultipleLocations && (
-          <div className="absolute top-2 right-2 bg-ha-primary text-white text-xs px-2 py-1 rounded-full font-semibold z-10">
-            {item.locations?.length} locații
+          <div className="absolute top-2 right-2 bg-ha-primary text-white text-xs px-2 py-1 rounded-full font-semibold z-10 shadow-ha">
+            {item.locations?.length} {t.items.locationsCount}
           </div>
         )}
 
         <div
-          className={`flex flex-col justify-center items-center${
+          className={`w-full flex flex-col justify-center items-center${
             isCompact ? 'items-center gap-4' : ''
           }`}
         >
           {/* Image */}
           {imageSrc ? (
-            <div className="w-[8rem] h-[10rem] bg-ha-secondary-bg relative overflow-hidden rounded mb-3 m-auto">
-              {loadingImage && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <LoadingSpinner size={8} />
-                </div>
-              )}
-              {imageError ? (
-                <div className="w-full h-[150px] bg-ha-secondary-bg flex items-center justify-center text-4xl rounded mb-3">
-                  📦
-                </div>
-              ) : (
-                <img
-                  src={imageSrc}
-                  alt={item.name}
-                  loading="lazy"
-                  className={`w-full h-full object-cover transition-opacity duration-200 drag-none ${
-                    loadingImage ? 'opacity-0' : 'opacity-100'
-                  }`}
-                  onLoad={() => setLoadingImage(false)}
-                  onError={() => {
-                    setLoadingImage(false);
-                    setImageError(true);
-                  }}
-                />
-              )}
-            </div>
+            <SmartImage
+              src={imageSrc}
+              alt={item.name}
+              wrapperClassName="w-full aspect-[4/5] rounded-xl mb-3"
+              width={480}
+              fallback={<Package size={40} strokeWidth={1.5} />}
+            />
           ) : (
-            <div className="w-full h-[150px] bg-ha-secondary-bg flex items-center justify-center text-4xl rounded mb-3">
-              📦
+            <div className="w-full aspect-[4/5] bg-ha-secondary-bg flex items-center justify-center text-ha-text/30 rounded-xl mb-3">
+              <Package size={40} strokeWidth={1.5} />
             </div>
           )}
 
           {/* Content */}
-          <div className="flex flex-col justify-between items-center text-center font-semibold text-ha-text text-md mb-1 max-sm:max-w-[10rem]">
+          <div className="flex flex-col justify-between items-center text-center font-semibold text-ha-text text-sm mb-1 w-full">
             <div>{item.name}</div>
+            {variantLabel && (
+              <div className="text-xs text-ha-text/70 font-normal mt-0.5">
+                {variantLabel}
+              </div>
+            )}
             {item.aliases && (
               <div className="text-xs text-ha-text/60 italic font-light mt-1">
                 {item.aliases}
@@ -185,8 +168,10 @@ export default function ItemCard({
             )}
             {quantityDisplay && (
               <span
-                className={`font-semibold ${
-                  isLowStock ? 'text-ha-error' : 'text-green-500'
+                className={`count-badge mt-1 ${
+                  isLowStock
+                    ? '!text-ha-error !bg-ha-error/10'
+                    : '!text-green-600 !bg-green-500/10'
                 }`}
               >
                 {quantityDisplay}

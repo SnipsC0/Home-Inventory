@@ -2,12 +2,23 @@ import { useState } from 'react';
 import { Modal, ModalHeader, ModalFooter } from '../Modal';
 import ImageUploader from './ImageUploader';
 import MoveLocationSelector from './MoveLocationSelector';
+import LocationPhotos from '../../LocationPhotos';
+import DeleteModal from '../DeleteModal';
 import EditItemMasterModal from './EditItemMasterModal';
 import type { Item, ItemLocation } from '../../../types';
 import { ApiService } from '../../../services/api';
 import useEditItemModal from '../../../hooks/items/useEditItemModal';
 import { useTranslation } from '../../../i18n/I18nContext';
-import { Edit } from 'lucide-react';
+import {
+  Pencil,
+  ChevronRight,
+  Layers,
+  Trash2,
+  Plus,
+  Truck,
+  MapPin,
+} from 'lucide-react';
+import { formatDateInput } from '../../../utils/helpers';
 
 interface Props {
   isOpen: boolean;
@@ -29,6 +40,7 @@ export default function EditItemModal({
   onSuccess,
 }: Props) {
   const [showMasterModal, setShowMasterModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const {
     track,
@@ -37,6 +49,11 @@ export default function EditItemModal({
 
     // setters
     setTrack,
+    variant,
+    hasVariant,
+    barcodeValue,
+    setBarcodeValue,
+    setVariant,
 
     // move
     showMove,
@@ -65,32 +82,69 @@ export default function EditItemModal({
     <>
       <Modal isOpen={isOpen} onClose={onClose} maxWidth="600px">
         <ModalHeader onClose={onClose}>
-          ✏️ {t.common.edit} {t.items.title.toLowerCase().slice(0, -1)}
+          {t.items.editItem}
         </ModalHeader>
 
         <div className="space-y-4">
           <button
             onClick={() => setShowMasterModal(true)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600
-              text-white rounded-lg shadow-md transition duration-300 transform
-              hover:scale-101 active:scale-95"
+            className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-ha-secondary-bg/60
+              border border-ha-divider/60 rounded-2xl text-ha-text hover:border-ha-primary
+              transition active:scale-[0.98]"
           >
-            <Edit size={20} />
-            Editează obiectul principal
+            <span className="flex items-center gap-3 font-medium">
+              <span className="flex items-center justify-center w-9 h-9 rounded-full bg-ha-primary/15 text-ha-primary">
+                <Pencil size={18} />
+              </span>
+              {t.items.editMainItem}
+            </span>
+            <ChevronRight size={18} className="text-ha-text/50" />
           </button>
 
           <ImageUploader preview={preview} onChange={handleFileChange} />
+
+          <div>
+            <label className="text-ha-text text-sm block mb-1">
+              {t.items.variant} ({t.common.optional})
+            </label>
+            <input
+              type="text"
+              value={variant}
+              onChange={(e) => setVariant(e.target.value)}
+              className="field"
+              placeholder={t.items.variantPlaceholder}
+            />
+          </div>
+
+          <div>
+            <label className="text-ha-text text-sm block mb-1">
+              {hasVariant ? t.items.variantBarcode : t.items.barcode} ({t.common.optional})
+            </label>
+            <input
+              type="text"
+              value={barcodeValue}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              onChange={(e) => setBarcodeValue(e.target.value.replace(/\D/g, ''))}
+              className="field"
+            />
+            {!hasVariant && (
+              <p className="text-xs text-ha-text/60 mt-1">
+                {t.items.barcodeAppliesToItem}
+              </p>
+            )}
+          </div>
 
         {track && (
           <>
 
             {expirationBatches.length > 0 && (
-              <div className="space-y-2">
-                <span className="text-ha-text text-sm font-medium">
-                  Loturi existente cu date expirare:
-                </span>
+              <div className="bg-ha-secondary-bg/60 border border-ha-divider/60 p-4 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-ha-text/60 font-semibold">
+                  <Layers size={14} />
+                  {t.items.existingBatches.replace(/:\s*$/, '')}
+                </div>
                 {expirationBatches.map((batch, index) => {
-                  console.log(expirationBatches);
                   const count = expirationBatches.length;
 
                   return (
@@ -101,32 +155,37 @@ export default function EditItemModal({
                         onChange={(e) =>
                           updateBatch(index, 'quantity', +e.target.value)
                         }
-                        placeholder="Cantitate"
+                        placeholder={t.items.quantity}
                         className="w-24 px-2 py-1 border bg-ha-secondary-bg text-ha-text rounded"
                       />
                       <input
                         type="text"
                         value={batch.date ?? ''}
                         onChange={(e) =>
-                          updateBatch(index, 'date', e.target.value)
+                          updateBatch(
+                            index,
+                            'date',
+                            formatDateInput(e.target.value, batch.date ?? '')
+                          )
                         }
-                        placeholder="YYYY/MM/DD (gol pentru fără expirare)"
+                        inputMode="numeric"
+                        maxLength={10}
+                        placeholder={t.items.batchDatePlaceholder}
                         className={`flex-1 px-2 py-1 border text-ha-text ${
                           validateDate(batch.date || '')
                             ? 'bg-ha-secondary-bg'
-                            : 'bg-red-100 text-black'
+                            : 'bg-red-100 text-black!'
                         } rounded`}
                       />
                       <button
                         onClick={() => removeBatch(index)}
                         disabled={count === 1}
-                        className={`px-2 py-1  text-white rounded ${
-                          count !== 1
-                            ? 'bg-red-500 hover:bg-red-600'
-                            : 'bg-red-300'
-                        } `}
+                        title={t.common.delete}
+                        aria-label={t.common.delete}
+                        className="flex items-center justify-center w-9 h-9 shrink-0 rounded-full text-ha-error
+                          hover:bg-ha-error/10 transition disabled:opacity-30 disabled:hover:bg-transparent"
                       >
-                        ✕
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   );
@@ -136,23 +195,45 @@ export default function EditItemModal({
 
             <button
               onClick={addBatch}
-              className="w-full py-2 border border-blue-500 text-blue-500 rounded hover:bg-blue-50"
+              className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed
+                border-ha-primary text-ha-primary rounded-2xl hover:bg-ha-primary/10 transition"
             >
-              + Adaugă lot (cu sau fara expirare)
+              <Plus size={18} />
+              {t.items.addBatch.replace(/^\+\s*/, '')}
             </button>
           </>
         )}
 
-        <div className="bg-ha-secondary-bg p-3 rounded text-sm text-ha-text/80">
-          📍 {t.items.location}: {locationLabel}
+        <div className="bg-ha-secondary-bg/60 border border-ha-divider/60 p-4 rounded-2xl text-sm text-ha-text/80">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-ha-text/60 font-semibold mb-1">
+            <MapPin size={14} /> {t.items.location}
+          </div>
+          <div className="font-semibold text-ha-text">{locationLabel}</div>
+          {(location.room_image ||
+            location.cupboard_image ||
+            location.shelf_image ||
+            location.organizer_image) && (
+          <LocationPhotos
+            className="mt-2"
+            room={{ name: location.room, image: location.room_image }}
+            cupboard={{ name: location.cupboard, image: location.cupboard_image }}
+            shelf={{ name: location.shelf, image: location.shelf_image }}
+            organizer={{
+              name: location.organizer,
+              image: location.organizer_image,
+            }}
+          />
+          )}
         </div>
 
         {!showMove ? (
           <button
             onClick={startMove}
-            className="w-full py-2 border border-ha-primary text-ha-primary rounded hover:bg-ha-secondary-bg"
+            className="w-full flex items-center justify-center gap-2 py-2.5 border border-ha-primary
+              text-ha-primary rounded-2xl hover:bg-ha-primary/10 transition"
           >
-            🚚 {t.items.moveItem}
+            <Truck size={18} />
+            {t.items.moveItem}
           </button>
         ) : (
           <MoveLocationSelector
@@ -174,26 +255,41 @@ export default function EditItemModal({
                 (batch) => !validateDate(batch.date || '')
               ))
           }
-          className="flex-1 py-2 bg-ha-primary text-white rounded disabled:opacity-50"
+          className="btn btn-primary flex-1"
         >
-          {loading ? t.common.saving : `💾 ${t.common.save}`}
+          {loading ? t.common.saving : `${t.common.save}`}
         </button>
         <button
-          onClick={handleDelete}
+          onClick={() => setShowDeleteModal(true)}
           disabled={loading}
-          className="flex-1 py-2 bg-ha-error text-white rounded disabled:opacity-50"
+          className="btn btn-danger flex-1"
         >
-          🗑️ {t.common.delete}
+          {t.common.delete}
         </button>
         <button
           onClick={onClose}
           disabled={loading}
-          className="flex-1 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
+          className="btn btn-secondary flex-1"
         >
           {t.common.cancel}
         </button>
       </ModalFooter>
     </Modal>
+
+    {showDeleteModal && location?.location_id != null && (
+      <DeleteModal
+        isOpen
+        itemName={item.name}
+        itemType={t.items.location}
+        feminine
+        cascade={{ type: 'item_location', id: location.location_id }}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={async () => {
+          await handleDelete();
+          setShowDeleteModal(false);
+        }}
+      />
+    )}
 
     {showMasterModal && (
       <EditItemMasterModal

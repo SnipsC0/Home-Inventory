@@ -36,7 +36,11 @@ class HomeInventarApp extends HTMLElement {
         
         :host {
           display: block;
+          position: relative;
+          isolation: isolate;
           height: 100%;
+          min-height: 100vh;
+          min-height: 100dvh;
           width: 100%;
           overflow: hidden;
           box-sizing: border-box;

@@ -46,10 +46,10 @@ export interface ItemFilters {
   search?: string;
 }
 
-/** Normalizează stringurile pentru comparare */
+/** Normalizes strings for comparison */
 const normalize = (v?: string | null) => v?.toLowerCase().trim() || null;
 
-/** Verifică dacă o locație corespunde filtrului curent */
+/** Checks whether a location matches the current filter */
 const matchesLocation = (loc: ItemLocation, filters: ItemFilters): boolean => {
   const matchRoom =
     !filters.room || normalize(loc.room) === normalize(filters.room);
@@ -67,7 +67,7 @@ const matchesLocation = (loc: ItemLocation, filters: ItemFilters): boolean => {
   return matchRoom && matchCupboard && matchShelf && matchOrganizer;
 };
 
-/** Aplică toate filtrele (inclusiv search) asupra itemelor */
+/** Applies all filters (including search) to the items */
 export const filterItems = (items: Item[], filters: ItemFilters): Item[] => {
   const result: Item[] = [];
 
@@ -91,11 +91,11 @@ export const filterItems = (items: Item[], filters: ItemFilters): Item[] => {
         return nameMatch || aliasMatch || locationText;
       }) || [];
 
-    // ✅ Fiecare locație devine un item separat
+    // Each location becomes a separate item
     matchingLocations.forEach((loc) => {
       result.push({
         ...item,
-        locations: [loc], // Doar această locație
+        locations: [loc], // Only this location
       });
     });
   });

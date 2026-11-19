@@ -4,6 +4,7 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from ..const import DOMAIN
 from ..db import repository, devreload
+from ._images import delete_image_file
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,27 +18,7 @@ class HomeInventarShelvesView(HomeAssistantView):
         self.hass = hass
 
     def _delete_image_file(self, image_path):
-        if not image_path:
-            return
-        
-        try:
-            if image_path.startswith(f'/api/{DOMAIN}/images/'):
-                filename = image_path.split('/')[-1].split('?')[0]
-            elif image_path.startswith('/local/'):
-                return
-            else:
-                filename = image_path
-            
-            full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
-            
-            if os.path.exists(full_path):
-                os.remove(full_path)
-                _LOGGER.info(f"[HomeInventar] 🗑️ Deleted image file: {full_path}")
-            else:
-                _LOGGER.debug(f"[HomeInventar] Image file not found: {full_path}")
-                
-        except Exception as e:
-            _LOGGER.error(f"[HomeInventar] Error deleting image file: {e}", exc_info=True)
+        delete_image_file(self.hass, image_path)
 
     async def get(self, request):
         room = request.query.get("room")
@@ -56,18 +37,19 @@ class HomeInventarShelvesView(HomeAssistantView):
         room = data.get("room", "").strip()
         cupboard = data.get("cupboard", "").strip()
         name = data.get("name", "").strip()
-        
+        image = data.get("image") or None
+
         if not room or not cupboard or not name:
             return web.json_response({"error": "Room, cupboard and name required"}, status=400)
 
         devreload.reload_if_changed(repository)
         try:
             shelf_id = await request.app["hass"].async_add_executor_job(
-                partial(repository.create_shelf, self.db_path, room, cupboard, name)
+                partial(repository.create_shelf, self.db_path, room, cupboard, name, image)
             )
             if shelf_id is None:
                 return web.json_response({"error": "Cupboard not found"}, status=404)
-            return web.json_response({"id": shelf_id, "name": name})
+            return web.json_response({"id": shelf_id, "name": name, "image": image or ""})
         except sqlite3.IntegrityError:
             return web.json_response({"error": "Shelf already exists"}, status=400)
 
@@ -78,6 +60,7 @@ class HomeInventarShelvesView(HomeAssistantView):
             
             shelf_id = data.get("id")
             name = data.get("name")
+            new_image = data.get("image")
 
             if not shelf_id:
                 _LOGGER.error("PATCH shelves - missing shelf ID")
@@ -88,12 +71,15 @@ class HomeInventarShelvesView(HomeAssistantView):
                 return web.json_response({"error": "Shelf name required"}, status=400)
 
             devreload.reload_if_changed(repository)
-            count = await request.app["hass"].async_add_executor_job(
-                partial(repository.update_shelf, self.db_path, shelf_id, name)
+            count, old_image = await request.app["hass"].async_add_executor_job(
+                partial(repository.update_shelf, self.db_path, shelf_id, name, new_image)
             )
             if count == 0:
                 _LOGGER.error(f"Shelf not found with ID: {shelf_id}")
                 return web.json_response({"error": "Shelf not found"}, status=404)
+
+            if old_image:
+                self._delete_image_file(old_image)
             
             _LOGGER.info(f"Shelf {shelf_id} updated successfully")
             return web.json_response({"message": "Updated"})

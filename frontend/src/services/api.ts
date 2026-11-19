@@ -1,3 +1,9 @@
+import { getStaticTranslations } from '../i18n/translations';
+import {
+  setAuthSource,
+  getCurrentToken,
+  getValidToken,
+} from './auth';
 import type {
   Hass,
   Room,
@@ -6,13 +12,32 @@ import type {
   Item,
   OrganizersResponse,
   Config,
+  ExpiringBatchesResponse,
   UploadContext,
   UpdateItemData,
   AddItemData,
+  LocationTarget,
+  LocateResult,
 } from '../types';
 
+export interface DeletePreview {
+  cupboards: number;
+  shelves: number;
+  organizers: number;
+  locations: number;
+  items: number;
+  images: number;
+}
+
 export class ApiService {
-  constructor(private hass: Hass) {}
+  constructor(private hass: Hass) {
+    setAuthSource(hass);
+  }
+
+  /** Companion app external bus (undefined in a regular browser). */
+  get externalBus(): any {
+    return (this.hass as any)?.auth?.external;
+  }
 
   private async safeCall<T = void>(
     method: string,
@@ -20,7 +45,7 @@ export class ApiService {
     body?: any
   ): Promise<T> {
     try {
-      const token = (this.hass as any)?.auth?.data?.access_token;
+      const token = await getValidToken();
       if (!token) throw new Error('Missing authentication token');
 
       const response = await fetch(`/api/${path}`, {
@@ -50,7 +75,7 @@ export class ApiService {
         `❌ API Error [${method}] /api/${path}:`,
         err.message || err
       );
-      alert(err.message || 'Unexpected API error');
+      alert(err.message || getStaticTranslations().errors.unexpectedApi);
       return undefined as T;
     }
   }
@@ -67,8 +92,8 @@ export class ApiService {
       ? imagePath.split('/').pop()?.split('?')[0]
       : imagePath;
 
-    const token = this.hass.auth.data.access_token;
-    return `/api/home_inventory/images/${filename}?access_token=${token}`;
+    // SmartImage swaps in a fresh token on render/retry, so this one may go stale.
+    return `/api/home_inventory/images/${filename}?access_token=${getCurrentToken()}`;
   }
 
   async getConfig(): Promise<Config> {
@@ -77,15 +102,35 @@ export class ApiService {
 
   // Rooms
   async getRooms(): Promise<Room[]> {
-    return this.safeCall('GET', 'home_inventory/rooms');
+    const data = await this.safeCall<Room[]>('GET', 'home_inventory/rooms');
+    return (data || []).map((r) => ({ ...r, image: this.getImageUrl(r.image) }));
   }
 
-  async addRoom(name: string): Promise<{ id: number; name: string }> {
-    return this.safeCall('POST', 'home_inventory/rooms', { name: name });
+  async addRoom(
+    name: string,
+    image?: string
+  ): Promise<{ id: number; name: string }> {
+    return this.safeCall('POST', 'home_inventory/rooms', {
+      name,
+      image: image || '',
+    });
   }
 
-  async updateRoom(id: number, data: { name: string }): Promise<void> {
+  async updateRoom(
+    id: number,
+    data: { name: string; image?: string }
+  ): Promise<void> {
     return this.safeCall('PATCH', 'home_inventory/rooms', { id, ...data });
+  }
+
+  async getDeletePreview(
+    type: 'room' | 'cupboard' | 'shelf' | 'organizer' | 'item_location',
+    id: number
+  ): Promise<DeletePreview | undefined> {
+    return this.safeCall<DeletePreview>(
+      'GET',
+      `home_inventory/delete_preview?type=${type}&id=${id}`
+    );
   }
 
   async deleteRoom(id: number): Promise<void> {
@@ -132,22 +177,31 @@ export class ApiService {
     const query = `room=${encodeURIComponent(
       room
     )}&cupboard=${encodeURIComponent(cupboard)}`;
-    return this.safeCall('GET', `home_inventory/shelves?${query}`);
+    const data = await this.safeCall<Shelf[]>(
+      'GET',
+      `home_inventory/shelves?${query}`
+    );
+    return (data || []).map((s) => ({ ...s, image: this.getImageUrl(s.image) }));
   }
 
   async addShelf(
     room: string,
     cupboard: string,
-    name: string
+    name: string,
+    image?: string
   ): Promise<{ id: number; name: string }> {
     return this.safeCall('POST', 'home_inventory/shelves', {
       room,
       cupboard,
       name,
+      image: image || '',
     });
   }
 
-  async updateShelf(id: number, data: { name: string }): Promise<void> {
+  async updateShelf(
+    id: number,
+    data: { name: string; image?: string }
+  ): Promise<void> {
     return this.safeCall('PATCH', 'home_inventory/shelves', {
       id,
       ...data,
@@ -156,6 +210,27 @@ export class ApiService {
 
   async deleteShelf(id: number): Promise<void> {
     return this.safeCall('DELETE', 'home_inventory/shelves', { id });
+  }
+
+  /**
+   * Resolve a QR/NFC deep-link target to its location names.
+   * Returns null (without alerting) when the location no longer exists.
+   */
+  async locate(target: LocationTarget, id: number): Promise<LocateResult | null> {
+    const token = await getValidToken();
+    const query = `target=${encodeURIComponent(target)}&id=${encodeURIComponent(
+      String(id)
+    )}`;
+    try {
+      const response = await fetch(`/api/home_inventory/locate?${query}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) return null;
+      return (await response.json()) as LocateResult;
+    } catch (err) {
+      console.error('❌ Locate error:', err);
+      return null;
+    }
   }
 
   // Organizers
@@ -213,6 +288,10 @@ export class ApiService {
     return this.safeCall('DELETE', 'home_inventory/organizers', { id });
   }
 
+  async getExpiringBatches(): Promise<ExpiringBatchesResponse> {
+    return this.safeCall('GET', 'home_inventory/expiring_batches');
+  }
+
   // Items
 
   async getAllItems(): Promise<Item[]> {
@@ -224,6 +303,10 @@ export class ApiService {
         item.locations?.map((loc) => ({
           ...loc,
           image: loc.image && this.getImageUrl(loc.image),
+          room_image: loc.room_image && this.getImageUrl(loc.room_image),
+          cupboard_image: loc.cupboard_image && this.getImageUrl(loc.cupboard_image),
+          shelf_image: loc.shelf_image && this.getImageUrl(loc.shelf_image),
+          organizer_image: loc.organizer_image && this.getImageUrl(loc.organizer_image),
           expiration_dates: loc.expiration_dates
             ? JSON.parse(loc.expiration_dates as string)
             : null,
@@ -238,7 +321,16 @@ export class ApiService {
     organizer: string | null,
     itemData: AddItemData
   ): Promise<{ id: number; name: string }> {
-    const body: any = { room, cupboard, shelf, organizer, ...itemData };
+    // The backend expects the uploaded image under "image", not "imageFile"
+    const { imageFile, ...rest } = itemData as any;
+    const body: any = {
+      room,
+      cupboard,
+      shelf,
+      organizer,
+      ...rest,
+      image: imageFile || undefined,
+    };
 
     return this.safeCall('POST', 'home_inventory/items', body);
   }
@@ -306,7 +398,7 @@ export class ApiService {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.hass.auth.data.access_token}`,
+          Authorization: `Bearer ${await getValidToken()}`,
         },
         body: formData,
       });
@@ -324,7 +416,11 @@ export class ApiService {
         const message =
           typeof data === 'object' && data?.error
             ? data.error
-            : rawText || `Image upload failed (${response.status})`;
+            : rawText ||
+              getStaticTranslations().errors.imageUploadFailed.replace(
+                '{status}',
+                String(response.status)
+              );
 
         console.error('❌ Image upload error:', message);
         alert(message);
@@ -333,7 +429,7 @@ export class ApiService {
 
       if (!data?.path) {
         console.warn('⚠️ Upload response missing "path" field:', data);
-        alert('Unexpected upload response format.');
+        alert(getStaticTranslations().errors.unexpectedUploadResponse);
         return null;
       }
 
@@ -344,7 +440,12 @@ export class ApiService {
 
       return data.path;
     } catch (err: any) {
-      const msg = err?.message || 'Image upload failed';
+      const msg =
+        err?.message ||
+        getStaticTranslations().errors.imageUploadFailed.replace(
+          ' ({status})',
+          ''
+        );
       console.error('❌ Upload exception:', msg);
       alert(msg);
       return null;
@@ -361,14 +462,14 @@ export class ApiService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.hass.auth.data.access_token}`,
+          Authorization: `Bearer ${await getValidToken()}`,
         },
         body: JSON.stringify({ image: imageData }),
       });
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        const message = error.error || 'Failed to decode barcode';
+        const message = error.error || getStaticTranslations().errors.decodeFailed;
         console.error('❌ Barcode decode error:', message);
         alert(message);
         return null;
@@ -376,14 +477,14 @@ export class ApiService {
 
       return response.json();
     } catch (err: any) {
-      const msg = err?.message || 'Barcode decode failed';
+      const msg = err?.message || getStaticTranslations().errors.decodeFailed;
       console.error('❌ Barcode exception:', msg);
       alert(msg);
       return null;
     }
   }
 
-  // ✨ OPȚIONAL: Health check pentru barcode scanner ✨
+  // Optional: health check for the barcode scanner
   async checkBarcodeHealth(): Promise<{
     available: boolean;
     library: string | null;

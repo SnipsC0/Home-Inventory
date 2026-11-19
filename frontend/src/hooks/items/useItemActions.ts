@@ -26,6 +26,7 @@ export function useItemActions(organizerName?: string | null) {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['global-items'] });
     queryClient.invalidateQueries({ queryKey: ['organizers'] });
+    queryClient.invalidateQueries({ queryKey: ['expiring-batches'] });
   };
 
   const addItem = useMutation({
@@ -38,8 +39,11 @@ export function useItemActions(organizerName?: string | null) {
       min_quantity: number | null;
       track_quantity: boolean;
       expiration_date: string | null;
+      variant?: string;
+      merge_location_id?: number;
+      new_row?: boolean;
     }) => {
-      // ✅ 1. Upload imagine (dacă există)
+      // 1. Upload the image (if any)
       let imageData: any = '';
       if (itemData.imageFile) {
         const uploadResult = await api.uploadImage(itemData.imageFile, {
@@ -63,8 +67,8 @@ export function useItemActions(organizerName?: string | null) {
         }
       }
 
-      // ✅ 3. Creează itemul
-      return api.addItem(
+      // 3. Create the item
+      const result = await api.addItem(
         selectedRoom!,
         selectedCupboard!,
         selectedShelf!,
@@ -77,8 +81,15 @@ export function useItemActions(organizerName?: string | null) {
           quantity: itemData.quantity,
           track_quantity: itemData.track_quantity,
           expiration_date: itemData.expiration_date,
+          variant: itemData.variant,
+          merge_location_id: itemData.merge_location_id,
+          new_row: itemData.new_row,
         }
       );
+      // api.safeCall already alerted the error and returned undefined:
+      // reject so callers keep their modal open.
+      if (!result) throw new Error('Add item failed');
+      return result;
     },
     onSuccess: invalidate,
   });

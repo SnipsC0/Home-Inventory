@@ -7,7 +7,8 @@ plain pytest. HTTP handlers in ``api/items.py`` call these via
 import json
 import logging
 import sqlite3
-from datetime import date
+import calendar
+from datetime import date, timedelta
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,6 +77,63 @@ def _norm_date(d):
     return None
 
 
+_BARCODE_MATCH_SQL = (
+    "(im.barcode = ? OR im.id IN "
+    "(SELECT item_id FROM item_variant_barcodes WHERE barcode = ?))"
+)
+
+
+def _variant_barcode_owner(cur, barcode):
+    """``(item_id, variant)`` owning ``barcode`` as a variant barcode, or None."""
+    cur.execute(
+        "SELECT item_id, variant FROM item_variant_barcodes WHERE barcode = ?",
+        (barcode,),
+    )
+    return cur.fetchone()
+
+
+def _variant_barcode_conflict(cur, barcode, item_id):
+    """Error text if ``barcode`` is a variant barcode of a different item, else None."""
+    owner = _variant_barcode_owner(cur, barcode)
+    if owner and owner[0] != item_id:
+        return f"Barcode {barcode} already exists for a variant of a different item"
+    return None
+
+
+def _set_variant_barcode(cur, item_id, variant, barcode):
+    """Set (or clear, when ``barcode`` is empty) the barcode of ``(item_id, variant)``.
+
+    Returns an error string or None.
+    """
+    barcode = (barcode or "").strip() or None
+    if barcode is None:
+        cur.execute(
+            "DELETE FROM item_variant_barcodes WHERE item_id = ? AND variant = ?",
+            (item_id, variant),
+        )
+        return None
+    cur.execute("SELECT id FROM items_master WHERE barcode = ?", (barcode,))
+    master = cur.fetchone()
+    if master and master[0] != item_id:
+        return f"Barcode {barcode} already exists for a different item"
+    owner = _variant_barcode_owner(cur, barcode)
+    if owner and (owner[0] != item_id or owner[1] != variant):
+        return f"Barcode {barcode} already exists for a different variant"
+    cur.execute(
+        "SELECT id FROM item_variant_barcodes WHERE item_id = ? AND variant = ?",
+        (item_id, variant),
+    )
+    row = cur.fetchone()
+    if row:
+        cur.execute("UPDATE item_variant_barcodes SET barcode = ? WHERE id = ?", (barcode, row[0]))
+    else:
+        cur.execute(
+            "INSERT INTO item_variant_barcodes (item_id, variant, barcode) VALUES (?, ?, ?)",
+            (item_id, variant, barcode),
+        )
+    return None
+
+
 def create_item_location(
     db_path,
     *,
@@ -93,8 +151,16 @@ def create_item_location(
     add_total_qty,
     add_batch_qty,
     batch_date,
+    variant=None,
+    merge_location_id=None,
+    new_row=False,
 ):
     """Create an item location (finding/creating its master).
+
+    For tracked items, quantity is merged into an existing row when
+    ``merge_location_id`` names one (must be the same item and place), or when
+    exactly one row at the place has the same ``variant``; otherwise a new row
+    is inserted. ``new_row=True`` skips merging and always inserts.
 
     Returns ``((location_id, master_item_id), None)`` or ``(None, error)``.
     """
@@ -155,7 +221,18 @@ def create_item_location(
                 sql_params.append(name)
 
         existing = None
-        if sql_conditions:
+        scanned_variant = None
+        if barcode:
+            owner = _variant_barcode_owner(cur, barcode)
+            if owner:
+                # A variant barcode identifies the master and the variant
+                cur.execute(
+                    "SELECT id, name, track_quantity FROM items_master WHERE id = ?",
+                    (owner[0],),
+                )
+                existing = cur.fetchone()
+                scanned_variant = owner[1]
+        if not existing and sql_conditions:
             sql_query = f"SELECT id, name, track_quantity FROM items_master WHERE {' OR '.join(sql_conditions)}"
             cur.execute(sql_query, sql_params)
             existing = cur.fetchone()
@@ -235,20 +312,70 @@ def create_item_location(
                     f"Cannot add quantity."
                 )
 
-        # D) Find existing location (only for tracked items - duplicatable items can be inserted multiple times)
-        loc = None
-        if track_quantity:
-            cur.execute(
-                '''
-                SELECT id, quantity, expiration_dates
-                FROM item_locations
-                WHERE item_id = ? AND shelf_id = ? AND (
-                    (organizer_id IS NULL AND ? IS NULL) OR (organizer_id = ?)
+        # D) Find the row to merge into (only for tracked items; duplicatable items are always inserted)
+        variant = (variant or "").strip() or scanned_variant
+        if barcode and existing:
+            # New barcode for a known item + a variant label: register it for that variant
+            cur.execute("SELECT barcode FROM items_master WHERE id = ?", (master_item_id,))
+            master_barcode = cur.fetchone()[0]
+            if not variant and barcode != master_barcode:
+                # No variant label: the code can only be the item's main barcode.
+                if master_barcode:
+                    return None, (
+                        f"Item already has barcode {master_barcode}. "
+                        f"Fill in a variant to register barcode {barcode}."
+                    )
+                cur.execute(
+                    "SELECT 1 FROM items_master WHERE barcode = ? AND id != ?",
+                    (barcode, master_item_id),
                 )
-                ''',
-                (master_item_id, shelf_id, organizer_id, organizer_id)
-            )
-            loc = cur.fetchone()
+                if cur.fetchone():
+                    return None, f"Barcode {barcode} already exists for a different item"
+                vb_err = _variant_barcode_conflict(cur, barcode, master_item_id)
+                if vb_err:
+                    return None, vb_err
+                cur.execute(
+                    "UPDATE items_master SET barcode = ? WHERE id = ?",
+                    (barcode, master_item_id),
+                )
+            if (
+                variant
+                and barcode != master_barcode
+                and not _variant_barcode_owner(cur, barcode)
+            ):
+                cur.execute(
+                    "SELECT 1 FROM item_variant_barcodes WHERE item_id = ? AND variant = ?",
+                    (master_item_id, variant),
+                )
+                if not cur.fetchone():
+                    err = _set_variant_barcode(cur, master_item_id, variant, barcode)
+                    if err:
+                        return None, err
+        loc = None
+        if track_quantity and not new_row:
+            if merge_location_id:
+                cur.execute(
+                    '''
+                    SELECT id, quantity, expiration_dates
+                    FROM item_locations
+                    WHERE id = ? AND item_id = ? AND shelf_id = ? AND organizer_id IS ?
+                    ''',
+                    (merge_location_id, master_item_id, shelf_id, organizer_id)
+                )
+                loc = cur.fetchone()
+                if not loc:
+                    return None, "merge_location_id does not match this item and location."
+            else:
+                cur.execute(
+                    '''
+                    SELECT id, quantity, expiration_dates
+                    FROM item_locations
+                    WHERE item_id = ? AND shelf_id = ? AND organizer_id IS ? AND variant IS ?
+                    ''',
+                    (master_item_id, shelf_id, organizer_id, variant)
+                )
+                matches = cur.fetchall()
+                loc = matches[0] if len(matches) == 1 else None
 
 
         batch_date_norm = _norm_date(batch_date)
@@ -322,10 +449,10 @@ def create_item_location(
 
             cur.execute(
                 '''
-                INSERT INTO item_locations (item_id, shelf_id, organizer_id, quantity, expiration_dates, image)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO item_locations (item_id, shelf_id, organizer_id, quantity, expiration_dates, image, variant)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''',
-                (master_item_id, shelf_id, organizer_id, qty_to_store, exp_list, location_image)
+                (master_item_id, shelf_id, organizer_id, qty_to_store, exp_list, location_image, variant)
             )
             conn.commit()
             location_id = cur.lastrowid
@@ -370,6 +497,8 @@ def update_item(
     new_cupboard,
     new_shelf,
     new_organizer,
+    variant=None,
+    variant_barcode=None,
 ):
     """Update master/location with merge/split logic.
 
@@ -462,6 +591,16 @@ def update_item(
                         (new_master_id, item_id)
                     )
 
+                # Variant barcodes follow the rows that moved
+                cur.execute(
+                    """
+                    UPDATE OR IGNORE item_variant_barcodes SET item_id = ?
+                    WHERE item_id = ? AND variant IN
+                        (SELECT variant FROM item_locations WHERE item_id = ? AND variant IS NOT NULL)
+                    """,
+                    (new_master_id, item_id, new_master_id),
+                )
+
                 # Check if old master has any remaining locations
                 cur.execute("SELECT COUNT(*) FROM item_locations WHERE item_id = ?", (item_id,))
                 remaining = cur.fetchone()[0]
@@ -473,6 +612,7 @@ def update_item(
                         if not loc_img or loc_img[0] != current_image:
                             old_images_to_delete.append(current_image)
 
+                    cur.execute("DELETE FROM item_variant_barcodes WHERE item_id = ?", (item_id,))
                     cur.execute("DELETE FROM items_master WHERE id = ?", (item_id,))
                     _LOGGER.info(f"[ITEM PATCH] Deleted old master {item_id} (no remaining locations)")
 
@@ -543,6 +683,9 @@ def update_item(
                 if conflict:
                     if conflict[1] != check_name or conflict[2] != check_aliases:
                         return 0, [], f"Barcode {barcode} already exists for different item"
+                vb_err = _variant_barcode_conflict(cur, barcode, new_master_id)
+                if vb_err:
+                    return 0, [], vb_err
 
                 updates.append("barcode = ?")
                 params.append(barcode)
@@ -627,11 +770,54 @@ def update_item(
                 loc_updates.append("image = ?")
                 loc_params.append(new_image)
 
+            cur.execute("SELECT variant FROM item_locations WHERE id = ?", (location_id,))
+            row_variant = cur.fetchone()
+            old_variant = row_variant[0] if row_variant else None
+            final_variant = old_variant
+            if "variant" in data:
+                final_variant = (variant or "").strip() or None
+                loc_updates.append("variant = ?")
+                loc_params.append(final_variant)
+
             if loc_updates:
                 loc_params.append(location_id)
                 loc_sql = f"UPDATE item_locations SET {', '.join(loc_updates)} WHERE id = ?"
                 _LOGGER.debug(f"[ITEM PATCH] Executing: {loc_sql} with params: {loc_params}")
                 cur.execute(loc_sql, loc_params)
+
+            if "variant" in data and old_variant and final_variant != old_variant:
+                # Rename: the label's barcode follows unless other rows still use the old label
+                cur.execute(
+                    "SELECT 1 FROM item_locations WHERE item_id = ? AND variant = ? AND id != ?",
+                    (new_master_id, old_variant, location_id),
+                )
+                if not cur.fetchone():
+                    if final_variant:
+                        cur.execute(
+                            "SELECT 1 FROM item_variant_barcodes WHERE item_id = ? AND variant = ?",
+                            (new_master_id, final_variant),
+                        )
+                        if cur.fetchone():
+                            cur.execute(
+                                "DELETE FROM item_variant_barcodes WHERE item_id = ? AND variant = ?",
+                                (new_master_id, old_variant),
+                            )
+                        else:
+                            cur.execute(
+                                "UPDATE item_variant_barcodes SET variant = ? WHERE item_id = ? AND variant = ?",
+                                (final_variant, new_master_id, old_variant),
+                            )
+
+            if "variant_barcode" in data:
+                if not final_variant:
+                    if (variant_barcode or "").strip():
+                        conn.rollback()
+                        return 0, [], "A variant label is required to set a variant barcode"
+                else:
+                    vb_err = _set_variant_barcode(cur, new_master_id, final_variant, variant_barcode)
+                    if vb_err:
+                        conn.rollback()
+                        return 0, [], vb_err
 
         conn.commit()
         return 1, old_images_to_delete, None
@@ -649,15 +835,19 @@ def update_item(
         conn.close()
 
 
-def get_low_stock_info(db_path, location_id):
-    """Return low-stock event payload for a location, or None."""
+def _low_stock_payload(db_path, location_id, require_positive):
+    """Low-stock event payload evaluated on the item's total across all rows, or None.
+
+    ``location_id`` is the row that triggered the check; its place/variant go in the payload.
+    """
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     cur.execute(
         '''
         SELECT
             im.id, im.name, im.min_quantity, im.track_quantity, im.aliases,
-            il.quantity,
+            (SELECT SUM(t.quantity) FROM item_locations t WHERE t.item_id = im.id),
+            il.quantity, il.variant,
             r.name as room_name, c.name as cupboard_name, s.name as shelf_name
         FROM item_locations il
         JOIN items_master im ON il.item_id = im.id
@@ -674,22 +864,33 @@ def get_low_stock_info(db_path, location_id):
     if not row:
         return None
 
-    item_id_db, name, min_qty, track_qty, aliases, qty, room, cupboard, shelf = row
+    item_id_db, name, min_qty, track_qty, aliases, total, row_qty, variant, room, cupboard, shelf = row
 
-    if track_qty and qty is not None and min_qty is not None and qty > 0:
-        if qty <= min_qty:
-            return {
-                "item_id": item_id_db,
-                "name": name,
-                "aliases": aliases,
-                "quantity": qty,
-                "min_quantity": min_qty,
-                "room": room,
-                "cupboard": cupboard,
-                "shelf": shelf,
-                "location": f"{room} / {cupboard} / {shelf}"
-            }
-    return None
+    if not (track_qty and total is not None and min_qty is not None):
+        return None
+    if require_positive and total <= 0:
+        return None
+    if total > min_qty:
+        return None
+    return {
+        "item_id": item_id_db,
+        "name": name,
+        "aliases": aliases,
+        "quantity": total,
+        "total_quantity": total,
+        "location_quantity": row_qty,
+        "min_quantity": min_qty,
+        "room": room,
+        "cupboard": cupboard,
+        "shelf": shelf,
+        "variant": variant,
+        "location": f"{room} / {cupboard} / {shelf}"
+    }
+
+
+def get_low_stock_info(db_path, location_id):
+    """Return low-stock event payload (total-based, total > 0) for a location's item, or None."""
+    return _low_stock_payload(db_path, location_id, True)
 
 
 def delete_item_location(db_path, location_id):
@@ -811,6 +1012,9 @@ def update_item_master(db_path, item_id, data, *, name, aliases, barcode, defaul
             if conflict:
                 if conflict[1] != check_name or conflict[2] != check_aliases:
                     return 0, [], f"Barcode {barcode} already exists for different item"
+            vb_err = _variant_barcode_conflict(cur, barcode, int(item_id))
+            if vb_err:
+                return 0, [], vb_err
 
             updates.append("barcode = ?")
             params.append(barcode)
@@ -907,6 +1111,7 @@ def delete_item_master(db_path, item_id):
 
         # Delete all locations (cascade)
         cur.execute("DELETE FROM item_locations WHERE item_id = ?", (item_id,))
+        cur.execute("DELETE FROM item_variant_barcodes WHERE item_id = ?", (item_id,))
 
         # Delete master item
         cur.execute("DELETE FROM items_master WHERE id = ?", (item_id,))
@@ -950,7 +1155,7 @@ def consume_item(db_path, item_id, location_id):
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Găsim locația specifică
+    # Find the specific location
     cur.execute("""
         SELECT 
             il.id as location_id,
@@ -990,7 +1195,7 @@ def consume_item(db_path, item_id, location_id):
 
     new_quantity = location['quantity'] - 1
 
-    # Actualizăm cantitatea
+    # Update the quantity
     cur.execute("""
         UPDATE item_locations 
         SET quantity = ?, expiration_dates = ?
@@ -999,11 +1204,13 @@ def consume_item(db_path, item_id, location_id):
 
     conn.commit()
 
-    # Verificăm low stock
+    # Check low stock
+    cur.execute("SELECT SUM(quantity) FROM item_locations WHERE item_id = ?", (item_id,))
+    total_quantity = cur.fetchone()[0] or 0
     is_low_stock = (
-        location['min_quantity'] is not None and 
-        new_quantity > 0 and
-        new_quantity <= location['min_quantity']
+        location['min_quantity'] is not None and
+        total_quantity > 0 and
+        total_quantity <= location['min_quantity']
     )
 
     location_str = f"{location['room_name']} / {location['cupboard_name']} / {location['shelf_name']}"
@@ -1018,6 +1225,7 @@ def consume_item(db_path, item_id, location_id):
         'old_quantity': location['quantity'],
         'new_quantity': new_quantity,
         'min_quantity': location['min_quantity'],
+        'total_quantity': total_quantity,
         'is_low_stock': is_low_stock,
         'room': location['room_name'],
         'cupboard': location['cupboard_name'],
@@ -1082,10 +1290,12 @@ def consume_items(db_path, item_id, location_id, amount):
 
     conn.commit()
 
+    cur.execute("SELECT SUM(quantity) FROM item_locations WHERE item_id = ?", (item_id,))
+    total_quantity = cur.fetchone()[0] or 0
     is_low_stock = (
-        location['min_quantity'] is not None and 
-        new_quantity > 0 and
-        new_quantity <= location['min_quantity']
+        location['min_quantity'] is not None and
+        total_quantity > 0 and
+        total_quantity <= location['min_quantity']
     )
 
     location_str = f"{location['room_name']} / {location['cupboard_name']} / {location['shelf_name']}"
@@ -1101,6 +1311,7 @@ def consume_items(db_path, item_id, location_id, amount):
         'new_quantity': new_quantity,
         'amount_consumed': amount,
         'min_quantity': location['min_quantity'],
+        'total_quantity': total_quantity,
         'is_low_stock': is_low_stock,
         'room': location['room_name'],
         'cupboard': location['cupboard_name'],
@@ -1120,70 +1331,263 @@ def list_rooms(db_path):
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     cur.execute('''
-        SELECT r.id, r.name, COUNT(DISTINCT il.id)
+        SELECT r.id, r.name, r.image, COUNT(DISTINCT il.id)
         FROM rooms r
         LEFT JOIN cupboards c ON r.id = c.room_id
         LEFT JOIN shelves s ON c.id = s.cupboard_id
         LEFT JOIN item_locations il ON s.id = il.shelf_id
-        GROUP BY r.id, r.name
+        GROUP BY r.id, r.name, r.image
         ORDER BY r.name
     ''')
     rows = cur.fetchall()
     conn.close()
-    return [{"id": r[0], "name": r[1], "itemCount": r[2]} for r in rows]
+    return [{"id": r[0], "name": r[1], "image": r[2] or "", "itemCount": r[3]} for r in rows]
 
 
-def create_room(db_path, name):
+def create_room(db_path, name, image=None):
     """Raises sqlite3.IntegrityError if the name already exists."""
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
-    cur.execute("INSERT INTO rooms (name) VALUES (?)", (name,))
+    cur.execute("INSERT INTO rooms (name, image) VALUES (?, ?)", (name, image or None))
     conn.commit()
     rid = cur.lastrowid
     conn.close()
     return rid
 
 
-def update_room(db_path, room_id, name):
-    """Returns rowcount. Raises sqlite3.IntegrityError on duplicate name."""
+def _update_named_with_image(db_path, table, row_id, name, new_image):
+    """Shared UPDATE for tables with (name, image).
+
+    ``new_image=None`` leaves the image untouched; ``""`` clears it.
+    Returns (rowcount, old_image_to_delete_or_None).
+    Raises sqlite3.IntegrityError on duplicate name.
+    """
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
 
-    _LOGGER.info(f"Updating room {room_id} to name: {name}")
-    cur.execute("UPDATE rooms SET name = ? WHERE id = ?", (name, room_id))
-    conn.commit()
-    count = cur.rowcount
-    conn.close()
-    return count
+    old_image = None
+    if new_image is not None:
+        cur.execute(f"SELECT image FROM {table} WHERE id = ?", (row_id,))
+        row = cur.fetchone()
+        if row:
+            old_image = row[0]
+
+    updates = []
+    params = []
+    if name is not None:
+        updates.append("name = ?")
+        params.append(name)
+    if new_image is not None:
+        updates.append("image = ?")
+        params.append(new_image or None)
+
+    if not updates:
+        conn.close()
+        return 0, None
+
+    params.append(row_id)
+    _LOGGER.info(f"Updating {table} {row_id}: name={name!r}, image={new_image!r}")
+    try:
+        cur.execute(f"UPDATE {table} SET {', '.join(updates)} WHERE id = ?", params)
+        conn.commit()
+        count = cur.rowcount
+    finally:
+        conn.close()
+
+    changed = new_image is not None and old_image and old_image != new_image
+    return count, old_image if changed else None
+
+
+def update_room(db_path, room_id, name, new_image=None):
+    """Returns (rowcount, old_image_to_delete_or_None). Raises IntegrityError on duplicate name."""
+    return _update_named_with_image(db_path, "rooms", room_id, name, new_image)
+
+
+def _cascade_delete_locations(cur, where_sql, params):
+    """Delete item_locations matched by ``where_sql`` (on alias ``il``), and any item
+    master left without locations. Returns the images to delete from disk
+    (location images + orphaned masters' default images)."""
+    cur.execute(f"SELECT il.id, il.item_id, il.image FROM item_locations il WHERE {where_sql}", params)
+    rows = cur.fetchall()
+    images = [r[2] for r in rows if r[2]]
+    loc_ids = [r[0] for r in rows]
+    item_ids = {r[1] for r in rows}
+
+    for i in range(0, len(loc_ids), 500):
+        chunk = loc_ids[i:i + 500]
+        cur.execute(f"DELETE FROM item_locations WHERE id IN ({','.join('?' * len(chunk))})", chunk)
+
+    for item_id in item_ids:
+        cur.execute("SELECT COUNT(*) FROM item_locations WHERE item_id = ?", (item_id,))
+        if cur.fetchone()[0]:
+            continue
+        cur.execute("SELECT default_image FROM items_master WHERE id = ?", (item_id,))
+        row = cur.fetchone()
+        if row and row[0]:
+            images.append(row[0])
+        cur.execute("DELETE FROM item_variant_barcodes WHERE item_id = ?", (item_id,))
+        cur.execute("DELETE FROM items_master WHERE id = ?", (item_id,))
+
+    # Never delete a file still referenced by a surviving location or master
+    kept = []
+    for img in dict.fromkeys(images):
+        name = img.split("?")[0].rsplit("/", 1)[-1]
+        cur.execute(
+            "SELECT (SELECT COUNT(*) FROM item_locations WHERE image LIKE ?)"
+            " + (SELECT COUNT(*) FROM items_master WHERE default_image LIKE ?)",
+            (f"%{name}%", f"%{name}%"),
+        )
+        if cur.fetchone()[0] == 0:
+            kept.append(img)
+    return kept
+
+
+def delete_preview(db_path, kind, entity_id):
+    """What a cascading delete would remove, without deleting anything.
+
+    ``kind``: room | cupboard | shelf | organizer | item_master | item_location. Returns None for an
+    unknown kind/id, else counts of cupboards, shelves, organizers, item locations,
+    item masters that would be deleted (all their locations go) and photos, plus
+    ``locations_list`` (up to 20 "room / cupboard / shelf[ / organizer]" strings, item_master only).
+    """
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    try:
+        cupboards, shelves, organizers, images = [], [], [], []
+
+        def col(sql, params=()):
+            return [r for r in cur.execute(sql, params).fetchall()]
+
+        if kind == "room":
+            rows = col("SELECT id, image FROM rooms WHERE id = ?", (entity_id,))
+            if not rows:
+                return None
+            images.append(rows[0][1])
+            cupboards = col("SELECT id, image FROM cupboards WHERE room_id = ?", (entity_id,))
+        elif kind == "cupboard":
+            rows = col("SELECT id, image FROM cupboards WHERE id = ?", (entity_id,))
+            if not rows:
+                return None
+            cupboards = []
+            images.append(rows[0][1])
+            shelves = col("SELECT id, image FROM shelves WHERE cupboard_id = ?", (entity_id,))
+        elif kind == "shelf":
+            rows = col("SELECT id, image FROM shelves WHERE id = ?", (entity_id,))
+            if not rows:
+                return None
+            shelves = rows
+        elif kind == "organizer":
+            rows = col("SELECT id, image FROM organizers WHERE id = ?", (entity_id,))
+            if not rows:
+                return None
+            organizers = rows
+        elif kind == "item_master":
+            rows = col("SELECT id FROM items_master WHERE id = ?", (entity_id,))
+            if not rows:
+                return None
+        elif kind == "item_location":
+            rows = col("SELECT id FROM item_locations WHERE id = ?", (entity_id,))
+            if not rows:
+                return None
+        else:
+            return None
+
+        if kind == "room":
+            ids = [c[0] for c in cupboards]
+            shelves = [r for i in ids for r in col("SELECT id, image FROM shelves WHERE cupboard_id = ?", (i,))]
+        if kind in ("room", "cupboard", "shelf"):
+            organizers = [r for sh in shelves for r in col("SELECT id, image FROM organizers WHERE shelf_id = ?", (sh[0],))]
+
+        # Locations in scope
+        if kind == "item_master":
+            locs = col("SELECT id, item_id, image FROM item_locations WHERE item_id = ?", (entity_id,))
+        elif kind == "item_location":
+            locs = col("SELECT id, item_id, image FROM item_locations WHERE id = ?", (entity_id,))
+        elif kind == "organizer":
+            locs = col("SELECT id, item_id, image FROM item_locations WHERE organizer_id = ?", (entity_id,))
+        else:
+            locs = [r for sh in shelves for r in col("SELECT id, item_id, image FROM item_locations WHERE shelf_id = ?", (sh[0],))]
+
+        images += [c[1] for c in cupboards] + [x[1] for x in shelves] + [o[1] for o in organizers] + [l[2] for l in locs]
+
+        # Masters that would be left without locations
+        per_item = {}
+        for _, item_id, _ in locs:
+            per_item[item_id] = per_item.get(item_id, 0) + 1
+        masters = 0
+        for item_id, n in per_item.items():
+            total = cur.execute("SELECT COUNT(*) FROM item_locations WHERE item_id = ?", (item_id,)).fetchone()[0]
+            if total == n:
+                masters += 1
+                d = cur.execute("SELECT default_image FROM items_master WHERE id = ?", (item_id,)).fetchone()
+                images.append(d[0] if d else None)
+
+        result = {
+            "cupboards": len(cupboards),
+            "shelves": len(shelves),
+            "organizers": len(organizers),
+            "locations": len(locs),
+            "items": masters,
+            "images": len({i for i in images if i}),
+            "locations_list": [],
+        }
+        if kind == "item_master":
+            result["locations_list"] = [
+                " / ".join(p for p in r if p)
+                for r in cur.execute('''
+                    SELECT r.name, c.name, s.name, o.name FROM item_locations il
+                    JOIN shelves s ON il.shelf_id = s.id
+                    JOIN cupboards c ON s.cupboard_id = c.id
+                    JOIN rooms r ON c.room_id = r.id
+                    LEFT JOIN organizers o ON il.organizer_id = o.id
+                    WHERE il.item_id = ? LIMIT 20
+                ''', (entity_id,)).fetchall()
+            ]
+        return result
+    finally:
+        conn.close()
 
 
 def delete_room(db_path, room_id):
-    """Returns (rowcount, images_to_delete)."""
+    """Returns (rowcount, images_to_delete): the room's own image plus all descendants'
+    (cupboards, shelves, organizers, item locations, and masters left without locations).
+    Cascades explicitly: API connections don't enable foreign_keys."""
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
+    try:
+        cur.execute('''
+            SELECT image FROM rooms WHERE id = ?
+            UNION ALL
+            SELECT c.image FROM cupboards c WHERE c.room_id = ?
+            UNION ALL
+            SELECT s.image FROM shelves s
+            JOIN cupboards c ON s.cupboard_id = c.id
+            WHERE c.room_id = ?
+            UNION ALL
+            SELECT o.image FROM organizers o
+            JOIN shelves s ON o.shelf_id = s.id
+            JOIN cupboards c ON s.cupboard_id = c.id
+            WHERE c.room_id = ?
+        ''', (room_id,) * 4)
+        images = [row[0] for row in cur.fetchall() if row[0]]
 
-    images_to_delete = []
-
-    cur.execute('''
-        SELECT image FROM cupboards 
-        WHERE room_id = ? AND image IS NOT NULL AND image != ''
-    ''', (room_id,))
-    images_to_delete.extend([row[0] for row in cur.fetchall()])
-
-    cur.execute('''
-        SELECT il.image FROM item_locations il
-        JOIN shelves s ON il.shelf_id = s.id
-        JOIN cupboards c ON s.cupboard_id = c.id
-        WHERE c.room_id = ? AND il.image IS NOT NULL AND il.image != ''
-    ''', (room_id,))
-    images_to_delete.extend([row[0] for row in cur.fetchall()])
-
-    cur.execute("DELETE FROM rooms WHERE id = ?", (room_id,))
-    conn.commit()
-    count = cur.rowcount
-    conn.close()
-
-    return count, images_to_delete
+        images += _cascade_delete_locations(
+            cur,
+            "il.shelf_id IN (SELECT s.id FROM shelves s JOIN cupboards c ON s.cupboard_id = c.id WHERE c.room_id = ?)",
+            (room_id,),
+        )
+        cur.execute("DELETE FROM organizers WHERE shelf_id IN (SELECT s.id FROM shelves s JOIN cupboards c ON s.cupboard_id = c.id WHERE c.room_id = ?)", (room_id,))
+        cur.execute("DELETE FROM shelves WHERE cupboard_id IN (SELECT id FROM cupboards WHERE room_id = ?)", (room_id,))
+        cur.execute("DELETE FROM cupboards WHERE room_id = ?", (room_id,))
+        cur.execute("DELETE FROM rooms WHERE id = ?", (room_id,))
+        count = cur.rowcount
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return count, images
 
 
 # ------------------------------------------------------------ cupboards
@@ -1283,33 +1687,37 @@ def update_cupboard(db_path, cupboard_id, name, new_image):
 
 
 def delete_cupboard(db_path, cupboard_id):
-    """Returns (rowcount, images_to_delete)."""
+    """Returns (rowcount, images_to_delete). Cascades explicitly (see delete_room)."""
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
+    try:
+        cur.execute('''
+            SELECT image FROM cupboards WHERE id = ?
+            UNION ALL
+            SELECT image FROM shelves WHERE cupboard_id = ?
+            UNION ALL
+            SELECT o.image FROM organizers o
+            JOIN shelves s ON o.shelf_id = s.id
+            WHERE s.cupboard_id = ?
+        ''', (cupboard_id,) * 3)
+        images = [row[0] for row in cur.fetchall() if row[0]]
 
-    images_to_delete = []
-
-    cur.execute('''
-        SELECT image FROM cupboards
-        WHERE id = ? AND image IS NOT NULL AND image != ''
-    ''', (cupboard_id,))
-    row = cur.fetchone()
-    if row:
-        images_to_delete.append(row[0])
-
-    cur.execute('''
-        SELECT il.image FROM item_locations il
-        JOIN shelves s ON il.shelf_id = s.id
-        WHERE s.cupboard_id = ? AND il.image IS NOT NULL AND il.image != ''
-    ''', (cupboard_id,))
-    images_to_delete.extend([row[0] for row in cur.fetchall()])
-
-    cur.execute("DELETE FROM cupboards WHERE id = ?", (cupboard_id,))
-    conn.commit()
-    count = cur.rowcount
-    conn.close()
-
-    return count, images_to_delete
+        images += _cascade_delete_locations(
+            cur,
+            "il.shelf_id IN (SELECT id FROM shelves WHERE cupboard_id = ?)",
+            (cupboard_id,),
+        )
+        cur.execute("DELETE FROM organizers WHERE shelf_id IN (SELECT id FROM shelves WHERE cupboard_id = ?)", (cupboard_id,))
+        cur.execute("DELETE FROM shelves WHERE cupboard_id = ?", (cupboard_id,))
+        cur.execute("DELETE FROM cupboards WHERE id = ?", (cupboard_id,))
+        count = cur.rowcount
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return count, images
 
 
 # --------------------------------------------------------------- shelves
@@ -1319,22 +1727,25 @@ def list_shelves(db_path, room, cupboard):
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     cur.execute('''
-        SELECT s.id, s.name, COUNT(DISTINCT o.id), COUNT(DISTINCT il.id)
+        SELECT s.id, s.name, s.image, COUNT(DISTINCT o.id), COUNT(DISTINCT il.id)
         FROM shelves s
         JOIN cupboards c ON s.cupboard_id = c.id
         JOIN rooms r ON c.room_id = r.id
         LEFT JOIN organizers o ON s.id = o.shelf_id
         LEFT JOIN item_locations il ON s.id = il.shelf_id
         WHERE r.name = ? AND c.name = ?
-        GROUP BY s.id, s.name
+        GROUP BY s.id, s.name, s.image
         ORDER BY s.name
     ''', (room, cupboard))
     rows = cur.fetchall()
     conn.close()
-    return [{"id": r[0], "name": r[1], "organizerCount": r[2], "itemCount": r[3]} for r in rows]
+    return [
+        {"id": r[0], "name": r[1], "image": r[2] or "", "organizerCount": r[3], "itemCount": r[4]}
+        for r in rows
+    ]
 
 
-def create_shelf(db_path, room, cupboard, name):
+def create_shelf(db_path, room, cupboard, name, image=None):
     """Returns new id, or None if cupboard not found. Raises IntegrityError on duplicate."""
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
@@ -1352,43 +1763,84 @@ def create_shelf(db_path, room, cupboard, name):
 
     cupboard_id = row[0]
 
-    cur.execute("INSERT INTO shelves (name, cupboard_id) VALUES (?, ?)", (name, cupboard_id))
-    conn.commit()
-    shelf_id = cur.lastrowid
-    conn.close()
+    try:
+        cur.execute(
+            "INSERT INTO shelves (name, cupboard_id, image) VALUES (?, ?, ?)",
+            (name, cupboard_id, image or None),
+        )
+        conn.commit()
+        shelf_id = cur.lastrowid
+    finally:
+        conn.close()
     return shelf_id
 
 
-def update_shelf(db_path, shelf_id, name):
-    """Returns rowcount. Raises IntegrityError on duplicate name."""
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
-
-    _LOGGER.info(f"Updating shelf {shelf_id} to name: {name}")
-    cur.execute("UPDATE shelves SET name = ? WHERE id = ?", (name, shelf_id))
-    conn.commit()
-    count = cur.rowcount
-    conn.close()
-    return count
+def update_shelf(db_path, shelf_id, name, new_image=None):
+    """Returns (rowcount, old_image_to_delete_or_None). Raises IntegrityError on duplicate name."""
+    return _update_named_with_image(db_path, "shelves", shelf_id, name, new_image)
 
 
 def delete_shelf(db_path, shelf_id):
-    """Returns (rowcount, images_to_delete)."""
+    """Returns (rowcount, images_to_delete). Cascades explicitly (see delete_room)."""
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
+    try:
+        cur.execute('''
+            SELECT image FROM shelves WHERE id = ?
+            UNION ALL
+            SELECT image FROM organizers WHERE shelf_id = ?
+        ''', (shelf_id,) * 2)
+        images = [row[0] for row in cur.fetchall() if row[0]]
 
-    cur.execute('''
-        SELECT image FROM item_locations
-        WHERE shelf_id = ? AND image IS NOT NULL AND image != ''
-    ''', (shelf_id,))
-    images_to_delete = [row[0] for row in cur.fetchall()]
+        images += _cascade_delete_locations(cur, "il.shelf_id = ?", (shelf_id,))
+        cur.execute("DELETE FROM organizers WHERE shelf_id = ?", (shelf_id,))
+        cur.execute("DELETE FROM shelves WHERE id = ?", (shelf_id,))
+        count = cur.rowcount
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return count, images
 
-    cur.execute("DELETE FROM shelves WHERE id = ?", (shelf_id,))
-    conn.commit()
-    count = cur.rowcount
-    conn.close()
 
-    return count, images_to_delete
+# ---------------------------------------------------------- deep links
+
+
+def resolve_location(db_path, target, location_id):
+    """Resolve a cupboard/shelf id to its names, for QR/NFC deep links.
+
+    Returns {"room", "cupboard"[, "shelf"]} or None if not found / bad target.
+    """
+    if target == "cupboard":
+        sql = '''
+            SELECT r.name, c.name FROM cupboards c
+            JOIN rooms r ON c.room_id = r.id
+            WHERE c.id = ?
+        '''
+    elif target == "shelf":
+        sql = '''
+            SELECT r.name, c.name, s.name FROM shelves s
+            JOIN cupboards c ON s.cupboard_id = c.id
+            JOIN rooms r ON c.room_id = r.id
+            WHERE s.id = ?
+        '''
+    else:
+        return None
+
+    conn = sqlite3.connect(db_path)
+    try:
+        row = conn.execute(sql, (location_id,)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return None
+
+    result = {"room": row[0], "cupboard": row[1]}
+    if target == "shelf":
+        result["shelf"] = row[2]
+    return result
 
 
 # ------------------------------------------------------------ organizers
@@ -1535,30 +1987,41 @@ def update_organizer(db_path, organizer_id, name, new_image, new_room, new_cupbo
 
 
 def hard_delete_organizer(db_path, organizer_id):
-    """Returns (deleted, organizer_image, item_images, items_deleted_count)."""
+    """Returns (deleted, organizer_image, item_images, items_deleted_count).
+
+    ``item_images`` includes default images of masters left without locations."""
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
+    try:
+        cur.execute("SELECT image FROM organizers WHERE id = ?", (organizer_id,))
+        org_row = cur.fetchone()
+        organizer_image = org_row[0] if org_row else None
 
-    cur.execute("SELECT image FROM organizers WHERE id = ?", (organizer_id,))
-    org_row = cur.fetchone()
-    organizer_image = org_row[0] if org_row else None
+        cur.execute("SELECT COUNT(*) FROM item_locations WHERE organizer_id = ?", (organizer_id,))
+        items_count = cur.fetchone()[0]
 
-    cur.execute("SELECT id, image FROM item_locations WHERE organizer_id = ?", (organizer_id,))
-    items_to_delete = cur.fetchall()
-
-    cur.execute("DELETE FROM item_locations WHERE organizer_id = ?", (organizer_id,))
-
-    cur.execute("DELETE FROM organizers WHERE id = ?", (organizer_id,))
-    conn.commit()
-    deleted_organizer = cur.rowcount > 0
-
-    conn.close()
-
-    item_images = [img for (_, img) in items_to_delete]
-    return deleted_organizer, organizer_image, item_images, len(items_to_delete)
+        item_images = _cascade_delete_locations(cur, "il.organizer_id = ?", (organizer_id,))
+        cur.execute("DELETE FROM organizers WHERE id = ?", (organizer_id,))
+        deleted = cur.rowcount > 0
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return deleted, organizer_image, item_images, items_count
 
 
 # ------------------------------------------------------------- all_items
+
+
+def _variant_barcodes_by_item(cur):
+    """``{item_id: [{"variant", "barcode"}, ...]}`` for all variant barcodes."""
+    cur.execute("SELECT item_id, variant, barcode FROM item_variant_barcodes ORDER BY variant")
+    result = {}
+    for item_id, variant, bc in cur.fetchall():
+        result.setdefault(item_id, []).append({"variant": variant, "barcode": bc})
+    return result
 
 
 def list_all_items(db_path, search, barcode, low_stock_only, expired_only):
@@ -1581,7 +2044,13 @@ def list_all_items(db_path, search, barcode, low_stock_only, expired_only):
             r.name as room_name,
             c.name as cupboard_name,
             s.name as shelf_name,
-            o.name as organizer_name
+            o.name as organizer_name,
+            il.variant,
+            (SELECT SUM(t.quantity) FROM item_locations t WHERE t.item_id = im.id) as item_total,
+            r.image as room_image,
+            c.image as cupboard_image,
+            s.image as shelf_image,
+            o.image as organizer_image
         FROM items_master im
         LEFT JOIN item_locations il ON im.id = il.item_id
         LEFT JOIN shelves s ON il.shelf_id = s.id
@@ -1599,11 +2068,12 @@ def list_all_items(db_path, search, barcode, low_stock_only, expired_only):
         params.extend([search_param, search_param])
 
     if barcode:
-        conditions.append("im.barcode = ?")
-        params.append(barcode)
+        conditions.append(_BARCODE_MATCH_SQL)
+        params.extend([barcode, barcode])
 
     if low_stock_only:
-        conditions.append("im.track_quantity = 1 AND il.quantity IS NOT NULL AND im.min_quantity IS NOT NULL AND il.quantity <= im.min_quantity")
+        conditions.append("im.track_quantity = 1 AND im.min_quantity IS NOT NULL "
+            "AND (SELECT SUM(t.quantity) FROM item_locations t WHERE t.item_id = im.id) <= im.min_quantity")
 
     if expired_only:
         conditions.append("il.expiration_dates IS NOT NULL")
@@ -1615,9 +2085,11 @@ def list_all_items(db_path, search, barcode, low_stock_only, expired_only):
 
     cur.execute(query, params)
     rows = cur.fetchall()
+    variant_barcodes = _variant_barcodes_by_item(cur)
+    matched = _variant_barcode_owner(cur, barcode) if barcode else None
     conn.close()
 
-    # Grupăm rezultatele după item
+    # Group results by item
     items_dict = {}
     for r in rows:
         item_id = r[0]
@@ -1632,10 +2104,15 @@ def list_all_items(db_path, search, barcode, low_stock_only, expired_only):
                 "track_quantity": bool(r[5]),
                 "aliases": r[6],
                 "locations": [],
-                "total_quantity": 0
+                "total_quantity": 0,
+                "variant_barcodes": variant_barcodes.get(item_id, []),
+                "matched_variant": matched[1] if matched and matched[0] == item_id else None,
+                "is_low_stock": bool(
+                    r[5] and r[4] is not None and r[16] is not None and r[16] <= r[4]
+                ),
             }
 
-        # Adăugăm locația dacă există
+        # Add the location if it exists
         if r[7] is not None:  # location_id
             location = f"{r[11]} / {r[12]} / {r[13]}"
             if r[14]:
@@ -1663,12 +2140,17 @@ def list_all_items(db_path, search, barcode, low_stock_only, expired_only):
                 "quantity": r[8],
                 "expiration_dates": r[9],
                 "image": r[10] if r[10] else None,
+                "variant": r[15],
                 "room": r[11],
                 "cupboard": r[12],
                 "shelf": r[13],
                 "organizer": r[14],
+                "room_image": r[17] if r[17] else None,
+                "cupboard_image": r[18] if r[18] else None,
+                "shelf_image": r[19] if r[19] else None,
+                "organizer_image": r[20] if r[20] else None,
                 "location": location,
-                "is_low_stock": bool(r[5] and r[8] is not None and r[4] is not None and r[8] <= r[4]),
+                "is_low_stock": items_dict[item_id]["is_low_stock"],
                 "is_expired": has_expired  # ✅ FIX: Check if any batch is expired
             }
 
@@ -1685,7 +2167,7 @@ def update_item_quantity(db_path, item_id, location_id, quantity, min_quantity, 
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
 
-    # Update pentru item_locations
+    # Update item_locations
     loc_updates = []
     loc_params = []
 
@@ -1702,7 +2184,7 @@ def update_item_quantity(db_path, item_id, location_id, quantity, min_quantity, 
         loc_sql = f"UPDATE item_locations SET {', '.join(loc_updates)} WHERE id = ?"
         cur.execute(loc_sql, loc_params)
 
-    # Update pentru items_master
+    # Update items_master
     master_updates = []
     master_params = []
 
@@ -1726,45 +2208,8 @@ def update_item_quantity(db_path, item_id, location_id, quantity, min_quantity, 
 
 
 def get_quantity_update_low_stock(db_path, location_id):
-    """Low-stock payload after a quantity PATCH (qty <= min, no `qty > 0` guard)."""
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
-
-    cur.execute('''
-        SELECT
-            im.id, im.name, im.min_quantity, im.track_quantity, im.aliases,
-            il.quantity,
-            r.name as room_name, c.name as cupboard_name, s.name as shelf_name
-        FROM item_locations il
-        JOIN items_master im ON il.item_id = im.id
-        JOIN shelves s ON il.shelf_id = s.id
-        JOIN cupboards c ON s.cupboard_id = c.id
-        JOIN rooms r ON c.room_id = r.id
-        WHERE il.id = ?
-    ''', (location_id,))
-
-    row = cur.fetchone()
-    conn.close()
-
-    if not row:
-        return None
-
-    item_id_db, name, min_qty, track_qty, aliases, qty, room, cupboard, shelf = row
-
-    if track_qty and qty is not None and min_qty is not None:
-        if qty <= min_qty:
-            return {
-                "item_id": item_id_db,
-                "name": name,
-                "aliases": aliases,
-                "quantity": qty,
-                "min_quantity": min_qty,
-                "room": room,
-                "cupboard": cupboard,
-                "shelf": shelf,
-                "location": f"{room} / {cupboard} / {shelf}"
-            }
-    return None
+    """Low-stock payload after a quantity PATCH (total <= min, no `total > 0` guard)."""
+    return _low_stock_payload(db_path, location_id, False)
 
 
 def search_items(db_path, query, barcode):
@@ -1772,7 +2217,7 @@ def search_items(db_path, query, barcode):
     cur = conn.cursor()
 
     if barcode:
-        # Căutare exactă după barcode
+        # Exact search by barcode
         cur.execute('''
             SELECT
                 im.id, im.name, im.default_image, im.barcode, im.aliases,
@@ -1780,11 +2225,11 @@ def search_items(db_path, query, barcode):
                 COALESCE(SUM(il.quantity), 0) as total_quantity
             FROM items_master im
             LEFT JOIN item_locations il ON im.id = il.item_id
-            WHERE im.barcode = ?
+            WHERE ''' + _BARCODE_MATCH_SQL + '''
             GROUP BY im.id
-        ''', (barcode,))
+        ''', (barcode, barcode))
     else:
-        # Căutare fuzzy după nume sau alias
+        # Fuzzy search by name or alias
         search_param = f"%{query}%"
         cur.execute('''
             SELECT
@@ -1800,6 +2245,7 @@ def search_items(db_path, query, barcode):
         ''', (search_param, search_param))
 
     rows = cur.fetchall()
+    matched = _variant_barcode_owner(cur, barcode) if barcode else None
     conn.close()
 
     return [{
@@ -1809,7 +2255,8 @@ def search_items(db_path, query, barcode):
         "barcode": r[3],
         "aliases": r[4],
         "location_count": r[5],
-        "total_quantity": r[6]
+        "total_quantity": r[6],
+        "matched_variant": matched[1] if matched and matched[0] == r[0] else None,
     } for r in rows]
 
 
@@ -1839,7 +2286,7 @@ def list_item_locations(db_path, item_id):
             il.id as location_id,
             im.id as item_id,
             im.name,
-            im.default_image,
+            COALESCE(il.image, im.default_image),
             im.barcode,
             im.min_quantity,
             im.track_quantity,
@@ -1849,7 +2296,8 @@ def list_item_locations(db_path, item_id):
             r.name as room_name,
             c.name as cupboard_name,
             s.name as shelf_name,
-            o.name as organizer_name
+            o.name as organizer_name,
+            il.variant
         FROM item_locations il
         JOIN items_master im ON il.item_id = im.id
         JOIN shelves s ON il.shelf_id = s.id
@@ -1884,7 +2332,8 @@ def list_item_locations(db_path, item_id):
             "room": r[10],
             "cupboard": r[11],
             "shelf": r[12],
-            "organizer": r[13]
+            "organizer": r[13],
+            "variant": r[14]
         }
         result.append(item)
 
@@ -1902,7 +2351,7 @@ def list_items_at_location(db_path, room, cupboard, shelf, organizer):
                 il.id as location_id,
                 im.id as item_id,
                 im.name,
-                im.default_image,
+                COALESCE(il.image, im.default_image),
                 im.barcode,
                 im.min_quantity,
                 im.track_quantity,
@@ -1912,7 +2361,8 @@ def list_items_at_location(db_path, room, cupboard, shelf, organizer):
                 r.name as room_name,
                 c.name as cupboard_name,
                 s.name as shelf_name,
-                o.name as organizer_name
+                o.name as organizer_name,
+            il.variant
             FROM item_locations il
             JOIN items_master im ON il.item_id = im.id
             JOIN shelves s ON il.shelf_id = s.id
@@ -1928,7 +2378,7 @@ def list_items_at_location(db_path, room, cupboard, shelf, organizer):
                 il.id as location_id,
                 im.id as item_id,
                 im.name,
-                im.default_image,
+                COALESCE(il.image, im.default_image),
                 im.barcode,
                 im.min_quantity,
                 im.track_quantity,
@@ -1938,7 +2388,8 @@ def list_items_at_location(db_path, room, cupboard, shelf, organizer):
                 r.name as room_name,
                 c.name as cupboard_name,
                 s.name as shelf_name,
-                NULL as organizer_name
+                NULL as organizer_name,
+                il.variant
             FROM item_locations il
             JOIN items_master im ON il.item_id = im.id
             JOIN shelves s ON il.shelf_id = s.id
@@ -1968,7 +2419,8 @@ def list_items_at_location(db_path, room, cupboard, shelf, organizer):
             "aliases": r[7],
             "quantity": r[8],
             "expiration_date": r[9],
-            "location": location
+            "location": location,
+            "variant": r[14]
         }
         _LOGGER.debug(f"Item fetched - Location ID: {r[0]}, Item ID: {r[1]}, Name: {r[2]}, Location: '{location}'")
         result.append(item)
@@ -2005,8 +2457,8 @@ def list_item_masters(db_path, search, barcode):
         params.extend([search_param, search_param])
 
     if barcode:
-        conditions.append("im.barcode = ?")
-        params.append(barcode)
+        conditions.append(_BARCODE_MATCH_SQL)
+        params.extend([barcode, barcode])
 
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
@@ -2041,37 +2493,54 @@ def count_items_master(db_path):
 
 
 def list_low_stock_sensor(db_path):
-    """(count, items) for the low-stock sensor: every tracked location with quantity <= min."""
+    """(count, items) for the low-stock sensor: one row per tracked item whose total quantity <= min."""
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     cur.execute('''
-        SELECT 
-            im.id, im.name, il.quantity, im.min_quantity,
-            r.name as room, c.name as cupboard, s.name as shelf
-        FROM item_locations il
-        JOIN items_master im ON il.item_id = im.id
-        JOIN shelves s ON il.shelf_id = s.id
-        JOIN cupboards c ON s.cupboard_id = c.id
-        JOIN rooms r ON c.room_id = r.id
-        WHERE im.track_quantity = 1 
-        AND il.quantity IS NOT NULL 
+        SELECT im.id, im.name, SUM(il.quantity) AS total, im.min_quantity
+        FROM items_master im
+        JOIN item_locations il ON il.item_id = im.id
+        WHERE im.track_quantity = 1
         AND im.min_quantity IS NOT NULL
-        AND il.quantity <= im.min_quantity
-        ORDER BY il.quantity ASC
+        GROUP BY im.id
+        HAVING SUM(il.quantity) IS NOT NULL AND SUM(il.quantity) <= im.min_quantity
+        ORDER BY total ASC
     ''')
     rows = cur.fetchall()
-    conn.close()
 
-    items = [{
-        "id": r[0],
-        "name": r[1],
-        "quantity": r[2],
-        "min_quantity": r[3],
-        "room": r[4],
-        "cupboard": r[5],
-        "shelf": r[6],
-        "location": f"{r[4]} / {r[5]} / {r[6]}"
-    } for r in rows]
+    items = []
+    for item_id, name, total, min_qty in rows:
+        cur.execute('''
+            SELECT r.name, c.name, s.name, il.quantity, il.variant
+            FROM item_locations il
+            JOIN shelves s ON il.shelf_id = s.id
+            JOIN cupboards c ON s.cupboard_id = c.id
+            JOIN rooms r ON c.room_id = r.id
+            WHERE il.item_id = ?
+            ORDER BY il.created_at, il.id
+        ''', (item_id,))
+        locs = [{
+            "room": lr, "cupboard": lc, "shelf": ls, "quantity": lq, "variant": lv,
+            "location": f"{lr} / {lc} / {ls}",
+        } for lr, lc, ls, lq, lv in cur.fetchall()]
+        if not locs:
+            continue
+        if len(locs) == 1:
+            location = locs[0]["location"]
+        else:
+            location = f"{len(locs)} locations"
+        items.append({
+            "id": item_id,
+            "name": name,
+            "quantity": total,
+            "min_quantity": min_qty,
+            "room": locs[0]["room"],
+            "cupboard": locs[0]["cupboard"],
+            "shelf": locs[0]["shelf"],
+            "location": location,
+            "locations": locs,
+        })
+    conn.close()
 
     return len(items), items
 
@@ -2083,7 +2552,9 @@ def list_tracked_sensor(db_path):
     cur.execute('''
         SELECT 
             im.id, im.name, il.quantity, im.min_quantity,
-            r.name as room, c.name as cupboard, s.name as shelf
+            r.name as room, c.name as cupboard, s.name as shelf,
+            il.variant,
+            (SELECT SUM(t.quantity) FROM item_locations t WHERE t.item_id = im.id) as item_total
         FROM item_locations il
         JOIN items_master im ON il.item_id = im.id
         JOIN shelves s ON il.shelf_id = s.id
@@ -2105,7 +2576,102 @@ def list_tracked_sensor(db_path):
         "cupboard": r[5],
         "shelf": r[6],
         "location": f"{r[4]} / {r[5]} / {r[6]}",
-        "is_low": r[2] is not None and r[3] is not None and r[2] <= r[3]
+        "variant": r[7],
+        "total_quantity": r[8],
+        "is_low": r[8] is not None and r[3] is not None and r[8] <= r[3]
     } for r in rows]
 
     return len(items), items
+
+
+def expiry_threshold(today, value, unit):
+    """Last day (inclusive) of the "expiring soon" window.
+
+    ``unit`` is "days" or "months"; months are calendar months (day clamped to
+    the target month length, e.g. Jan 31 + 1 month = Feb 28/29).
+    """
+    if unit == "months":
+        month_index = today.month - 1 + int(value)
+        year = today.year + month_index // 12
+        month = month_index % 12 + 1
+        day = min(today.day, calendar.monthrange(year, month)[1])
+        return date(year, month, day)
+    return today + timedelta(days=int(value))
+
+
+def list_expiring_batches(db_path, today, threshold):
+    """Batches with a date <= ``threshold`` (already expired ones included).
+
+    One row per batch with quantity > 0, sorted by date, with the full location.
+    """
+    base_sql = '''
+        SELECT im.id, im.name, il.id, il.variant, il.expiration_dates,
+               r.name, c.name, s.name, o.name
+        FROM item_locations il
+        JOIN items_master im ON il.item_id = im.id
+        JOIN shelves s ON il.shelf_id = s.id
+        JOIN cupboards c ON s.cupboard_id = c.id
+        JOIN rooms r ON c.room_id = r.id
+        LEFT JOIN organizers o ON il.organizer_id = o.id
+        WHERE il.expiration_dates IS NOT NULL AND il.expiration_dates != ''
+    '''
+    # Prefilter in SQLite: only rows holding at least one dated batch inside the
+    # window are returned (a superset; exact checks stay in Python below).
+    # Invalid JSON is kept (CASE) so json_each never raises on bad rows.
+    prefilter = '''
+        AND CASE WHEN json_valid(il.expiration_dates) THEN EXISTS (
+            SELECT 1 FROM json_each(il.expiration_dates) je
+            WHERE json_type(je.value) = 'object'
+              AND replace(substr(json_extract(je.value, '$.date'), 1, 10), '/', '-') <= ?
+        ) ELSE 1 END
+    '''
+    conn = sqlite3.connect(db_path)
+    try:
+        cur = conn.cursor()
+        try:
+            cur.execute(base_sql + prefilter, (threshold.isoformat(),))
+        except sqlite3.OperationalError:  # SQLite built without JSON1
+            cur.execute(base_sql)
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    batches = []
+    for item_id, name, loc_id, variant, exp_json, room, cupboard, shelf, organizer in rows:
+        try:
+            parsed = json.loads(exp_json)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(parsed, list):
+            continue
+        location = f"{room} / {cupboard} / {shelf}"
+        if organizer:
+            location += f" / {organizer}"
+        for batch in parsed:
+            if not isinstance(batch, dict) or not batch.get("date"):
+                continue
+            try:
+                batch_date = date.fromisoformat(str(batch["date"])[:10].replace("/", "-"))
+            except ValueError:
+                continue
+            quantity = batch.get("quantity")
+            if batch_date > threshold or (isinstance(quantity, (int, float)) and quantity <= 0):
+                continue
+            days_left = (batch_date - today).days
+            batches.append({
+                "id": item_id,
+                "name": name,
+                "variant": variant,
+                "location_id": loc_id,
+                "quantity": quantity,
+                "date": batch_date.strftime("%Y/%m/%d"),
+                "days_left": days_left,
+                "expired": days_left < 0,
+                "room": room,
+                "cupboard": cupboard,
+                "shelf": shelf,
+                "organizer": organizer,
+                "location": location,
+            })
+    batches.sort(key=lambda b: (b["date"], b["name"]))  # YYYY/MM/DD sorts chronologically  # YYYY/MM/DD sorts chronologically
+    return batches

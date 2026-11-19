@@ -1,4 +1,5 @@
 import { useTranslation } from '../../../i18n/I18nContext';
+import { withCurrentToken } from '../../../services/auth';
 
 interface ImageUploaderProps {
   preview: string | null;
@@ -15,8 +16,8 @@ export default function ImageUploader({
     <div className="space-y-2">
       {preview && (
         <img
-          src={preview}
-          alt="Preview"
+          src={withCurrentToken(preview)}
+          alt={t.common.preview}
           className="max-w-full max-h-[20rem] object-cover rounded-sm m-auto border border-ha-divider"
         />
       )}

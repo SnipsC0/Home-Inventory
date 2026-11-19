@@ -6,6 +6,7 @@ from typing import List, Dict, Optional, Tuple
 from functools import partial
 from ..const import DOMAIN
 from ..db import repository, devreload
+from ._images import delete_image_file
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -14,7 +15,7 @@ _LOGGER = logging.getLogger(__name__)
 # ============================================================================
 
 class HomeInventarItemsView(HomeAssistantView):
-    """API pentru vizualizarea și crearea itemelor"""
+    """API for viewing and creating items"""
     url = f"/api/{DOMAIN}/items"
     name = f"api:{DOMAIN}_items"
     requires_auth = True
@@ -24,38 +25,17 @@ class HomeInventarItemsView(HomeAssistantView):
         self.hass = hass
 
     def _delete_image_file(self, image_path):
-        """Șterge fizic fișierul imaginii de pe disk"""
-        if not image_path:
-            return
-        
-        try:
-            if image_path.startswith(f'/api/{DOMAIN}/images/'):
-                filename = image_path.split('/')[-1].split('?')[0]
-            elif image_path.startswith('/local/'):
-                return
-            else:
-                filename = image_path
-            
-            full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
-            
-            if os.path.exists(full_path):
-                os.remove(full_path)
-                _LOGGER.info(f"[HomeInventar] 🗑️ Deleted image file: {full_path}")
-            else:
-                _LOGGER.debug(f"[HomeInventar] Image file not found: {full_path}")
-                
-        except Exception as e:
-            _LOGGER.error(f"[HomeInventar] Error deleting image file: {e}", exc_info=True)
+        delete_image_file(self.hass, image_path)
 
     async def get(self, request):
-        """Obține itemele dintr-o locație specifică sau toate itemele unui item master"""
+        """Get items from a specific location, or all locations of a master item"""
         room = request.query.get("room")
         cupboard = request.query.get("cupboard")
         shelf = request.query.get("shelf")
         organizer = request.query.get("organizer") 
-        item_id = request.query.get("item_id")  # Nou: caută toate locațiile unui item
+        item_id = request.query.get("item_id")  # New: look up all locations of an item
         
-        # Dacă avem item_id, returnăm toate locațiile acelui item
+        # If item_id is given, return all locations of that item
         if item_id:
             devreload.reload_if_changed(repository)
             data = await request.app["hass"].async_add_executor_job(
@@ -63,7 +43,7 @@ class HomeInventarItemsView(HomeAssistantView):
             )
             return web.json_response(data)
         
-        # Altfel, returnăm itemele dintr-o locație specifică
+        # Otherwise, return the items at a specific location
         if not room or not cupboard or not shelf:
             return web.json_response({"error": "Missing params"}, status=400)
 
@@ -93,6 +73,12 @@ class HomeInventarItemsView(HomeAssistantView):
         barcode = (data.get("barcode") or None)
         if isinstance(barcode, str):
             barcode = barcode.strip() or None
+
+        variant = data.get("variant")
+        if isinstance(variant, str):
+            variant = variant.strip() or None
+        merge_location_id = data.get("merge_location_id") or None
+        new_row = bool(data.get("new_row", False))
 
         # numeric fields
         quantity = data.get("quantity")
@@ -151,6 +137,9 @@ class HomeInventarItemsView(HomeAssistantView):
             add_total_qty=add_total_qty,
             add_batch_qty=add_batch_qty,
             batch_date=batch_date,
+            variant=variant,
+            merge_location_id=merge_location_id,
+            new_row=new_row,
         )
 
 
@@ -172,7 +161,7 @@ class HomeInventarItemsView(HomeAssistantView):
             _LOGGER.error(f"[ITEM CREATE] Fatal thread error: {e}", exc_info=True)
             return web.json_response({"error": "Internal server error during item processing."}, status=500)
 class HomeInventarItemView(HomeAssistantView):
-    """API pentru modificarea și ștergerea itemelor"""
+    """API for updating and deleting items"""
     url = f"/api/{DOMAIN}/items/{'{item_id}'}"
     name = f"api:{DOMAIN}_item"
     requires_auth = True
@@ -182,27 +171,7 @@ class HomeInventarItemView(HomeAssistantView):
         self.hass = hass
 
     def _delete_image_file(self, image_path):
-        if not image_path:
-            return
-        
-        try:
-            if image_path.startswith(f'/api/{DOMAIN}/images/'):
-                filename = image_path.split('/')[-1].split('?')[0]
-            elif image_path.startswith('/local/'):
-                return
-            else:
-                filename = image_path
-            
-            full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
-            
-            if os.path.exists(full_path):
-                os.remove(full_path)
-                _LOGGER.debug(f"[HomeInventar] 🗑️ Deleted image file: {full_path}")
-            else:
-                _LOGGER.debug(f"[HomeInventar] Image file not found: {full_path}")
-                
-        except Exception as e:
-            _LOGGER.error(f"[HomeInventar] Error deleting image file: {e}", exc_info=True)
+        delete_image_file(self.hass, image_path)
 
     async def patch(self, request, item_id):
         """Update item details with smart master item merging/splitting logic"""
@@ -252,6 +221,8 @@ class HomeInventarItemView(HomeAssistantView):
                 new_cupboard=new_cupboard,
                 new_shelf=new_shelf,
                 new_organizer=new_organizer,
+                variant=data.get("variant"),
+                variant_barcode=data.get("variant_barcode"),
             )
 
             count, old_images, error = await request.app["hass"].async_add_executor_job(update_item)
@@ -342,7 +313,7 @@ class HomeInventarItemMasterView(HomeAssistantView):
 
 
 class HomeInventarItemMasterUpdateView(HomeAssistantView):
-    """API pentru modificarea unui item master"""
+    """API for updating a master item"""
     url = f"/api/{DOMAIN}/items_master/{'{item_id}'}"
     name = f"api:{DOMAIN}_items_master_update"
     requires_auth = True
@@ -352,27 +323,7 @@ class HomeInventarItemMasterUpdateView(HomeAssistantView):
         self.hass = hass
 
     def _delete_image_file(self, image_path):
-        if not image_path:
-            return
-
-        try:
-            if image_path.startswith(f'/api/{DOMAIN}/images/'):
-                filename = image_path.split('/')[-1].split('?')[0]
-            elif image_path.startswith('/local/'):
-                return
-            else:
-                filename = image_path
-
-            full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
-
-            if os.path.exists(full_path):
-                os.remove(full_path)
-                _LOGGER.debug(f"[HomeInventar] 🗑️ Deleted image file: {full_path}")
-            else:
-                _LOGGER.debug(f"[HomeInventar] Image file not found: {full_path}")
-
-        except Exception as e:
-            _LOGGER.error(f"[HomeInventar] Error deleting image file: {e}", exc_info=True)
+        delete_image_file(self.hass, image_path)
 
     async def patch(self, request, item_id):
         """Update item master details"""

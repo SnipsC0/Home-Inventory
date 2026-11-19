@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Search, X } from 'lucide-react';
 import Breadcrumb from '../components/Layout/BreadCrumb';
 import { useGlobalItems } from '../hooks/items/useItems';
 import ItemCard from '../components/Item/ItemCard';
@@ -13,7 +14,7 @@ interface Props {
 }
 
 export default function AllItemsView({ api }: Props) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
   const itemsPerPage = 20;
@@ -36,7 +37,7 @@ export default function AllItemsView({ api }: Props) {
       const name = normalize(item.name);
       const aliases = normalize(item.aliases || '');
 
-      // ✅ Căutăm în TOATE locațiile itemului
+      // Search across ALL locations of the item
       const matchesInAnyLocation = item.locations?.some((loc) => {
         const location = normalize(loc.location || '');
         const room = normalize(loc.room || '');
@@ -65,19 +66,19 @@ export default function AllItemsView({ api }: Props) {
     return filteredItems.slice(0, (currentPage + 1) * itemsPerPage);
   }, [filteredItems, currentPage]);
 
-  // Transformăm itemele pentru afișare
+  // Transform items for display
   const itemsForDisplay = useMemo(() => {
     const result: Array<{ item: any; location?: any; key: string }> = [];
 
     displayedItems.forEach((item) => {
       if (item.track_quantity) {
-        // Consumabile: un singur card cu multiple locații
+        // Consumables: a single card with multiple locations
         result.push({
           item,
           key: `item-${item.id}`,
         });
       } else {
-        // Non-consumabile: câte un card per locație
+        // Non-consumables: one card per location
         item.locations?.forEach((location: any, index: number) => {
           result.push({
             item,
@@ -88,8 +89,10 @@ export default function AllItemsView({ api }: Props) {
       }
     });
 
-    return result.sort((a, b) => a.item.name.localeCompare(b.item.name, 'ro'));
-  }, [displayedItems]);
+    return result.sort((a, b) =>
+      a.item.name.localeCompare(b.item.name, language)
+    );
+  }, [displayedItems, language]);
 
   const hasNextPage = displayedItems.length < filteredItems.length;
 
@@ -104,17 +107,30 @@ export default function AllItemsView({ api }: Props) {
     <div className="space-y-4">
       <Breadcrumb currentLabel={t.rooms.allItems} onBack={goBack} />
 
-      <div className="flex gap-2">
+      <div className="relative">
+        <Search
+          size={18}
+          className="absolute left-4 inset-y-0 my-auto text-ha-text/50 pointer-events-none"
+        />
         <input
           type="text"
           placeholder={t.trackedItems.searchPlaceholder}
-          className="flex-1 px-3 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
+          className="field !pl-11 !pr-10 !py-3 !rounded-2xl"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            aria-label={t.common.clear}
+            className="absolute right-2 inset-y-0 my-auto h-fit btn btn-ghost !p-1.5 !rounded-full"
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
 
-      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(140px,1fr))]">
+      <div className="stagger grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(140px,1fr))]">
         {!itemsForDisplay.length ? (
           <p className="text-center text-ha-text py-10">
             {t.trackedItems.noItemsFiltered}.

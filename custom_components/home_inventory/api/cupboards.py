@@ -4,6 +4,7 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from ..const import DOMAIN
 from ..db import repository, devreload
+from ._images import delete_image_file
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,28 +18,7 @@ class HomeInventarCupboardsView(HomeAssistantView):
         self.hass = hass
 
     def _delete_image_file(self, image_path):
-        """Șterge fizic fișierul imaginii de pe disk"""
-        if not image_path:
-            return
-        
-        try:
-            if image_path.startswith(f'/api/{DOMAIN}/images/'):
-                filename = image_path.split('/')[-1].split('?')[0]
-            elif image_path.startswith('/local/'):
-                return
-            else:
-                filename = image_path
-            
-            full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")
-            
-            if os.path.exists(full_path):
-                os.remove(full_path)
-                _LOGGER.info(f"[Home Inventory] 🗑️ Deleted image file: {full_path}")
-            else:
-                _LOGGER.debug(f"[Home Inventory] Image file not found: {full_path}")
-                
-        except Exception as e:
-            _LOGGER.error(f"[Home Inventory] Error deleting image file: {e}", exc_info=True)
+        delete_image_file(self.hass, image_path)
 
     async def get(self, request):
         room = request.query.get("room")

@@ -15,8 +15,8 @@ def test_create_and_list_rooms_with_item_count(db_path, seed, q):
     q_conn.commit()
     q_conn.close()
     assert list_rooms(db_path) == [
-        {"id": 2, "name": "Attic", "itemCount": 0},
-        {"id": ids["room_id"], "name": "Kitchen", "itemCount": 1},
+        {"id": 2, "name": "Attic", "image": "", "itemCount": 0},
+        {"id": ids["room_id"], "name": "Kitchen", "image": "", "itemCount": 1},
     ]
 
 
@@ -28,8 +28,8 @@ def test_create_room_duplicate_raises(db_path):
 
 def test_update_room(db_path):
     rid = create_room(db_path, "Hall")
-    assert update_room(db_path, rid, "Corridor") == 1
-    assert update_room(db_path, 999, "X") == 0
+    assert update_room(db_path, rid, "Corridor") == (1, None)
+    assert update_room(db_path, 999, "X") == (0, None)
     other = create_room(db_path, "Garage")
     with pytest.raises(sqlite3.IntegrityError):
         update_room(db_path, other, "Corridor")

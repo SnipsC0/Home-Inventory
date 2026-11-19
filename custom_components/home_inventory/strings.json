@@ -3,15 +3,17 @@
   "config": {
     "step": {
       "user": {
-        "title": "Configure Home Inventory",
-        "description": "Set up your local inventory management system.\n\n📦 **Structure**: {structure_info}\n\n✅ 3 automatic sensors for monitoring\n✅ Low stock event notifications\n✅ 100% local storage (no cloud)",
+        "title": "Set up Home Inventory",
+        "description": "Manage your household inventory locally, without the cloud.\n\n**Structure:** {structure_info}\n\n- 4 automatic sensors\n- Low stock and expiry event notifications\n- 100% local storage",
         "data": {
-          "allow_structure_modification": "Allow structure modification (rooms, cupboards, shelves)",
-          "language": "Interface language"
+          "language": "Interface language",
+          "allow_structure_modification": "Allow editing the structure",
+          "show_qr_nfc": "Show QR / NFC buttons"
         },
         "data_description": {
-          "allow_structure_modification": "If disabled, you cannot add/edit/delete rooms, cupboards, or shelves from the UI",
-          "language": "Choose your preferred language for the interface"
+          "language": "Language used by the Home Inventory panel.",
+          "allow_structure_modification": "When off, rooms, cupboards and shelves cannot be added, edited or deleted from the panel.",
+          "show_qr_nfc": "When off, the QR / NFC button is hidden on cupboards and shelves."
         }
       }
     },
@@ -22,24 +24,50 @@
   "options": {
     "step": {
       "init": {
-        "title": "Home Inventory Options",
-        "description": "Modify your inventory settings.\n\n📦 **Structure**: {structure_info}\n📊 **Sensors**: {sensor_count}\n📢 **Events**: {event_info}",
+        "title": "Home Inventory settings",
+        "description": "**Structure:** {structure_info}\n\n**Sensors:** {sensor_count}\n\n**Events:** {event_info}",
         "data": {
-          "allow_structure_modification": "Allow structure modification",
-          "language": "Interface language"
+          "language": "Interface language",
+          "allow_structure_modification": "Allow editing the structure",
+          "show_qr_nfc": "Show QR / NFC buttons"
         },
         "data_description": {
-          "allow_structure_modification": "Enable/disable the ability to modify rooms, cupboards, and shelves",
-          "language": "UI language preference"
+          "language": "Language used by the Home Inventory panel.",
+          "allow_structure_modification": "When off, rooms, cupboards and shelves cannot be added, edited or deleted from the panel.",
+          "show_qr_nfc": "When off, the QR / NFC button is hidden on cupboards and shelves."
+        },
+        "sections": {
+          "expiry": {
+            "name": "Warn before expiry",
+            "description": "Get notified before a batch expires (max 31 days or 12 months).",
+            "data": {
+              "expiry_warning_value": "Notify me",
+              "expiry_warning_unit": "Unit"
+            },
+            "data_description": {
+              "expiry_warning_value": "Number of days / months.",
+              "expiry_warning_unit": "Days or months."
+            }
+          }
         }
       }
+    },
+    "error": {
+      "invalid_expiry_value": "Enter 1–31 for days or 1–12 for months."
     }
   },
   "selector": {
-    "languagess": {
+    "language": {
       "options": {
         "en": "English",
-        "ro": "Română"
+        "ro": "Română",
+        "ru": "Русский"
+      }
+    },
+    "expiry_unit": {
+      "options": {
+        "days": "Days",
+        "months": "Months"
       }
     }
   }

@@ -1,4 +1,6 @@
-export type Language = 'ro' | 'en';
+export type Language = 'ro' | 'en' | 'ru';
+
+export const LANGUAGES: Language[] = ['en', 'ro', 'ru'];
 
 export interface Translations {
   common: {
@@ -18,11 +20,23 @@ export interface Translations {
     reload: string;
     deleteConfirm: string;
     deleteConfirm2?: string;
+    deleteTitle?: string;
     optional: string;
     select: string;
     name: string;
     infoViewPress: string;
     connectingHA: string;
+    removeImage: string;
+    cascadeTitle: string;
+    cascadeCupboards: string;
+    cascadeShelves: string;
+    cascadeOrganizers: string;
+    cascadeLocations: string;
+    cascadeItems: string;
+    cascadeImages: string;
+    cascadeNote: string;
+    clear: string;
+    preview: string;
   };
   rooms: {
     title: string;
@@ -31,6 +45,7 @@ export interface Translations {
     roomName: string;
     allItems: string;
     trackedItems: string;
+    expiring: string;
     noExist: string;
     addFirst: string;
     this: string;
@@ -55,6 +70,7 @@ export interface Translations {
     deleteConfirm: string;
     noShelves: string;
     addFirst: string;
+    titleFrom: string;
   };
   organizers: {
     title: string;
@@ -66,6 +82,8 @@ export interface Translations {
     noOrganizers: string;
     addFirst: string;
     moveOrganizer: string;
+    moveIn: string;
+    cancelMove: string;
   };
   items: {
     title: string;
@@ -89,6 +107,69 @@ export interface Translations {
     lots: string;
     barcode: string;
     scanButton: string;
+    scanAppOnly: string;
+    findByBarcode: string;
+    barcodeNotFound: string;
+    scanAgain: string;
+    enterBarcodeManually: string;
+    variant: string;
+    variantPlaceholder: string;
+    variantBarcode: string;
+    variantBarcodeHint: string;
+    barcodeAppliesToItem: string;
+    variantBarcodeLinks: string;
+    matchedVariant: string;
+    existingRowsHint: string;
+    addToExisting: string;
+    newRow: string;
+    locationsCount: string;
+    total: string;
+    selectLocationHint: string;
+    expired: string;
+    noDate: string;
+    expShort: string;
+    expDate: string;
+    expDateHint: string;
+    datePlaceholder: string;
+    aliasesPlaceholder: string;
+    noLocation: string;
+    addIn: string;
+    editItem: string;
+    editMainItem: string;
+    existingBatches: string;
+    batchDatePlaceholder: string;
+    addBatch: string;
+    confirmDeletion: string;
+    deleteMasterConfirm: string;
+    deleteMasterBefore: string;
+    deleteMasterLocations: string;
+    deleteMasterAfter: string;
+    deleteMasterList: string;
+    totalQuantity: string;
+    day: string;
+    days: string;
+    daysFew?: string;
+    expirationDate: string;
+    batchNoDate: string;
+    undefinedDate: string;
+    moveTo: string;
+    organizerOptional: string;
+    newLocation: string;
+    productInLocation: string;
+    productInLocations: string;
+  };
+  expiring: {
+    title: string;
+    all: string;
+    expired: string;
+    soon: string;
+    noBatches: string;
+    noBatchesFiltered: string;
+    expiredAgo: string;
+    today: string;
+    inDays: string;
+    quantity: string;
+    loadError: string;
   };
   trackedItems: {
     title: string;
@@ -113,6 +194,50 @@ export interface Translations {
     sameLocationItem: string;
     preloadMoveLocation: string;
     getRoomsError: string;
+    unexpected: string;
+    invalidDates: string;
+    alreadyInLocation: string;
+    unexpectedApi: string;
+    unexpectedUploadResponse: string;
+    imageUploadFailed: string;
+    decodeFailed: string;
+    connectFailed: string;
+  };
+  scanner: {
+    title: string;
+    videoScan: string;
+    uploadImage: string;
+    processing: string;
+    processingHint: string;
+    manualLabel: string;
+    manualPlaceholder: string;
+    manualHint: string;
+    add: string;
+    scannedCode: string;
+    copyCode: string;
+    copied: string;
+    history: string;
+    clearAll: string;
+    historyHint: string;
+    onlyNumeric: string;
+    readFailed: string;
+    loadFailed: string;
+    processFailed: string;
+    noBarcodeFound: string;
+    nativeTitle: string;
+    nativeDescription: string;
+    nativeCancel: string;
+  };
+  locationLink: {
+    title: string;
+    button: string;
+    qr: string;
+    nfc: string;
+    link: string;
+    copy: string;
+    copied: string;
+    download: string;
+    notFound: string;
   };
 }
 
@@ -140,6 +265,17 @@ export const translations: Record<Language, Translations> = {
       name: 'Nume',
       infoViewPress: 'Apasă lungă sau click dreapta pentru editare',
       connectingHA: 'Se conectează la Home Assistant...',
+      removeImage: 'Elimină poza',
+      cascadeTitle: 'Se vor șterge definitiv, în cascadă:',
+      cascadeCupboards: 'dulapuri',
+      cascadeShelves: 'rafturi',
+      cascadeOrganizers: 'organizatoare',
+      cascadeLocations: 'locații de articole',
+      cascadeItems: 'articole (ultima lor locație)',
+      cascadeImages: 'poze (cu miniaturile lor)',
+      cascadeNote: 'Articolele care mai au și alte locații rămân, doar locația ștearsă dispare.',
+      clear: 'Șterge',
+      preview: 'Previzualizare',
     },
     rooms: {
       title: 'Camere',
@@ -148,6 +284,7 @@ export const translations: Record<Language, Translations> = {
       roomName: 'Nume cameră',
       allItems: 'Toate Articolele',
       trackedItems: 'Articole Urmărite',
+      expiring: 'Expiră',
       noExist: 'Nu există camere.',
       addFirst: 'Adaugă prima cameră',
       this: 'Această',
@@ -172,6 +309,7 @@ export const translations: Record<Language, Translations> = {
       deleteConfirm: 'Sigur vrei să ștergi acest raft?',
       noShelves: 'Nu există rafturi',
       addFirst: 'Adaugă primul raft',
+      titleFrom: 'Rafturi din {cupboard}',
     },
     organizers: {
       title: 'Organizatoare',
@@ -183,6 +321,8 @@ export const translations: Record<Language, Translations> = {
       noOrganizers: 'Nu există organizatoare',
       addFirst: 'Adaugă primul organizator',
       moveOrganizer: 'Mută organizatorul',
+      moveIn: 'Mută în:',
+      cancelMove: 'Anulează mutarea',
     },
     items: {
       title: 'Articole',
@@ -206,6 +346,70 @@ export const translations: Record<Language, Translations> = {
       lots: 'Loturi',
       barcode: 'Cod de bare',
       scanButton: 'Scaneaza codul de bare',
+      scanAppOnly:
+        'Scanarea cu camera funcționează doar din aplicația Home Assistant.',
+      findByBarcode: 'Caută după cod de bare',
+      barcodeNotFound: 'Niciun produs găsit cu acest cod de bare.',
+      scanAgain: 'Scanează din nou',
+      enterBarcodeManually: 'Sau introdu manual codul de bare:',
+      variant: 'Variantă',
+      variantPlaceholder: 'ex: borcan mic',
+      variantBarcode: 'Cod de bare variantă',
+      variantBarcodeHint: 'Necesită completarea câmpului „Variantă”.',
+      barcodeAppliesToItem: 'Codul de bare se aplică articolului principal, nu celui curent. Dacă vrei să previi asta, scrie o variantă (ex: modelul sau firma produsului).',
+      variantBarcodeLinks: 'Acest cod de bare va fi legat de varianta „{variant}” a articolului existent.',
+      matchedVariant: 'Variantă potrivită',
+      existingRowsHint: 'Acest articol există deja aici. Alege unde adaugi:',
+      addToExisting: 'Adaugă la acesta',
+      newRow: 'Rând nou',
+      locationsCount: 'locații',
+      total: 'Total',
+      selectLocationHint:
+        'Acest articol e în mai multe locații. Alege locația de văzut (click scurt) sau de editat (apăsare lungă):',
+      expired: 'Expirat',
+      noDate: 'Fără dată',
+      expShort: 'Exp',
+      expDate: 'Data expirării',
+      expDateHint: 'AAAA/LL/ZZ sau gol',
+      datePlaceholder: 'AAAA/LL/ZZ',
+      aliasesPlaceholder: 'ex: toner negru, cartuș negru',
+      noLocation: 'Fără locație',
+      addIn: 'Adaugă în {organizer}',
+      editItem: 'Editează articolul',
+      editMainItem: 'Editează articolul principal',
+      existingBatches: 'Loturi existente cu date de expirare:',
+      batchDatePlaceholder: 'AAAA/LL/ZZ (gol = fără expirare)',
+      addBatch: '+ Adaugă lot (cu sau fără expirare)',
+      confirmDeletion: 'Confirmă ștergerea',
+      deleteMasterConfirm: 'Sigur vrei să ștergi articolul {name}?',
+      deleteMasterBefore: 'Această acțiune va șterge articolul principal și ',
+      deleteMasterLocations: 'toate cele {n} locații asociate',
+      deleteMasterAfter: ', precum și pozele de pe disc.',
+      deleteMasterList: 'Locațiile care vor fi șterse:',
+      totalQuantity: 'Cantitate totală',
+      day: 'zi',
+      days: 'zile',
+      expirationDate: 'Data expirării',
+      batchNoDate: 'Lot fără dată',
+      undefinedDate: 'Nedefinită',
+      moveTo: 'Mută în:',
+      organizerOptional: 'Organizator (opțional)',
+      newLocation: 'Locație nouă:',
+      productInLocation: 'Produsul se află într-o locație',
+      productInLocations: 'Produsul se află în {n} locații',
+    },
+    expiring: {
+      title: 'Batchuri care expiră',
+      all: 'Toate',
+      expired: 'Expirate',
+      soon: 'Aproape expiră',
+      noBatches: 'Nu există batchuri cu dată de expirare.',
+      noBatchesFiltered: 'Niciun batch pentru acest filtru.',
+      expiredAgo: 'expirat acum {n} z',
+      today: 'expiră azi',
+      inDays: 'în {n} z',
+      quantity: 'Cant.',
+      loadError: 'Nu s-au putut încărca batchurile.',
     },
     trackedItems: {
       title: 'Articole Urmărite',
@@ -230,6 +434,51 @@ export const translations: Record<Language, Translations> = {
       sameLocationItem: 'Articolul este în aceeași locație',
       preloadMoveLocation: 'Eroare la preîncărcarea locației curente',
       getRoomsError: 'Eroare la încărcarea camerelor',
+      unexpected: 'Eroare neașteptată',
+      invalidDates: 'Datele de expirare trebuie să fie în formatul AAAA/LL/ZZ sau goale!',
+      alreadyInLocation: 'Articolul se află deja în această locație!',
+      unexpectedApi: 'Eroare neașteptată de la API',
+      unexpectedUploadResponse: 'Răspuns neașteptat la încărcarea imaginii.',
+      imageUploadFailed: 'Încărcarea imaginii a eșuat ({status})',
+      decodeFailed: 'Decodarea codului de bare a eșuat',
+      connectFailed: 'Nu s-a putut conecta la Home Assistant',
+    },
+    scanner: {
+      title: 'Scanează cod de bare',
+      videoScan: 'Scanare video',
+      uploadImage: 'Încarcă imagine',
+      processing: 'Se procesează imaginea...',
+      processingHint: 'Se caută coduri de bare în imagine',
+      manualLabel: 'Sau introdu codul manual',
+      manualPlaceholder: 'Introdu codul de bare...',
+      manualHint: 'Apasă Enter sau bifa pentru a adăuga',
+      add: 'Adaugă',
+      scannedCode: 'Cod scanat:',
+      copyCode: 'Copiază codul',
+      copied: 'Copiat!',
+      history: 'Istoric scanări',
+      clearAll: 'Șterge tot',
+      historyHint: 'Click pe un cod pentru a-l selecta și copia',
+      onlyNumeric: 'Sunt acceptate doar coduri de bare numerice.',
+      readFailed: 'Nu s-a putut citi fișierul.',
+      loadFailed: 'Nu s-a putut încărca fișierul.',
+      processFailed: 'Nu s-a putut procesa imaginea:',
+      noBarcodeFound:
+        'Nu s-a găsit niciun cod de bare în imagine.\n\nSfaturi:\n• Asigură-te că lumina este bună\n• Pune codul în centrul imaginii\n• Încearcă să te apropii de cod',
+      nativeTitle: 'Scanează cod de bare',
+      nativeDescription: 'Îndreaptă camera spre codul de bare',
+      nativeCancel: 'Anulează',
+    },
+    locationLink: {
+      title: 'QR / NFC',
+      button: 'QR / NFC',
+      qr: 'Cod QR',
+      nfc: 'Tag NFC',
+      link: 'Link',
+      copy: 'Copiază',
+      copied: 'Copiat!',
+      download: 'Descarcă PNG',
+      notFound: 'Locația nu mai există.',
     },
   },
   en: {
@@ -254,6 +503,17 @@ export const translations: Record<Language, Translations> = {
       name: 'Name',
       infoViewPress: 'Touch longer or right click to edit',
       connectingHA: 'Connecting to Home Assistant...',
+      removeImage: 'Remove image',
+      cascadeTitle: 'The following will be permanently deleted:',
+      cascadeCupboards: 'cupboards',
+      cascadeShelves: 'shelves',
+      cascadeOrganizers: 'organizers',
+      cascadeLocations: 'item locations',
+      cascadeItems: 'items (their last location)',
+      cascadeImages: 'photos (with their thumbnails)',
+      cascadeNote: 'Items that also have other locations are kept; only the deleted location is removed.',
+      clear: 'Clear',
+      preview: 'Preview',
     },
     rooms: {
       title: 'Rooms',
@@ -262,6 +522,7 @@ export const translations: Record<Language, Translations> = {
       roomName: 'Room name',
       allItems: 'All Items',
       trackedItems: 'Tracked Items',
+      expiring: 'Expiring',
       noExist: "There's no room.",
       addFirst: ' Add first room.',
       this: 'This',
@@ -286,6 +547,7 @@ export const translations: Record<Language, Translations> = {
       deleteConfirm: 'Are you sure you want to delete this shelf?',
       noShelves: "There's no shelves",
       addFirst: 'Add first shelf',
+      titleFrom: 'Shelves from {cupboard}',
     },
     organizers: {
       title: 'Organizers',
@@ -297,6 +559,8 @@ export const translations: Record<Language, Translations> = {
       noOrganizers: "There's no organizers",
       addFirst: 'Add first organizer',
       moveOrganizer: 'Move the organizer',
+      moveIn: 'Move to:',
+      cancelMove: 'Cancel move',
     },
     items: {
       title: 'Items',
@@ -320,6 +584,70 @@ export const translations: Record<Language, Translations> = {
       lots: 'Lots',
       barcode: 'Barcode',
       scanButton: 'Scan the barcode',
+      scanAppOnly:
+        'Camera scanning only works from the Home Assistant app.',
+      findByBarcode: 'Find by barcode',
+      barcodeNotFound: 'No item found with this barcode.',
+      scanAgain: 'Scan again',
+      enterBarcodeManually: 'Or enter the barcode manually:',
+      variant: 'Variant',
+      variantPlaceholder: 'e.g. small jar',
+      variantBarcode: 'Variant barcode',
+      variantBarcodeHint: 'Requires the "Variant" field to be filled in.',
+      barcodeAppliesToItem: 'The barcode applies to the main item, not the current one. To prevent this, enter a variant (e.g. the product model or brand).',
+      variantBarcodeLinks: 'This barcode will be linked to the "{variant}" variant of the existing item.',
+      matchedVariant: 'Matched variant',
+      existingRowsHint: 'This item already exists here. Choose where to add:',
+      addToExisting: 'Add to this one',
+      newRow: 'New row',
+      locationsCount: 'locations',
+      total: 'Total',
+      selectLocationHint:
+        'This item is in multiple locations. Select the location you want to view (short click) or edit (long press):',
+      expired: 'Expired',
+      noDate: 'No date',
+      expShort: 'Exp',
+      expDate: 'Expiration date',
+      expDateHint: 'YYYY/MM/DD or empty',
+      datePlaceholder: 'YYYY/MM/DD',
+      aliasesPlaceholder: 'e.g. black toner, black cartridge',
+      noLocation: 'No location',
+      addIn: 'Add in {organizer}',
+      editItem: 'Edit item',
+      editMainItem: 'Edit main item',
+      existingBatches: 'Existing batches with expiration dates:',
+      batchDatePlaceholder: 'YYYY/MM/DD (empty for no expiration)',
+      addBatch: '+ Add batch (with or without expiration)',
+      confirmDeletion: 'Confirm deletion',
+      deleteMasterConfirm: 'Are you sure you want to delete {name}?',
+      deleteMasterBefore: 'This action will delete the main item and ',
+      deleteMasterLocations: 'all {n} associated locations',
+      deleteMasterAfter: ', as well as the physical images.',
+      deleteMasterList: 'Locations that will be deleted:',
+      totalQuantity: 'Total quantity',
+      day: 'day',
+      days: 'days',
+      expirationDate: 'Expiration date',
+      batchNoDate: 'Batch without date',
+      undefinedDate: 'Undefined',
+      moveTo: 'Move to:',
+      organizerOptional: 'Organizer (optional)',
+      newLocation: 'New location:',
+      productInLocation: 'Product is in 1 location',
+      productInLocations: 'Product is in {n} locations',
+    },
+    expiring: {
+      title: 'Expiring batches',
+      all: 'All',
+      expired: 'Expired',
+      soon: 'Expiring soon',
+      noBatches: 'No batches with an expiration date.',
+      noBatchesFiltered: 'No batches match this filter.',
+      expiredAgo: 'expired {n} d ago',
+      today: 'expires today',
+      inDays: 'in {n} d',
+      quantity: 'Qty',
+      loadError: 'Could not load batches.',
     },
     trackedItems: {
       title: 'Tracked Items',
@@ -344,6 +672,305 @@ export const translations: Record<Language, Translations> = {
       sameLocationItem: 'The item is in the same location',
       preloadMoveLocation: 'Error at preloaded current location',
       getRoomsError: 'Error at fetching rooms.',
+      unexpected: 'Unexpected error',
+      invalidDates: 'Expiration dates must be in YYYY/MM/DD format or empty!',
+      alreadyInLocation: 'The item is already in this location!',
+      unexpectedApi: 'Unexpected API error',
+      unexpectedUploadResponse: 'Unexpected upload response format.',
+      imageUploadFailed: 'Image upload failed ({status})',
+      decodeFailed: 'Barcode decoding failed',
+      connectFailed: 'Could not connect to Home Assistant',
+    },
+    scanner: {
+      title: 'Scan Barcode',
+      videoScan: 'Video scan',
+      uploadImage: 'Upload image',
+      processing: 'Processing image...',
+      processingHint: 'Looking for barcodes in the image',
+      manualLabel: 'Or enter the code manually',
+      manualPlaceholder: 'Enter barcode...',
+      manualHint: 'Press Enter or the check button to add',
+      add: 'Add',
+      scannedCode: 'Scanned code:',
+      copyCode: 'Copy code',
+      copied: 'Copied!',
+      history: 'Scan history',
+      clearAll: 'Clear all',
+      historyHint: 'Click a code to select and copy it',
+      onlyNumeric: 'Only numeric barcodes are supported.',
+      readFailed: 'Failed to read the file.',
+      loadFailed: 'Failed to load the file.',
+      processFailed: 'Failed to process the image:',
+      noBarcodeFound:
+        'No barcode found in the image.\n\nTips:\n• Make sure the lighting is good\n• Position the code in the center of the image\n• Try moving closer to the code',
+      nativeTitle: 'Scan Barcode',
+      nativeDescription: 'Point the camera at the barcode',
+      nativeCancel: 'Cancel',
+    },
+    locationLink: {
+      title: 'QR / NFC',
+      button: 'QR / NFC',
+      qr: 'QR code',
+      nfc: 'NFC tag',
+      link: 'Link',
+      copy: 'Copy',
+      copied: 'Copied!',
+      download: 'Download PNG',
+      notFound: 'This location no longer exists.',
+    },
+  },
+  ru: {
+    common: {
+      loading: 'Загрузка...',
+      error: 'Ошибка',
+      save: 'Сохранить',
+      saving: 'Сохранение...',
+      cancel: 'Отмена',
+      delete: 'Удалить',
+      deleting: 'Удаление...',
+      edit: 'Изменить',
+      add: 'Добавить',
+      search: 'Поиск',
+      close: 'Закрыть',
+      confirm: 'Подтвердить',
+      back: 'Назад',
+      reload: 'Перезагрузить',
+      deleteConfirm: 'Вы уверены, что хотите удалить:',
+      deleteTitle: 'Удаление: {type}',
+      optional: 'необязательно',
+      select: 'Выбрать',
+      name: 'Название',
+      infoViewPress: 'Долгое нажатие или правый клик для редактирования',
+      connectingHA: 'Подключение к Home Assistant...',
+      removeImage: 'Удалить изображение',
+      cascadeTitle: 'Будет безвозвратно удалено:',
+      cascadeCupboards: 'шкафы',
+      cascadeShelves: 'полки',
+      cascadeOrganizers: 'органайзеры',
+      cascadeLocations: 'места хранения предметов',
+      cascadeItems: 'предметы (их последнее место)',
+      cascadeImages: 'фото (вместе с миниатюрами)',
+      cascadeNote: 'Предметы, у которых есть другие места хранения, сохраняются; удаляется только это место.',
+      clear: 'Очистить',
+      preview: 'Предпросмотр',
+    },
+    rooms: {
+      title: 'Комнаты',
+      room: 'Комната',
+      addRoom: 'Добавить комнату',
+      roomName: 'Название комнаты',
+      allItems: 'Все предметы',
+      trackedItems: 'Отслеживаемые предметы',
+      expiring: 'Срок годности',
+      noExist: 'Комнат нет.',
+      addFirst: ' Добавьте первую комнату.',
+      this: 'Эта',
+      contain: 'содержит',
+      containItems: 'предметов, которые будут удалены',
+    },
+    cupboards: {
+      title: 'Шкафы',
+      cupboard: 'Шкаф',
+      addCupboard: 'Добавить шкаф',
+      cupboardName: 'Название шкафа',
+      deleteConfirm: 'Вы уверены, что хотите удалить этот шкаф?',
+      noCupboards: 'Шкафов нет.',
+      addFirst: 'Добавьте первый шкаф.',
+      example: 'напр.: Большой шкаф',
+    },
+    shelves: {
+      title: 'Полки',
+      shelf: 'Полка',
+      addShelf: 'Добавить полку',
+      shelfName: 'Название полки',
+      deleteConfirm: 'Вы уверены, что хотите удалить эту полку?',
+      noShelves: 'Полок нет',
+      addFirst: 'Добавьте первую полку',
+      titleFrom: 'Полки в шкафу «{cupboard}»',
+    },
+    organizers: {
+      title: 'Органайзеры',
+      organizer: 'Органайзер',
+      addOrganizer: 'Добавить органайзер',
+      organizerName: 'Название органайзера',
+      deleteConfirm: 'Вы уверены, что хотите удалить этот органайзер?',
+      withoutOrganizer: 'Без органайзера',
+      noOrganizers: 'Органайзеров нет',
+      addFirst: 'Добавьте первый органайзер',
+      moveOrganizer: 'Переместить органайзер',
+      moveIn: 'Переместить в:',
+      cancelMove: 'Отменить перемещение',
+    },
+    items: {
+      title: 'Предметы',
+      addItem: 'Добавить предмет',
+      addFirst: 'Добавьте первый предмет',
+      addItemWithoutOrganizer: 'Предмет на полке',
+      itemName: 'Название предмета',
+      aliases: 'Псевдонимы',
+      quantity: 'Количество',
+      minQuantity: 'Минимальное количество',
+      trackQuantity: 'Отслеживать количество',
+      location: 'Место',
+      image: 'Изображение',
+      deleteConfirm: 'Вы уверены, что хотите удалить этот предмет?',
+      noItems: 'Нет предметов',
+      lowStock: 'Мало на складе',
+      needsRestock: 'Нужно пополнить',
+      pieces: 'шт.',
+      moveItem: 'Переместить предмет',
+      noTrack: 'Количество этого предмета не отслеживается',
+      lots: 'Партии',
+      barcode: 'Штрихкод',
+      scanButton: 'Сканировать штрихкод',
+      scanAppOnly:
+        'Сканирование камерой работает только в приложении Home Assistant.',
+      findByBarcode: 'Найти по штрихкоду',
+      barcodeNotFound: 'Предмет с таким штрихкодом не найден.',
+      scanAgain: 'Сканировать снова',
+      enterBarcodeManually: 'Или введите штрихкод вручную:',
+      variant: 'Вариант',
+      variantPlaceholder: 'напр.: маленькая банка',
+      variantBarcode: 'Штрихкод варианта',
+      variantBarcodeHint: 'Требуется заполнить поле «Вариант».',
+      barcodeAppliesToItem: 'Штрихкод относится к основному предмету, а не к текущему. Чтобы этого избежать, укажите вариант (например, модель или бренд товара).',
+      variantBarcodeLinks: 'Этот штрихкод будет привязан к варианту «{variant}» существующего предмета.',
+      matchedVariant: 'Найденный вариант',
+      existingRowsHint: 'Такой предмет здесь уже есть. Выберите, куда добавить:',
+      addToExisting: 'Добавить к этому',
+      newRow: 'Новая запись',
+      locationsCount: 'мест',
+      total: 'Всего',
+      selectLocationHint:
+        'Этот предмет находится в нескольких местах. Выберите место для просмотра (короткое нажатие) или редактирования (долгое нажатие):',
+      expired: 'Просрочено',
+      noDate: 'Без даты',
+      expShort: 'Годен до',
+      expDate: 'Срок годности',
+      expDateHint: 'ГГГГ/ММ/ДД или пусто',
+      datePlaceholder: 'ГГГГ/ММ/ДД',
+      aliasesPlaceholder: 'напр.: чёрный тонер, чёрный картридж',
+      noLocation: 'Нет места',
+      addIn: 'Добавить в «{organizer}»',
+      editItem: 'Изменить предмет',
+      editMainItem: 'Изменить основной предмет',
+      existingBatches: 'Существующие партии со сроками годности:',
+      batchDatePlaceholder: 'ГГГГ/ММ/ДД (пусто — без срока годности)',
+      addBatch: '+ Добавить партию (со сроком годности или без)',
+      confirmDeletion: 'Подтвердите удаление',
+      deleteMasterConfirm: 'Вы уверены, что хотите удалить «{name}»?',
+      deleteMasterBefore: 'Это действие удалит основной предмет и ',
+      deleteMasterLocations: 'все связанные места ({n})',
+      deleteMasterAfter: ', а также физические изображения.',
+      deleteMasterList: 'Места, которые будут удалены:',
+      totalQuantity: 'Общее количество',
+      day: 'день',
+      days: 'дней',
+      daysFew: 'дня',
+      expirationDate: 'Срок годности',
+      batchNoDate: 'Партия без даты',
+      undefinedDate: 'Не указано',
+      moveTo: 'Переместить в:',
+      organizerOptional: 'Органайзер (необязательно)',
+      newLocation: 'Новое место:',
+      productInLocation: 'Товар находится в 1 месте',
+      productInLocations: 'Количество мест, где находится товар: {n}',
+    },
+    expiring: {
+      title: 'Партии с истекающим сроком',
+      all: 'Все',
+      expired: 'Просрочено',
+      soon: 'Скоро истекает',
+      noBatches: 'Нет партий со сроком годности.',
+      noBatchesFiltered: 'Нет партий, подходящих под фильтр.',
+      expiredAgo: 'просрочено {n} дн. назад',
+      today: 'истекает сегодня',
+      inDays: 'через {n} дн.',
+      quantity: 'Кол-во',
+      loadError: 'Не удалось загрузить партии.',
+    },
+    trackedItems: {
+      title: 'Отслеживаемые предметы',
+      loading: 'Загрузка отслеживаемых предметов...',
+      noItems: 'Нет отслеживаемых предметов',
+      noItemsFiltered: 'Предметы не найдены',
+      tryModifyFilters: 'Попробуйте изменить фильтры',
+      enableTracking: 'Включите отслеживание количества для предметов',
+      all: 'Все',
+      belowStock: 'Ниже запаса',
+      ok: 'ОК',
+      searchPlaceholder: 'Поиск предметов...',
+      locationLabel: 'Место:',
+      quantityLabel: 'Количество:',
+      needsRestockLabel: 'Нужно пополнить',
+    },
+    errors: {
+      connectionError: 'Ошибка соединения',
+      uploadFailed: 'Не удалось загрузить',
+      generalError: 'Произошла ошибка',
+      sameLocationOrganizer: 'Органайзер уже находится в этом месте',
+      sameLocationItem: 'Предмет уже находится в этом месте',
+      preloadMoveLocation: 'Ошибка при предзагрузке текущего места',
+      getRoomsError: 'Ошибка при получении комнат.',
+      unexpected: 'Непредвиденная ошибка',
+      invalidDates: 'Сроки годности должны быть в формате ГГГГ/ММ/ДД или пустыми!',
+      alreadyInLocation: 'Предмет уже находится в этом месте!',
+      unexpectedApi: 'Непредвиденная ошибка API',
+      unexpectedUploadResponse: 'Неожиданный формат ответа при загрузке.',
+      imageUploadFailed: 'Не удалось загрузить изображение ({status})',
+      decodeFailed: 'Не удалось распознать штрихкод',
+      connectFailed: 'Не удалось подключиться к Home Assistant',
+    },
+    scanner: {
+      title: 'Сканирование штрихкода',
+      videoScan: 'Сканирование видео',
+      uploadImage: 'Загрузить изображение',
+      processing: 'Обработка изображения...',
+      processingHint: 'Поиск штрихкодов на изображении',
+      manualLabel: 'Или введите код вручную',
+      manualPlaceholder: 'Введите штрихкод...',
+      manualHint: 'Нажмите Enter или кнопку-галочку, чтобы добавить',
+      add: 'Добавить',
+      scannedCode: 'Отсканированный код:',
+      copyCode: 'Копировать код',
+      copied: 'Скопировано!',
+      history: 'История сканирования',
+      clearAll: 'Очистить всё',
+      historyHint: 'Нажмите на код, чтобы выбрать и скопировать его',
+      onlyNumeric: 'Поддерживаются только числовые штрихкоды.',
+      readFailed: 'Не удалось прочитать файл.',
+      loadFailed: 'Не удалось загрузить файл.',
+      processFailed: 'Не удалось обработать изображение:',
+      noBarcodeFound:
+        'Штрихкод на изображении не найден.\n\nСоветы:\n• Убедитесь, что освещение хорошее\n• Расположите код по центру изображения\n• Попробуйте приблизиться к коду',
+      nativeTitle: 'Сканирование штрихкода',
+      nativeDescription: 'Наведите камеру на штрихкод',
+      nativeCancel: 'Отмена',
+    },
+    locationLink: {
+      title: 'QR / NFC',
+      button: 'QR / NFC',
+      qr: 'QR-код',
+      nfc: 'NFC-метка',
+      link: 'Ссылка',
+      copy: 'Копировать',
+      copied: 'Скопировано!',
+      download: 'Скачать PNG',
+      notFound: 'Этого места больше не существует.',
     },
   },
 };
+
+export const LANGUAGE_STORAGE_KEY = 'home_inventory_language';
+
+/** Translations for code outside React (API service, hooks); mirrors I18nProvider's stored choice. */
+export function getStaticTranslations(): Translations {
+  let lang: Language = 'en';
+  try {
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    if (stored && (LANGUAGES as string[]).includes(stored)) lang = stored as Language;
+  } catch {
+    /* storage unavailable */
+  }
+  return translations[lang];
+}

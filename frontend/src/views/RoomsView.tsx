@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import RoomsHeader from '../components/Room/RoomsHeader';
 import RoomCard from '../components/Room/RoomCard';
 import EditRoomModal from '../components/Modal/EditRoomModal';
+import FindByBarcodeModal from '../components/Modal/FindByBarcodeModal';
 import Loading from '../components/Loading';
 import { useRooms } from '../hooks/rooms/useRooms';
 import { useRoomMutations } from '../hooks/rooms/useRoomMutations';
@@ -10,6 +11,7 @@ import { useRoomNavigation } from '../hooks/rooms/useRoomNavigation';
 import { useTranslation } from '../i18n/I18nContext';
 import type { ApiService } from '../services/api';
 import type { Room } from '../types';
+import type { ImagePickerValue } from '../components/Modal/ImagePickerField';
 
 interface RoomsViewProps {
   api: ApiService;
@@ -19,10 +21,11 @@ export default function RoomsView({ api }: RoomsViewProps) {
   const { t } = useTranslation();
   const { data: config } = useHomeInventarConfig(api);
   const { data: rooms = [], isLoading, error } = useRooms(api);
-  const { goToRoom, goToAllItems, goToTrackedItems } = useRoomNavigation();
+  const { goToRoom, goToAllItems, goToTrackedItems, goToExpiring } = useRoomNavigation();
   const { addRoom, updateRoom } = useRoomMutations(api);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
 
   /** Handlers */
@@ -42,19 +45,16 @@ export default function RoomsView({ api }: RoomsViewProps) {
   }, []);
 
   const handleSaveRoom = useCallback(
-    async (name: string) => {
+    async (name: string, image: ImagePickerValue) => {
       try {
         if (editingRoom) {
-          await updateRoom.mutateAsync({ id: editingRoom.id, name });
+          await updateRoom.mutateAsync({ id: editingRoom.id, name, image });
         } else {
-          await addRoom.mutateAsync(name);
+          await addRoom.mutateAsync({ name, image });
         }
         handleCloseModal();
       } catch (err: any) {
-        const message =
-          err?.response?.data?.error ||
-          t.errors?.unexpected ||
-          'Unexpected error';
+        const message = err?.response?.data?.error || t.errors.unexpected;
         alert(message);
       }
     },
@@ -78,11 +78,13 @@ export default function RoomsView({ api }: RoomsViewProps) {
         <RoomsHeader
           allowEdit={isEditable}
           onTrackStock={goToTrackedItems}
+          onExpiring={goToExpiring}
           onAllItemsClick={goToAllItems}
           onAddRoom={handleAddRoom}
+          onFindByBarcode={() => setIsBarcodeOpen(true)}
         />
 
-        <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
+        <div className="stagger grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
           {hasNoRooms ? (
             <p className="text-center text-ha-text py-10">
               {t.rooms.noExist}
@@ -93,6 +95,7 @@ export default function RoomsView({ api }: RoomsViewProps) {
               <RoomCard
                 key={room.id}
                 name={room.name}
+                image={room.image}
                 count={room.itemCount}
                 editable={isEditable}
                 onClick={() => goToRoom(room.name)}
@@ -102,6 +105,10 @@ export default function RoomsView({ api }: RoomsViewProps) {
           )}
         </div>
       </div>
+
+      {isBarcodeOpen && (
+        <FindByBarcodeModal api={api} onClose={() => setIsBarcodeOpen(false)} />
+      )}
 
       {isModalOpen && (
         <EditRoomModal

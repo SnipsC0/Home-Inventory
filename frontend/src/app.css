@@ -4,14 +4,285 @@
   --color-ha-text: var(--primary-text-color);
   --color-ha-primary: var(--primary-color);
   --color-ha-error: var(--error-color);
+  --color-ha-success: var(--success-color, #43a047);
   --color-ha-card: var(--card-background-color);
   --color-ha-secondary-bg: var(--secondary-background-color);
   --color-ha-divider: var(--divider-color);
 
-  --shadow-ha: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-ha: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-ha-lg: 0 10px 30px -8px rgba(0, 0, 0, 0.25),
+    0 4px 10px -4px rgba(0, 0, 0, 0.12);
+  --radius-ha: 16px;
+  --color-ha-bg: var(--primary-background-color);
+}
+
+@layer components {
+  /* ---------- Surfaces ---------- */
+  .surface {
+    background: var(--card-background-color);
+    border: 1px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
+    border-radius: var(--radius-ha);
+    box-shadow: var(--shadow-ha);
+    transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1),
+      box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+
+  .surface-interactive {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Images inside interactive cards never become the touch target, so a
+     long press can't select/save the image and reaches the card handlers. */
+  .surface-interactive img {
+    pointer-events: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+
+  .surface-interactive:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-ha-lg);
+    border-color: color-mix(in srgb, var(--primary-color) 45%, transparent);
+  }
+
+  .surface-interactive:active {
+    transform: translateY(-1px);
+  }
+
+  /* Rounded icon tile used by hierarchy cards */
+  .icon-tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 12px;
+    border-radius: 16px;
+    color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+
+  .surface-interactive:hover .icon-tile {
+    transform: scale(1.06);
+    background: color-mix(in srgb, var(--primary-color) 18%, transparent);
+  }
+
+  .count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25;
+    cursor: pointer;
+    transition: background 0.15s ease, box-shadow 0.15s ease,
+      transform 0.1s ease, opacity 0.15s ease, border-color 0.15s ease;
+  }
+
+  .btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    color: #fff;
+    background: var(--primary-color);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15),
+      0 4px 12px -4px color-mix(in srgb, var(--primary-color) 60%, transparent);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--primary-color) 88%, #000);
+  }
+
+  .btn-secondary {
+    color: var(--primary-text-color);
+    background: var(--card-background-color);
+    border-color: var(--divider-color);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--secondary-background-color);
+  }
+
+  .btn-outline {
+    color: var(--primary-color);
+    background: transparent;
+    border-color: color-mix(in srgb, var(--primary-color) 55%, transparent);
+  }
+
+  .btn-outline:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+  }
+
+  .btn-danger {
+    color: #fff;
+    background: var(--error-color);
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--error-color) 88%, #000);
+  }
+
+  .btn-ghost {
+    color: var(--primary-text-color);
+    background: transparent;
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
+  }
+
+  /* ---------- Inputs ---------- */
+  .field {
+    display: block; /* avoid inline line-box gap that offsets absolutely-centered icons */
+    width: 100%;
+    padding: 10px 14px;
+    color: var(--primary-text-color);
+    background: var(--secondary-background-color);
+    border: 1px solid var(--divider-color);
+    border-radius: 12px;
+    font-size: 0.9rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .field::placeholder {
+    color: color-mix(in srgb, var(--primary-text-color) 45%, transparent);
+  }
+
+  .field:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--primary-color) 22%, transparent);
+  }
+
+  /* ---------- Page header ---------- */
+  .page-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+    font-size: 1.375rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--primary-text-color);
+  }
+
+  .page-title-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+  }
+
+  /* ---------- Modal ---------- */
+  .modal-backdrop {
+    animation: fade-in 0.18s ease-out;
+  }
+
+  .modal-panel {
+    animation: pop-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* Images in modals can't be selected, dragged or saved via long press */
+  .modal-panel img {
+    pointer-events: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+
+  /* ---------- Entrance animation for grids ---------- */
+  .stagger > * {
+    animation: rise-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .stagger > *:nth-child(2) { animation-delay: 40ms; }
+  .stagger > *:nth-child(3) { animation-delay: 80ms; }
+  .stagger > *:nth-child(4) { animation-delay: 120ms; }
+  .stagger > *:nth-child(5) { animation-delay: 160ms; }
+  .stagger > *:nth-child(n + 6) { animation-delay: 200ms; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Image placeholder shown while a picture downloads */
+.img-skeleton {
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--ha-text, #888) 10%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 250% 100%;
+  animation: img-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes img-shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -150% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .img-skeleton { animation: none; }
+  .modal-backdrop, .modal-panel, .stagger > * { animation: none; }
+  .surface, .surface-interactive:hover { transition: none; transform: none; }
 }
 
 @utility drag-none {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
   -webkit-user-drag: none;
   -khtml-user-drag: none;
   -moz-user-drag: none;

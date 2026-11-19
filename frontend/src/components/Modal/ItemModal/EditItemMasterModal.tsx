@@ -6,6 +6,7 @@ import { useEditItemMasterModal } from '../../../hooks/items/useEditItemMasterMo
 import { useTranslation } from '../../../i18n/I18nContext';
 import { Camera } from 'lucide-react';
 import { BarcodeScanner } from '../../BarcodeScanner';
+import { useApi } from '../../../contexts/ApiContext';
 
 interface Props {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export default function EditItemMasterModal({
     deleteLocations,
 
     setName,
+    setBarcode,
     setAliases,
     setMinQuantity,
     setShowScanner,
@@ -47,11 +49,13 @@ export default function EditItemMasterModal({
   } = useEditItemMasterModal({ api, item, onSuccess, onClose });
 
   const { t } = useTranslation();
+  const hasNativeScanner =
+    !!useApi().externalBus?.config?.hasBarCodeScanner;
 
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} maxWidth="600px">
-        <ModalHeader onClose={onClose}>✏️ Editare Item Principal</ModalHeader>
+        <ModalHeader onClose={onClose}>{t.items.editMainItem}</ModalHeader>
 
         <div className="space-y-4">
           <label className="block">
@@ -76,20 +80,29 @@ export default function EditItemMasterModal({
             <span className="text-ha-text text-sm">{t.items.barcode}: </span>
             <div className="flex gap-2 items-center mt-1">
               <input
-                disabled
                 value={barcode ?? ''}
-                className="flex-1 px-3 py-2 border bg-ha-secondary-bg text-ha-text rounded opacity-60"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                onChange={(e) => setBarcode(e.target.value.replace(/\D/g, ''))}
+                className="flex-1 px-3 py-2 border bg-ha-secondary-bg text-ha-text rounded"
               />
-              <button
-                onClick={() => setShowScanner(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600
+              {hasNativeScanner && (
+                <button
+                  onClick={() => setShowScanner(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600
                   text-white rounded-lg shadow-md transition duration-300 transform
                   hover:scale-101 active:scale-95"
-              >
-                <Camera size={20} />
-                {t.items.scanButton}
-              </button>
+                >
+                  <Camera size={20} />
+                  {t.items.scanButton}
+                </button>
+              )}
             </div>
+            {!hasNativeScanner && (
+              <p className="text-xs text-ha-text/60 mt-1">
+                {t.items.scanAppOnly}
+              </p>
+            )}
           </div>
 
           <ImageUploader preview={preview} onChange={handleFileChange} />
@@ -112,21 +125,21 @@ export default function EditItemMasterModal({
           <button
             onClick={handleSave}
             disabled={loading || !name.trim()}
-            className="flex-1 py-2 bg-ha-primary text-white rounded disabled:opacity-50"
+            className="btn btn-primary flex-1"
           >
-            {loading ? t.common.saving : `💾 ${t.common.save}`}
+            {loading ? t.common.saving : `${t.common.save}`}
           </button>
           <button
             onClick={handleDeleteRequest}
             disabled={loading}
             className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white rounded disabled:opacity-50"
           >
-            🗑️ {t.common.delete || 'Șterge'}
+            {t.common.delete}
           </button>
           <button
             onClick={onClose}
             disabled={loading}
-            className="flex-1 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
+            className="btn btn-secondary flex-1"
           >
             {t.common.cancel}
           </button>
@@ -135,9 +148,9 @@ export default function EditItemMasterModal({
 
       {showScanner && (
         <BarcodeScanner
+          autoStartNative
           onScan={handleBarcodeScanned}
           onClose={() => setShowScanner(false)}
-          autoStop={true}
         />
       )}
 
@@ -148,26 +161,35 @@ export default function EditItemMasterModal({
           maxWidth="600px"
         >
           <ModalHeader onClose={() => setShowDeleteConfirm(false)}>
-            ⚠️ Confirmare Ștergere
+            {t.items.confirmDeletion}
           </ModalHeader>
 
           <div className="space-y-4">
             <p className="text-ha-text">
-              Ești sigur că vrei să ștergi <strong>{item.name}</strong>?
+              {t.items.deleteMasterConfirm
+                .split('{name}')
+                .flatMap((part, i, arr) =>
+                  i < arr.length - 1
+                    ? [part, <strong key={i}>{item.name}</strong>]
+                    : [part]
+                )}
             </p>
 
             <p className="text-ha-text">
-              Această acțiune va șterge itemul principal și{' '}
+              {t.items.deleteMasterBefore}
               <strong className="text-red-500">
-                toate {deleteLocations.length} locații asociate
+                {t.items.deleteMasterLocations.replace(
+                  '{n}',
+                  String(deleteLocations.length)
+                )}
               </strong>
-              , precum și imaginile fizice.
+              {t.items.deleteMasterAfter}
             </p>
 
             {deleteLocations.length > 0 && (
               <div className="space-y-2">
                 <p className="text-ha-text font-semibold">
-                  Locații care vor fi șterse:
+                  {t.items.deleteMasterList}
                 </p>
                 <ul className="list-disc list-inside space-y-1 max-h-48 overflow-y-auto bg-ha-secondary-bg p-3 rounded border border-ha-divider">
                   {deleteLocations.map((location, idx) => (
@@ -186,12 +208,12 @@ export default function EditItemMasterModal({
               disabled={loading}
               className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white rounded disabled:opacity-50"
             >
-              {loading ? 'Se șterge...' : '✓ Confirmă Ștergerea'}
+              {loading ? t.common.deleting : t.items.confirmDeletion}
             </button>
             <button
               onClick={() => setShowDeleteConfirm(false)}
               disabled={loading}
-              className="flex-1 py-2 border border-ha-divider bg-ha-secondary-bg text-ha-text rounded"
+              className="btn btn-secondary flex-1"
             >
               {t.common.cancel}
             </button>

@@ -1,3 +1,4 @@
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from '../../i18n/I18nContext';
 
 interface BreadcrumbProps {
@@ -8,15 +9,13 @@ interface BreadcrumbProps {
 export default function Breadcrumb({ onBack, currentLabel }: BreadcrumbProps) {
   const { t } = useTranslation();
   return (
-    <div className="mb-4 flex items-center gap-2 text-ha-text flex-wrap">
-      <button
-        onClick={onBack}
-        className="text-ha-primary hover:underline px-1 py-1 transition"
-      >
-        ← {t.common.back}
+    <nav className="mb-2 flex items-center gap-1 text-ha-text flex-wrap text-sm">
+      <button onClick={onBack} className="btn btn-ghost !px-3 !py-1.5">
+        <ArrowLeft size={16} />
+        {t.common.back}
       </button>
-      <span className="text-ha-text opacity-60">/</span>
-      <span className="font-semibold text-ha-text">{currentLabel}</span>
-    </div>
+      <ChevronRight size={16} className="opacity-40" />
+      <span className="font-semibold px-2">{currentLabel}</span>
+    </nav>
   );
 }

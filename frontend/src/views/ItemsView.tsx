@@ -5,20 +5,19 @@ import ItemCard from '../components/Item/ItemCard';
 import Loading from '../components/Loading';
 
 import { useGlobalItems } from '../hooks/items/useItems';
-import { useHomeInventarConfig } from '../hooks/global/useHomeInventarConfig';
 import { useItemActions } from '../hooks/items/useItemActions';
 import { useAppStore } from '../store/useAppStore';
 import { useTranslation } from '../i18n/I18nContext';
 
 import type { ApiService } from '../services/api';
-import type { Item, ItemLocation } from '../types';
+import type { ItemLocation } from '../types';
 
 interface ItemsViewProps {
   api: ApiService;
 }
 
 export default function ItemsView({ api }: ItemsViewProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   // navigation + context
   const selectedRoom = useAppStore((s) => s.selectedRoom);
@@ -29,7 +28,6 @@ export default function ItemsView({ api }: ItemsViewProps) {
 
   // data
   const { data: allItems = [], isLoading } = useGlobalItems(api);
-  const { data: config } = useHomeInventarConfig(api);
   const { addItem } = useItemActions(selectedOrganizer);
 
   // ui state
@@ -63,27 +61,25 @@ export default function ItemsView({ api }: ItemsViewProps) {
 
   // Sort items alphabetically
   const sortedItems = useMemo(
-    () => [...filteredItems].sort((a, b) => a.name.localeCompare(b.name, 'ro')),
-    [filteredItems]
+    () =>
+      [...filteredItems].sort((a, b) => a.name.localeCompare(b.name, language)),
+    [filteredItems, language]
   );
 
   // derived values
-  const allowEdit = !!config?.allow_structure_modification;
+  // Items are never locked by allow_structure_modification.
+  const allowEdit = true;
   const hasNoItems = sortedItems.length === 0;
 
-  const getSpecificLocation = useCallback(
-    (
-      locations: ItemLocation[] | undefined | null
-    ): ItemLocation | undefined => {
-      if (!locations) return undefined;
-      return locations.find(
+  const getSpecificLocations = useCallback(
+    (locations: ItemLocation[] | undefined | null): ItemLocation[] =>
+      (locations ?? []).filter(
         (loc) =>
           normalize(loc.room) === normalize(selectedRoom) &&
           normalize(loc.cupboard) === normalize(selectedCupboard) &&
           normalize(loc.shelf) === normalize(selectedShelf) &&
           normalize(loc.organizer) === normalize(selectedOrganizer)
-      );
-    },
+      ),
     [
       normalize,
       selectedRoom,
@@ -113,12 +109,14 @@ export default function ItemsView({ api }: ItemsViewProps) {
   // precompute cards
   const cards = useMemo(
     () =>
-      sortedItems.map((item) => ({
-        item,
-        organizer: selectedOrganizer,
-        specificLocation: getSpecificLocation(item.locations),
-      })),
-    [sortedItems, selectedOrganizer, getSpecificLocation]
+      sortedItems.flatMap((item) =>
+        getSpecificLocations(item.locations).map((loc) => ({
+          item,
+          organizer: selectedOrganizer,
+          specificLocation: loc,
+        }))
+      ),
+    [sortedItems, selectedOrganizer, getSpecificLocations]
   );
 
   return (
@@ -131,19 +129,21 @@ export default function ItemsView({ api }: ItemsViewProps) {
       {allowEdit && (
         <button
           onClick={handleAdd}
-          className="px-3 py-2 bg-ha-primary text-white rounded hover:opacity-90 transition"
+          className="btn btn-primary"
         >
           + {t.items.addItem}
         </button>
       )}
 
-      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(140px,1fr))]">
+      <div className="stagger grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(140px,1fr))]">
         {hasNoItems ? (
           <p className="text-center text-ha-text py-10">
             {t.items.noItems}.{allowEdit && ` ${t.items.addFirst}!`}
           </p>
         ) : (
-          cards.map((props) => <ItemCard key={props.item.id} {...props} />)
+          cards.map((props) => (
+            <ItemCard key={props.specificLocation.location_id} {...props} />
+          ))
         )}
       </div>
 

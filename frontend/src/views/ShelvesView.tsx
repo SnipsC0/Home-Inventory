@@ -4,6 +4,7 @@ import ShelvesHeader from '../components/Shelf/ShelvesHeader';
 import ShelfCard from '../components/Shelf/ShelfCard';
 import EditShelfModal from '../components/Modal/EditShelfModal';
 import Loading from '../components/Loading';
+import LocationLinkModal from '../components/Modal/LocationLinkModal';
 
 import { useShelves } from '../hooks/shelves/useShelves';
 import { useHomeInventarConfig } from '../hooks/global/useHomeInventarConfig';
@@ -14,6 +15,7 @@ import { useTranslation } from '../i18n/I18nContext';
 
 import type { ApiService } from '../services/api';
 import type { Shelf } from '../types';
+import type { ImagePickerValue } from '../components/Modal/ImagePickerField';
 
 interface ShelvesViewProps {
   api: ApiService;
@@ -23,6 +25,7 @@ export default function ShelvesView({ api }: ShelvesViewProps) {
   const { t } = useTranslation();
 
   // global navigation context
+  const selectedRoom = useAppStore((s) => s.selectedRoom);
   const selectedCupboard = useAppStore((s) => s.selectedCupboard);
   const goBack = useAppStore((s) => s.goBack);
 
@@ -37,9 +40,11 @@ export default function ShelvesView({ api }: ShelvesViewProps) {
   // local state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingShelf, setEditingShelf] = useState<Shelf | null>(null);
+  const [linkShelf, setLinkShelf] = useState<Shelf | null>(null);
 
   // derived
   const allowEdit = !!config?.allow_structure_modification;
+  const showQr = config?.show_qr_nfc !== false;
   const hasNoShelves = shelves.length === 0;
 
   // handlers
@@ -59,19 +64,16 @@ export default function ShelvesView({ api }: ShelvesViewProps) {
   }, []);
 
   const handleSave = useCallback(
-    async (name: string) => {
+    async (name: string, image: ImagePickerValue) => {
       try {
         if (editingShelf) {
-          await updateShelf.mutateAsync({ id: editingShelf.id, name });
+          await updateShelf.mutateAsync({ id: editingShelf.id, name, image });
         } else {
-          await addShelf.mutateAsync(name);
+          await addShelf.mutateAsync({ name, image });
         }
         handleCloseModal();
       } catch (err: any) {
-        const message =
-          err?.response?.data?.error ||
-          t.errors?.unexpected ||
-          'Unexpected error';
+        const message = err?.response?.data?.error || t.errors.unexpected;
         alert(message);
       }
     },
@@ -86,8 +88,9 @@ export default function ShelvesView({ api }: ShelvesViewProps) {
         editable: allowEdit,
         onClick: () => goToShelf(shelf.name),
         onEdit: () => handleEdit(shelf),
+        onLinks: showQr ? () => setLinkShelf(shelf) : undefined,
       })),
-    [shelves, allowEdit, goToShelf, handleEdit]
+    [shelves, allowEdit, showQr, goToShelf, handleEdit]
   );
 
   // guards
@@ -111,7 +114,7 @@ export default function ShelvesView({ api }: ShelvesViewProps) {
         onAddShelf={handleAdd}
       />
 
-      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
+      <div className="stagger grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
         {hasNoShelves ? (
           <p className="text-center text-ha-text py-10">
             {t.shelves.noShelves}.{allowEdit && ` ${t.shelves.addFirst}!`}
@@ -129,6 +132,17 @@ export default function ShelvesView({ api }: ShelvesViewProps) {
           currentName={editingShelf?.name ?? ''}
           onClose={handleCloseModal}
           onSave={handleSave}
+        />
+      )}
+
+      {/* QR / NFC */}
+      {showQr && linkShelf && (
+        <LocationLinkModal
+          target="shelf"
+          id={linkShelf.id}
+          label={`${selectedRoom} › ${selectedCupboard} › ${linkShelf.name}`}
+          linkBase={config?.qr_redirect_url}
+          onClose={() => setLinkShelf(null)}
         />
       )}
     </div>

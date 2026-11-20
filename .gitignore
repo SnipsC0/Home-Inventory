@@ -11,7 +11,7 @@ __pycache__/
 frontend/.env
 frontend/node_modules
 local_docs/
-docs/
+docs/CODEMAP.md
 CLAUDE.md
 .venv/
 .pytest_cache/

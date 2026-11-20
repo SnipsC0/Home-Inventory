@@ -10,5 +10,5 @@
   "issue_tracker": "https://github.com/SnipsC0/Home-Inventory/issues",
   "loggers": ["custom_components.home_inventory"],
   "requirements": ["pyzbar>=0.1.9"],
-  "version": "3.0.1"
+  "version": "3.0.2"
 }

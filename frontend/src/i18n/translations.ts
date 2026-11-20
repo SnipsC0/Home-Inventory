@@ -69,7 +69,6 @@ export interface Translations {
     deleteConfirm: string;
     noShelves: string;
     addFirst: string;
-    titleFrom: string;
   };
   organizers: {
     title: string;
@@ -307,7 +306,6 @@ export const translations: Record<Language, Translations> = {
       deleteConfirm: 'Sigur vrei să ștergi acest raft?',
       noShelves: 'Nu există rafturi',
       addFirst: 'Adaugă primul raft',
-      titleFrom: 'Rafturi din {cupboard}',
     },
     organizers: {
       title: 'Organizatoare',
@@ -544,7 +542,6 @@ export const translations: Record<Language, Translations> = {
       deleteConfirm: 'Are you sure you want to delete this shelf?',
       noShelves: "There's no shelves",
       addFirst: 'Add first shelf',
-      titleFrom: 'Shelves from {cupboard}',
     },
     organizers: {
       title: 'Organizers',
@@ -782,7 +779,6 @@ export const translations: Record<Language, Translations> = {
       deleteConfirm: 'Вы уверены, что хотите удалить эту полку?',
       noShelves: 'Полок нет',
       addFirst: 'Добавьте первую полку',
-      titleFrom: 'Полки в шкафу «{cupboard}»',
     },
     organizers: {
       title: 'Органайзеры',
@@ -1021,7 +1017,6 @@ export const translations: Record<Language, Translations> = {
       deleteConfirm: 'Möchtest du dieses Regal wirklich löschen?',
       noShelves: 'Keine Regale vorhanden',
       addFirst: 'Erstes Regal hinzufügen',
-      titleFrom: 'Regale in {cupboard}',
     },
     organizers: {
       title: 'Organizer',

@@ -1,3 +1,19 @@
+## 🏷️ 3.0.2
+
+> Version 3.0.2 adds the German language and a few small interface fixes.
+
+### What's new in 3.0.2
+
+- **German (Deutsch) is now available** in the panel and in the setup/options screens.
+- The "Uploading image..." message is now translated in every language.
+- The delete button in the shelf edit dialog is now red, like the other delete buttons.
+- The Shelves page title no longer repeats the cupboard name (it is already shown in the top bar).
+- Minor wording fix in the delete warning in English ("contains" instead of "contain").
+
+### Thanks
+
+- **@Wurstgulasch84** - for the German translation, small fixes and the contribution (#3)
+
 ## 🏷️ 3.0.1
 
 > Home Inventory 3.0 is a big update: one item can now be stored in several places, with variants, barcodes, expiry alerts and photos for every location. Version 3.0.1 is the first one you should install - it also makes sure your browser or the Home Assistant app shows the new look right after updating.

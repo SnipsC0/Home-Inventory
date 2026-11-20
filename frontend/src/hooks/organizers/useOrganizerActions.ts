@@ -4,12 +4,14 @@ import { ApiService } from '../../services/api';
 import { useAppStore } from '../../store/useAppStore';
 import type { ImagePickerValue } from '../../components/Modal/ImagePickerField';
 import { resolveImageField } from '../../utils/imageUpload';
+import { useTranslation } from '../../i18n/I18nContext';
 
 export function useOrganizerActions(api: ApiService) {
   const queryClient = useQueryClient();
   const selectedRoom = useAppStore((state) => state.selectedRoom);
   const selectedCupboard = useAppStore((state) => state.selectedCupboard);
   const selectedShelf = useAppStore((state) => state.selectedShelf);
+  const { t } = useTranslation();
   const [uploadStatus, setUploadStatus] = useState('');
 
   const addOrganizer = useMutation({
@@ -20,7 +22,7 @@ export function useOrganizerActions(api: ApiService) {
       name: string;
       image?: ImagePickerValue;
     }) => {
-      if (image?.file) setUploadStatus('Uploading image...');
+      if (image?.file) setUploadStatus(t.common.uploadingImage);
       const imagePath = await resolveImageField(api, image, {
         room: selectedRoom!,
         cupboard: selectedCupboard!,
@@ -59,7 +61,7 @@ export function useOrganizerActions(api: ApiService) {
       image?: ImagePickerValue;
       moveData?: { room: string; cupboard: string; shelf: string };
     }) => {
-      if (image?.file) setUploadStatus('Uploading image...');
+      if (image?.file) setUploadStatus(t.common.uploadingImage);
       const imagePath = await resolveImageField(api, image, {
         room: moveData?.room || selectedRoom!,
         cupboard: moveData?.cupboard || selectedCupboard!,

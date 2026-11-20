@@ -66,6 +66,12 @@ export default function DeleteModal({
     }
   };
 
+  // German capitalizes nouns, so keep the type label capitalized there.
+  const typeLabel =
+    language === 'de'
+      ? itemType.charAt(0).toUpperCase() + itemType.slice(1)
+      : itemType.toLowerCase();
+
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <ModalHeader onClose={onClose}>
@@ -80,7 +86,7 @@ export default function DeleteModal({
           : feminine || itemType === 'camera'
           ? t.common.deleteConfirm
           : t.common.deleteConfirm2}{' '}
-        {itemType.toLowerCase()},<strong> {itemName}</strong>?
+        {typeLabel},<strong> {itemName}</strong>?
         {cascade && preview ? (
           visibleRows.length > 0 && (
             <div className="mt-3 p-3 rounded border border-ha-divider bg-ha-secondary-bg text-sm">
@@ -104,8 +110,9 @@ export default function DeleteModal({
         ) : (
           itemCount > 0 && (
           <span className="block mt-2 text-ha-error">
-            {t.rooms.this} {itemType.toLowerCase()} {t.rooms.contain}{' '}
-            {itemCount} {t.rooms.containItems}!
+            {t.rooms.containWarning
+              .replace('{type}', typeLabel)
+              .replace('{n}', String(itemCount))}
           </span>
           )
         )}

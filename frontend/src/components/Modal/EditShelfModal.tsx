@@ -82,7 +82,7 @@ export default function EditShelfModal({
               onClick={() => {
                 setShowDeleteModal(shelf);
               }}
-              className="btn btn-primary flex-1"
+              className="btn btn-danger flex-1"
             >
               {t.common.delete}
             </button>

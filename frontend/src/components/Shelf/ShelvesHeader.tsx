@@ -2,16 +2,11 @@ import { Library, Plus } from 'lucide-react';
 import { useTranslation } from '../../i18n/I18nContext';
 
 interface Props {
-  cupboardName: string;
   allowEdit?: boolean;
   onAddShelf: () => void;
 }
 
-export default function ShelvesHeader({
-  cupboardName,
-  allowEdit,
-  onAddShelf,
-}: Props) {
+export default function ShelvesHeader({ allowEdit, onAddShelf }: Props) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-wrap gap-4 mb-6 justify-between items-center">
@@ -19,7 +14,7 @@ export default function ShelvesHeader({
         <span className="page-title-icon">
           <Library size={22} />
         </span>
-        {t.shelves.titleFrom.replace('{cupboard}', cupboardName)}
+        {t.shelves.title}
       </h3>
 
       {allowEdit && (

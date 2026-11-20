@@ -21,7 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 
 LANGUAGE_SELECTOR = selector.SelectSelector(
     selector.SelectSelectorConfig(
-        options=["en", "ro", "ru"],
+        options=["en", "ro", "ru", "de"],
         mode=selector.SelectSelectorMode.DROPDOWN,
         translation_key="language",
     )

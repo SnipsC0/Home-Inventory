@@ -61,7 +61,8 @@
       "options": {
         "en": "English",
         "ro": "Română",
-        "ru": "Русский"
+        "ru": "Русский",
+        "de": "Deutsch"
       }
     },
     "expiry_unit": {

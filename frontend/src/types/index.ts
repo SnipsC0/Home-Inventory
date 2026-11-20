@@ -152,7 +152,7 @@ export interface Config {
   allow_structure_modification: boolean;
   show_qr_nfc?: boolean;
   qr_redirect_url?: string;
-  language: 'ro' | 'en' | 'ru';
+  language: 'ro' | 'en' | 'ru' | 'de';
   expiry_warning_value?: number;
   expiry_warning_unit?: 'days' | 'months';
 }

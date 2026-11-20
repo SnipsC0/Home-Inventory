@@ -4,10 +4,12 @@ import type { ApiService } from '../../services/api';
 import { useAppStore } from '../../store/useAppStore';
 import type { ImagePickerValue } from '../../components/Modal/ImagePickerField';
 import { resolveImageField } from '../../utils/imageUpload';
+import { useTranslation } from '../../i18n/I18nContext';
 
 export function useCupboardActions(api: ApiService) {
   const queryClient = useQueryClient();
   const selectedRoom = useAppStore((state) => state.selectedRoom);
+  const { t } = useTranslation();
   const [uploadStatus, setUploadStatus] = useState('');
 
   const addCupboard = useMutation({
@@ -18,7 +20,7 @@ export function useCupboardActions(api: ApiService) {
       name: string;
       image?: ImagePickerValue;
     }) => {
-      if (image?.file) setUploadStatus('Uploading image...');
+      if (image?.file) setUploadStatus(t.common.uploadingImage);
       const imagePath = await resolveImageField(api, image, {
         room: selectedRoom!,
         cupboard: name,
@@ -44,7 +46,7 @@ export function useCupboardActions(api: ApiService) {
       name?: string;
       image?: ImagePickerValue;
     }) => {
-      if (image?.file) setUploadStatus('Uploading image...');
+      if (image?.file) setUploadStatus(t.common.uploadingImage);
       const imagePath = await resolveImageField(api, image, {
         room: selectedRoom!,
         cupboard: name || '',

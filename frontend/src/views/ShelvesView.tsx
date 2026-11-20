@@ -108,11 +108,7 @@ export default function ShelvesView({ api }: ShelvesViewProps) {
         onBack={goBack}
       />
 
-      <ShelvesHeader
-        cupboardName={selectedCupboard}
-        allowEdit={allowEdit}
-        onAddShelf={handleAdd}
-      />
+      <ShelvesHeader allowEdit={allowEdit} onAddShelf={handleAdd} />
 
       <div className="stagger grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
         {hasNoShelves ? (

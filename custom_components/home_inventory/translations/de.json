@@ -1,0 +1,75 @@
+{
+  "title": "Home Inventory",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Inventory einrichten",
+        "description": "Verwalte dein Inventar zu Hause lokal, ganz ohne Cloud.\n\n**Struktur:** {structure_info}\n\n- 4 automatische Sensoren\n- Ereignisse bei niedrigem Bestand und ablaufenden Chargen\n- 100 % lokale Speicherung",
+        "data": {
+          "language": "Sprache der Oberfläche",
+          "allow_structure_modification": "Bearbeiten der Struktur erlauben",
+          "show_qr_nfc": "QR-/NFC-Schaltflächen anzeigen"
+        },
+        "data_description": {
+          "language": "Sprache des Home Inventory Panels.",
+          "allow_structure_modification": "Wenn deaktiviert, können Räume, Schränke und Regale im Panel nicht hinzugefügt, bearbeitet oder gelöscht werden.",
+          "show_qr_nfc": "Wenn deaktiviert, wird die QR-/NFC-Schaltfläche bei Schränken und Regalen ausgeblendet."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Home Inventory ist bereits eingerichtet. Es ist nur eine Instanz erlaubt."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Home Inventory Einstellungen",
+        "description": "**Struktur:** {structure_info}\n\n**Sensoren:** {sensor_count}\n\n**Ereignisse:** {event_info}",
+        "data": {
+          "language": "Sprache der Oberfläche",
+          "allow_structure_modification": "Bearbeiten der Struktur erlauben",
+          "show_qr_nfc": "QR-/NFC-Schaltflächen anzeigen"
+        },
+        "data_description": {
+          "language": "Sprache des Home Inventory Panels.",
+          "allow_structure_modification": "Wenn deaktiviert, können Räume, Schränke und Regale im Panel nicht hinzugefügt, bearbeitet oder gelöscht werden.",
+          "show_qr_nfc": "Wenn deaktiviert, wird die QR-/NFC-Schaltfläche bei Schränken und Regalen ausgeblendet."
+        },
+        "sections": {
+          "expiry": {
+            "name": "Vor Ablauf warnen",
+            "description": "Werde benachrichtigt, bevor eine Charge abläuft (max. 31 Tage oder 12 Monate).",
+            "data": {
+              "expiry_warning_value": "Benachrichtigen",
+              "expiry_warning_unit": "Einheit"
+            },
+            "data_description": {
+              "expiry_warning_value": "Anzahl der Tage / Monate.",
+              "expiry_warning_unit": "Tage oder Monate."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_expiry_value": "Gib 1–31 für Tage oder 1–12 für Monate ein."
+    }
+  },
+  "selector": {
+    "language": {
+      "options": {
+        "en": "English",
+        "ro": "Română",
+        "ru": "Русский",
+        "de": "Deutsch"
+      }
+    },
+    "expiry_unit": {
+      "options": {
+        "days": "Tage",
+        "months": "Monate"
+      }
+    }
+  }
+}

@@ -1,11 +1,14 @@
 # custom_components/home_inventory/__init__.py
 import json, logging, os
+from datetime import datetime, timedelta, timezone
+from functools import partial
 import voluptuous as vol
 from homeassistant.helpers import config_validation as cv
 
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.components.frontend import async_register_built_in_panel
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import ConfigType
 
 from .db.schema import initialize_db
@@ -25,8 +28,17 @@ from .api.config import HomeInventarConfigView
 from .api.consume import HomeInventarConsumeView, HomeInventarItemDeepLinkView
 from .api.locate import HomeInventarLocateView
 from .api.expiring import HomeInventarExpiringBatchesView
+from .api.favorites import HomeInventarFavoritesView, HomeInventarFavoriteItemView
+from .api.trash import (
+    HomeInventarTrashView,
+    HomeInventarTrashEntryView,
+    HomeInventarTrashRestoreView,
+    trash_retention_days,
+)
+from .api._images import delete_image_files
+from .db import repository
 
-from .const import DOMAIN
+from .const import DOMAIN, TRASH_PURGE_INTERVAL_HOURS
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -97,6 +109,11 @@ async def async_setup_entry(hass, entry):
         HomeInventarLocateView(db_path, hass),
         HomeInventarDeletePreviewView(db_path, hass),
         HomeInventarExpiringBatchesView(db_path, hass),
+        HomeInventarFavoritesView(db_path),
+        HomeInventarFavoriteItemView(db_path),
+        HomeInventarTrashView(db_path, hass),
+        HomeInventarTrashEntryView(db_path, hass),
+        HomeInventarTrashRestoreView(db_path, hass),
     ]:
         hass.http.register_view(view)
     _LOGGER.debug("[Home Inventory] ✅ APIs registered")
@@ -133,6 +150,24 @@ async def async_setup_entry(hass, entry):
     _LOGGER.info("[Home Inventory] ✅ Sensors registered")
     
     entry.async_on_unload(entry.add_update_listener(async_update_options))
+
+    async def _purge_expired_trash(_now=None):
+        # Option re-read on every run; files go only once no row or bin entry references them
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=trash_retention_days(hass))
+        try:
+            images = await hass.async_add_executor_job(
+                partial(repository.purge_trash, db_path, older_than=cutoff)
+            )
+            if images:
+                await hass.async_add_executor_job(delete_image_files, hass, images)
+                _LOGGER.info(f"[Home Inventory] Bin purge: deleted {len(images)} images")
+        except Exception:
+            _LOGGER.exception("[Home Inventory] Bin purge failed")
+
+    await _purge_expired_trash()
+    entry.async_on_unload(async_track_time_interval(
+        hass, _purge_expired_trash, timedelta(hours=TRASH_PURGE_INTERVAL_HOURS)
+    ))
     
     return True
 

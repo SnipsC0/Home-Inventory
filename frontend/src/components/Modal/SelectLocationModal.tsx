@@ -5,6 +5,7 @@ import { useTranslation } from '../../i18n/I18nContext';
 import { useInteractions } from '../../hooks/global/useInteractions';
 import SmartImage from '../SmartImage';
 import LocationPhotos from '../LocationPhotos';
+import FavoriteButton from '../Item/FavoriteButton';
 
 interface Props {
   item: Item;
@@ -67,13 +68,16 @@ export default function SelectLocationModal({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            aria-label={t.common.close}
-            className="btn btn-ghost !p-2 !rounded-full"
-          >
-            <X className="w-5 h-5 text-ha-text" />
-          </button>
+          <div className="flex items-center gap-1">
+            <FavoriteButton itemId={item.id} size={20} />
+            <button
+              onClick={onClose}
+              aria-label={t.common.close}
+              className="btn btn-ghost !p-2 !rounded-full"
+            >
+              <X className="w-5 h-5 text-ha-text" />
+            </button>
+          </div>
         </div>
 
         {/* Body */}

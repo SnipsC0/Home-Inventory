@@ -49,6 +49,6 @@ def test_delete_shelf_collects_images(db_path, seed, q):
     conn.execute("INSERT INTO item_locations (item_id, shelf_id) VALUES (1, ?)", (ids["shelf_id"],))
     conn.commit()
     conn.close()
-    assert delete_shelf(db_path, ids["shelf_id"]) == (1, ["loc.jpg"])
+    assert delete_shelf(db_path, ids["shelf_id"]) == (1, ["loc.jpg"], 1)
     assert q(db_path, "SELECT COUNT(*) FROM shelves") == [(0,)]
-    assert delete_shelf(db_path, 999) == (0, [])
+    assert delete_shelf(db_path, 999) == (0, [], None)

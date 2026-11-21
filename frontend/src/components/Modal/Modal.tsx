@@ -56,10 +56,13 @@ export function ModalHeader({
   children,
   onClose,
   className = 'mb-5 pb-4',
+  actions,
 }: {
   children: ReactNode;
   onClose?: () => void;
   className?: string;
+  /** Extra header buttons, rendered before the close button. */
+  actions?: ReactNode;
 }) {
   const { t } = useTranslation();
   return (
@@ -69,6 +72,7 @@ export function ModalHeader({
       <h3 className="m-0 text-ha-text text-lg font-bold tracking-tight flex-1">
         {children}
       </h3>
+      {actions}
       {onClose && (
         <button
           onClick={onClose}

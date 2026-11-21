@@ -11,3 +11,9 @@ EXPIRY_MAX = {"days": 31, "months": 12}
 DEFAULT_EXPIRY_VALUE = 7
 DEFAULT_EXPIRY_UNIT = "days"
 EVENT_EXPIRING_SOON = "home_inventory_expiring_soon"
+
+# Recycle bin (options): days a deleted entry stays restorable
+CONF_TRASH_RETENTION = "trash_retention_days"
+DEFAULT_TRASH_RETENTION = 7
+TRASH_RETENTION_MAX = 90
+TRASH_PURGE_INTERVAL_HOURS = 6

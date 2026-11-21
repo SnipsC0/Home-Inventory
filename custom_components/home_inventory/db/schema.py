@@ -130,6 +130,40 @@ def ensure_variant_barcodes_table(conn: sqlite3.Connection):
     conn.commit()
 
 
+def ensure_favorites_table(conn: sqlite3.Connection):
+    """Per-HA-user favorite item masters (idempotent; runs on every start, DB version unchanged)."""
+    conn.executescript('''
+        CREATE TABLE IF NOT EXISTS item_favorites (
+            user_id TEXT NOT NULL,
+            item_id INTEGER NOT NULL REFERENCES items_master(id) ON DELETE CASCADE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, item_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_favorites_item ON item_favorites(item_id);
+    ''')
+    conn.commit()
+
+
+def ensure_trash_table(conn: sqlite3.Connection):
+    """Recycle bin: JSON snapshots of deleted subtrees (idempotent; DB version unchanged)."""
+    conn.executescript('''
+        CREATE TABLE IF NOT EXISTS trash_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kind TEXT NOT NULL,
+            entity_id INTEGER NOT NULL,
+            label TEXT NOT NULL,
+            path TEXT,
+            summary TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            images TEXT NOT NULL,
+            deleted_by TEXT,
+            deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_trash_deleted_at ON trash_entries(deleted_at);
+    ''')
+    conn.commit()
+
+
 def migrate_to_v2(conn: sqlite3.Connection):
     """Migration to v2 - multi-location, barcode, expiration dates JSON, per-location images"""
     _LOGGER.info("[DB Migration] Applying v2 schema...")
@@ -488,6 +522,8 @@ def initialize_db(db_path: str, data_dir: Optional[str] = None, backup_dir: Opti
         current_version = 2
     
     ensure_variant_barcodes_table(conn)
+    ensure_favorites_table(conn)
+    ensure_trash_table(conn)
 
     if current_version == CURRENT_DB_VERSION:
         _LOGGER.info(f"[DB] ✅ Database is up to date (v{CURRENT_DB_VERSION})")

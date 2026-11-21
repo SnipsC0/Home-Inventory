@@ -1,3 +1,26 @@
+## 🏷️ 3.1.0
+
+> Version 3.1.0 makes the inventory more forgiving: a deleted item can now be brought back, and adding something you already own takes a few taps less. The documentation and the look of the integration got a refresh too.
+
+### What's new in 3.1.0
+
+- **Recycle bin (#15)** - deleting a room, cupboard, shelf, organizer or item no longer means losing it. Right after a delete you get an **Undo** message, and everything else waits in the **Bin**, together with the number of days left before it is removed for good.
+  - Restoring brings back the whole contents: items, quantities, expiry dates, variants, barcodes, favorites and photos. If the parent was deleted as well, you are asked to restore it first.
+  - Photos stay on disk while an entry is in the bin and are only deleted when it is removed for good (it expires, or you choose "Delete forever" or "Empty bin").
+  - A new option, **Recycle bin retention**, lets you decide how long things are kept: 1 to 90 days, 7 by default (`Configure`).
+- **Favorites (#16)** - star the items you look for most. Favorites belong to each Home Assistant user, and All items has a filter to show only yours.
+- **Smarter add form** - start typing the name of something you already have and its aliases are filled in for you (or type an alias and the name appears). The new place is added to the existing item, so you don't end up with duplicates.
+
+### Documentation and branding
+
+- **A new README** - a short introduction, feature sections with screenshots and short demos (including the Bin), clear installation and upgrade steps, and the sensors, events and automation examples in one place.
+- **Easier to get started** - a collapsible **Tips** section (start small, organizers, variants, expiry dates, QR / NFC labels and more) and a **Using the panel** guide that walks through each screen. Open only what you need.
+- **A fresh logo and icon** - a lighter, more modern look in the README and in Home Assistant, with light and dark versions of the logo and sharp high-resolution files.
+
+### Fixes
+
+- After you change where an item is stored, the list now refreshes right away.
+
 ## 🏷️ 3.0.2
 
 > Version 3.0.2 adds the German language and a few small interface fixes.

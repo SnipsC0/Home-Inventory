@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Modal, ModalHeader, ModalFooter } from './Modal';
 import { useTranslation } from '../../i18n/I18nContext';
 import { useApi } from '../../contexts/ApiContext';
+import { useHomeInventarConfig } from '../../hooks/global/useHomeInventarConfig';
 import type { DeletePreview } from '../../services/api';
 
 interface DeleteModalProps {
@@ -31,6 +32,8 @@ export default function DeleteModal({
   const [preview, setPreview] = useState<DeletePreview | null>(null);
   const [loading, setLoading] = useState(false);
   const { t, language } = useTranslation();
+  const { data: config } = useHomeInventarConfig(api);
+  const retention = config?.trash_retention_days;
 
   const cascadeType = cascade?.type;
   const cascadeId = cascade?.id;
@@ -115,6 +118,11 @@ export default function DeleteModal({
               .replace('{n}', String(itemCount))}
           </span>
           )
+        )}
+        {retention != null && (
+          <div className="mt-3 text-sm text-ha-secondary-text">
+            {t.trash.deleteNote.replace('{n}', String(retention))}
+          </div>
         )}
       </div>
 

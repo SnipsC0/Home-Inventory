@@ -48,12 +48,23 @@
               "expiry_warning_value": "Anzahl der Tage / Monate.",
               "expiry_warning_unit": "Tage oder Monate."
             }
+          },
+          "trash": {
+            "name": "Papierkorb",
+            "description": "Gelöschte Räume, Regale und Gegenstände bleiben so viele Tage wiederherstellbar (1–90). Fotos werden gelöscht, wenn der Eintrag abläuft.",
+            "data": {
+              "trash_retention_days": "Aufbewahren"
+            },
+            "data_description": {
+              "trash_retention_days": "Anzahl der Tage."
+            }
           }
         }
       }
     },
     "error": {
-      "invalid_expiry_value": "Gib 1–31 für Tage oder 1–12 für Monate ein."
+      "invalid_expiry_value": "Gib 1–31 für Tage oder 1–12 für Monate ein.",
+      "invalid_trash_retention": "Gib 1–90 Tage für den Papierkorb ein."
     }
   },
   "selector": {

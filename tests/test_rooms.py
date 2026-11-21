@@ -46,7 +46,7 @@ def test_delete_room_collects_images(db_path, seed, q):
     )
     conn.commit()
     conn.close()
-    count, images = delete_room(db_path, ids["room_id"])
+    count, images, _ = delete_room(db_path, ids["room_id"])
     assert count == 1 and sorted(images) == ["cup.jpg", "loc.jpg"]
     assert q(db_path, "SELECT COUNT(*) FROM rooms") == [(0,)]
     assert delete_room(db_path, ids["room_id"])[0] == 0  # no FK cascade in API conns

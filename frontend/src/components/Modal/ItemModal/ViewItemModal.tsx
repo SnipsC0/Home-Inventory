@@ -3,6 +3,7 @@ import type { ExpirationBatch, Item, ItemLocation } from '../../../types';
 import { useTranslation } from '../../../i18n/I18nContext';
 import { useItemActions } from '../../../hooks/items/useItemActions';
 import SmartImage from '../../SmartImage';
+import FavoriteButton from '../../Item/FavoriteButton';
 import { useEffect, useState } from 'react';
 import { useApi } from '../../../contexts/ApiContext';
 import { useHomeInventarConfig } from '../../../hooks/global/useHomeInventarConfig';
@@ -122,7 +123,12 @@ export default function ViewItemModal({
 
   return (
     <Modal isOpen={isOpen} onClose={handleModalClose}>
-      <ModalHeader onClose={handleModalClose}>{item.name}</ModalHeader>
+      <ModalHeader
+        onClose={handleModalClose}
+        actions={<FavoriteButton itemId={item.id} />}
+      >
+        {item.name}
+      </ModalHeader>
 
       {/* Imagine */}
       {imageSrc ? (

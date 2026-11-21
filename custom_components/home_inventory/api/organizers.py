@@ -112,30 +112,22 @@ class HomeInventarOrganizersView(HomeAssistantView):
                 return web.json_response({"error": "Organizer ID required"}, status=400)
 
             devreload.reload_if_changed(repository)
-            deleted_organizer, organizer_image, item_images, items_deleted = (
+            deleted_organizer, _organizer_image, _item_images, items_deleted, trash_id = (
                 await request.app["hass"].async_add_executor_job(
-                    partial(repository.hard_delete_organizer, self.db_path, organizer_id)
+                    partial(repository.hard_delete_organizer, self.db_path, organizer_id, request["hass_user"].id)
                 )
             )
 
             if not deleted_organizer:
                 return web.json_response({"error": "Organizer not found"}, status=404)
 
-            images_deleted_count = 0
-            if organizer_image:
-                self._delete_image_file(organizer_image)
-                images_deleted_count += 1
-
-            for image in item_images:
-                if image:
-                    self._delete_image_file(image)
-                    images_deleted_count += 1
-
-            _LOGGER.info(f"[HomeInventar] Organizer {organizer_id} HARD DELETED — {items_deleted} items and {images_deleted_count} images cleaned.")
+            # Photos stay on disk while the entry is in the bin
+            _LOGGER.info(f"[HomeInventar] Organizer {organizer_id} moved to bin (trash_id={trash_id}, {items_deleted} items)")
             return web.json_response({
                 "message": "Deleted",
                 "items_deleted": items_deleted,
-                "images_deleted": images_deleted_count
+                "images_deleted": 0,
+                "trash_id": trash_id,
             })
 
         except Exception as e:

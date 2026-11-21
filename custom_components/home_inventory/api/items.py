@@ -270,9 +270,11 @@ class HomeInventarItemView(HomeAssistantView):
             _LOGGER.info(f"[ITEM DELETE] Deleting location {location_id}")
 
             devreload.reload_if_changed(repository)
-            delete_location = partial(repository.delete_item_location, self.db_path, location_id)
+            delete_location = partial(
+                repository.delete_item_location, self.db_path, location_id, request["hass_user"].id
+            )
 
-            count, images, error = await request.app["hass"].async_add_executor_job(delete_location)
+            count, _images, error, trash_id = await request.app["hass"].async_add_executor_job(delete_location)
 
             if error:
                 return web.json_response({"error": error}, status=400)
@@ -280,13 +282,8 @@ class HomeInventarItemView(HomeAssistantView):
             if count == 0:
                 return web.json_response({"error": "Location not found"}, status=404)
 
-            # Clean up images
-            for image in images:
-                if image:
-                    self._delete_image_file(image)
-                    _LOGGER.debug(f"[ITEM DELETE] Image deleted: {image}")
-
-            return web.json_response({"message": "Location deleted successfully"})
+            # Photos stay on disk while the entry is in the bin
+            return web.json_response({"message": "Location deleted successfully", "trash_id": trash_id})
 
         except Exception as e:
             _LOGGER.error(f"Error deleting location: {e}", exc_info=True)
@@ -370,9 +367,11 @@ class HomeInventarItemMasterUpdateView(HomeAssistantView):
             _LOGGER.info(f"[ITEM_MASTER DELETE] Deleting item master {item_id}")
 
             devreload.reload_if_changed(repository)
-            delete_master = partial(repository.delete_item_master, self.db_path, item_id)
+            delete_master = partial(
+                repository.delete_item_master, self.db_path, item_id, request["hass_user"].id
+            )
 
-            count, images, locations, error = await request.app["hass"].async_add_executor_job(delete_master)
+            count, _images, locations, error, trash_id = await request.app["hass"].async_add_executor_job(delete_master)
 
             if error:
                 return web.json_response({"error": error}, status=400)
@@ -380,15 +379,11 @@ class HomeInventarItemMasterUpdateView(HomeAssistantView):
             if count == 0:
                 return web.json_response({"error": "Item master not found"}, status=404)
 
-            # Clean up all images
-            for image in images:
-                if image:
-                    self._delete_image_file(image)
-                    _LOGGER.debug(f"[ITEM_MASTER DELETE] Image deleted: {image}")
-
+            # Photos stay on disk while the entry is in the bin
             return web.json_response({
                 "message": "Item master deleted successfully",
-                "deleted_locations": len(locations)
+                "deleted_locations": len(locations),
+                "trash_id": trash_id,
             })
 
         except Exception as e:

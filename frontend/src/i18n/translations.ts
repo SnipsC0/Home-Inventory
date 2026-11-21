@@ -184,6 +184,43 @@ export interface Translations {
     quantityLabel: string;
     needsRestockLabel: string;
   };
+  favorites: {
+    filter: string;
+    add: string;
+    remove: string;
+    empty: string;
+  };
+  trash: {
+    title: string;
+    empty: string;
+    loadError: string;
+    expiresDays: string;
+    expiresToday: string;
+    restore: string;
+    deleteForever: string;
+    emptyBin: string;
+    emptyConfirm: string;
+    deleteForeverConfirm: string;
+    movedToBin: string;
+    undo: string;
+    restored: string;
+    restoreFailed: string;
+    parentMissing: string;
+    restoreParent: string;
+    deleteNote: string;
+    kinds: {
+      room: string;
+      cupboard: string;
+      shelf: string;
+      organizer: string;
+      item_master: string;
+      item_location: string;
+    };
+    warnRenamed: string;
+    warnItemMerged: string;
+    warnBarcodeDropped: string;
+    warnVariantBarcodeSkipped: string;
+  };
   errors: {
     connectionError: string;
     uploadFailed: string;
@@ -422,6 +459,43 @@ export const translations: Record<Language, Translations> = {
       quantityLabel: 'Cantitate:',
       needsRestockLabel: 'Necesită reaprovizionare',
     },
+    favorites: {
+      filter: 'Favorite',
+      add: 'Adaugă la favorite',
+      remove: 'Elimină din favorite',
+      empty: 'Nu ai niciun obiect favorit. Apasă steaua din fereastra unui obiect ca să-l adaugi.',
+    },
+    trash: {
+      title: 'Coș de gunoi',
+      empty: 'Coșul este gol.',
+      loadError: 'Nu s-a putut încărca coșul.',
+      expiresDays: 'Expiră în {n} zile',
+      expiresToday: 'Expiră astăzi',
+      restore: 'Restaurează',
+      deleteForever: 'Șterge definitiv',
+      emptyBin: 'Golește coșul',
+      emptyConfirm: 'Ștergi definitiv tot ce este în coș, inclusiv pozele? Acțiunea nu poate fi anulată.',
+      deleteForeverConfirm: 'Ștergi definitiv „{name}”, inclusiv pozele? Acțiunea nu poate fi anulată.',
+      movedToBin: 'Mutat în coș',
+      undo: 'Anulează',
+      restored: 'Restaurat',
+      restoreFailed: 'Restaurarea a eșuat.',
+      parentMissing: 'Mai întâi restaurează „{parent}”.',
+      restoreParent: 'Restaurează „{parent}”',
+      deleteNote: 'Va fi mutat în coș pentru {n} zile și poate fi restaurat.',
+      kinds: {
+        room: 'Cameră',
+        cupboard: 'Dulap',
+        shelf: 'Raft',
+        organizer: 'Organizator',
+        item_master: 'Obiect',
+        item_location: 'Locație obiect',
+      },
+      warnRenamed: '„{from}” exista deja, restaurat ca „{to}”.',
+      warnItemMerged: '„{name}” exista deja, locațiile au fost atașate acestuia.',
+      warnBarcodeDropped: 'Codul de bare {barcode} al „{name}” este folosit de alt obiect și nu a fost restaurat.',
+      warnVariantBarcodeSkipped: 'Codul de bare {barcode} al variantei „{variant}” este deja folosit și a fost omis.',
+    },
     errors: {
       connectionError: 'Eroare la conectare',
       uploadFailed: 'Upload eșuat',
@@ -657,6 +731,43 @@ export const translations: Record<Language, Translations> = {
       locationLabel: 'Location:',
       quantityLabel: 'Quantity:',
       needsRestockLabel: 'Needs restock',
+    },
+    favorites: {
+      filter: 'Favorites',
+      add: 'Add to favorites',
+      remove: 'Remove from favorites',
+      empty: 'No favorite items yet. Tap the star in an item window to add one.',
+    },
+    trash: {
+      title: 'Recycle bin',
+      empty: 'The bin is empty.',
+      loadError: 'Could not load the bin.',
+      expiresDays: 'Expires in {n} days',
+      expiresToday: 'Expires today',
+      restore: 'Restore',
+      deleteForever: 'Delete forever',
+      emptyBin: 'Empty bin',
+      emptyConfirm: 'Permanently delete everything in the bin, including photos? This cannot be undone.',
+      deleteForeverConfirm: 'Permanently delete "{name}", including its photos? This cannot be undone.',
+      movedToBin: 'Moved to bin',
+      undo: 'Undo',
+      restored: 'Restored',
+      restoreFailed: 'Restore failed.',
+      parentMissing: 'Restore "{parent}" first.',
+      restoreParent: 'Restore "{parent}"',
+      deleteNote: 'It will be moved to the bin for {n} days and can be restored.',
+      kinds: {
+        room: 'Room',
+        cupboard: 'Cupboard',
+        shelf: 'Shelf',
+        organizer: 'Organizer',
+        item_master: 'Item',
+        item_location: 'Item location',
+      },
+      warnRenamed: '"{from}" already exists, restored as "{to}".',
+      warnItemMerged: '"{name}" already exists, its locations were attached to it.',
+      warnBarcodeDropped: 'Barcode {barcode} of "{name}" is used by another item and was not restored.',
+      warnVariantBarcodeSkipped: 'Barcode {barcode} of variant "{variant}" is already in use and was skipped.',
     },
     errors: {
       connectionError: 'Connection error',
@@ -896,6 +1007,43 @@ export const translations: Record<Language, Translations> = {
       quantityLabel: 'Количество:',
       needsRestockLabel: 'Нужно пополнить',
     },
+    favorites: {
+      filter: 'Избранное',
+      add: 'Добавить в избранное',
+      remove: 'Удалить из избранного',
+      empty: 'Избранных предметов пока нет. Нажмите на звезду в окне предмета, чтобы добавить.',
+    },
+    trash: {
+      title: 'Корзина',
+      empty: 'Корзина пуста.',
+      loadError: 'Не удалось загрузить корзину.',
+      expiresDays: 'Удалится через {n} дн.',
+      expiresToday: 'Удалится сегодня',
+      restore: 'Восстановить',
+      deleteForever: 'Удалить навсегда',
+      emptyBin: 'Очистить корзину',
+      emptyConfirm: 'Удалить навсегда всё содержимое корзины, включая фото? Это действие нельзя отменить.',
+      deleteForeverConfirm: 'Удалить навсегда «{name}» вместе с фото? Это действие нельзя отменить.',
+      movedToBin: 'Перемещено в корзину',
+      undo: 'Отменить',
+      restored: 'Восстановлено',
+      restoreFailed: 'Не удалось восстановить.',
+      parentMissing: 'Сначала восстановите «{parent}».',
+      restoreParent: 'Восстановить «{parent}»',
+      deleteNote: 'Будет перемещено в корзину на {n} дн. и его можно восстановить.',
+      kinds: {
+        room: 'Комната',
+        cupboard: 'Шкаф',
+        shelf: 'Полка',
+        organizer: 'Органайзер',
+        item_master: 'Предмет',
+        item_location: 'Место предмета',
+      },
+      warnRenamed: '«{from}» уже существует, восстановлено как «{to}».',
+      warnItemMerged: '«{name}» уже существует, места привязаны к нему.',
+      warnBarcodeDropped: 'Штрихкод {barcode} предмета «{name}» занят другим предметом и не восстановлен.',
+      warnVariantBarcodeSkipped: 'Штрихкод {barcode} варианта «{variant}» уже используется и пропущен.',
+    },
     errors: {
       connectionError: 'Ошибка соединения',
       uploadFailed: 'Не удалось загрузить',
@@ -1132,6 +1280,43 @@ export const translations: Record<Language, Translations> = {
       locationLabel: 'Standort:',
       quantityLabel: 'Menge:',
       needsRestockLabel: 'Nachschub erforderlich',
+    },
+    favorites: {
+      filter: 'Favoriten',
+      add: 'Zu Favoriten hinzufügen',
+      remove: 'Aus Favoriten entfernen',
+      empty: 'Noch keine Favoriten. Tippe im Fenster eines Gegenstands auf den Stern, um ihn hinzuzufügen.',
+    },
+    trash: {
+      title: 'Papierkorb',
+      empty: 'Der Papierkorb ist leer.',
+      loadError: 'Der Papierkorb konnte nicht geladen werden.',
+      expiresDays: 'Läuft in {n} Tagen ab',
+      expiresToday: 'Läuft heute ab',
+      restore: 'Wiederherstellen',
+      deleteForever: 'Endgültig löschen',
+      emptyBin: 'Papierkorb leeren',
+      emptyConfirm: 'Alles im Papierkorb inklusive Fotos endgültig löschen? Das kann nicht rückgängig gemacht werden.',
+      deleteForeverConfirm: '„{name}“ inklusive Fotos endgültig löschen? Das kann nicht rückgängig gemacht werden.',
+      movedToBin: 'In den Papierkorb verschoben',
+      undo: 'Rückgängig',
+      restored: 'Wiederhergestellt',
+      restoreFailed: 'Wiederherstellung fehlgeschlagen.',
+      parentMissing: 'Stelle zuerst „{parent}“ wieder her.',
+      restoreParent: '„{parent}“ wiederherstellen',
+      deleteNote: 'Wird für {n} Tage in den Papierkorb verschoben und kann wiederhergestellt werden.',
+      kinds: {
+        room: 'Raum',
+        cupboard: 'Schrank',
+        shelf: 'Regal',
+        organizer: 'Organizer',
+        item_master: 'Gegenstand',
+        item_location: 'Gegenstandsort',
+      },
+      warnRenamed: '„{from}“ existiert bereits, wiederhergestellt als „{to}“.',
+      warnItemMerged: '„{name}“ existiert bereits, die Orte wurden daran angehängt.',
+      warnBarcodeDropped: 'Barcode {barcode} von „{name}“ wird von einem anderen Gegenstand verwendet und wurde nicht wiederhergestellt.',
+      warnVariantBarcodeSkipped: 'Barcode {barcode} der Variante „{variant}“ ist bereits vergeben und wurde übersprungen.',
     },
     errors: {
       connectionError: 'Verbindungsfehler',

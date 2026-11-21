@@ -10,11 +10,14 @@ from homeassistant.helpers import selector
 from .const import (
     CONF_EXPIRY_UNIT,
     CONF_EXPIRY_VALUE,
+    CONF_TRASH_RETENTION,
     DEFAULT_EXPIRY_UNIT,
     DEFAULT_EXPIRY_VALUE,
+    DEFAULT_TRASH_RETENTION,
     DOMAIN,
     EXPIRY_MAX,
     EXPIRY_UNITS,
+    TRASH_RETENTION_MAX,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,6 +32,18 @@ LANGUAGE_SELECTOR = selector.SelectSelector(
 
 
 EXPIRY_SECTION = "expiry"
+
+TRASH_SECTION = "trash"
+
+TRASH_RETENTION_SELECTOR = selector.NumberSelector(
+    selector.NumberSelectorConfig(
+        min=1,
+        max=TRASH_RETENTION_MAX,
+        step=1,
+        mode=selector.NumberSelectorMode.BOX,
+        unit_of_measurement="d",
+    )
+)
 
 EXPIRY_VALUE_SELECTOR = selector.NumberSelector(
     selector.NumberSelectorConfig(
@@ -53,6 +68,7 @@ def _schema(
     language: str,
     expiry: tuple[int, str] | None = None,
     show_qr: bool = True,
+    trash_retention: int = DEFAULT_TRASH_RETENTION,
 ) -> vol.Schema:
     """Build the settings schema (expiry fields only when ``expiry`` is given)."""
     fields = {
@@ -68,6 +84,12 @@ def _schema(
             vol.Schema({
                 vol.Required(CONF_EXPIRY_VALUE, default=value): EXPIRY_VALUE_SELECTOR,
                 vol.Required(CONF_EXPIRY_UNIT, default=unit): EXPIRY_UNIT_SELECTOR,
+            }),
+            {"collapsed": False},
+        )
+        fields[vol.Required(TRASH_SECTION)] = section(
+            vol.Schema({
+                vol.Required(CONF_TRASH_RETENTION, default=trash_retention): TRASH_RETENTION_SELECTOR,
             }),
             {"collapsed": False},
         )
@@ -122,8 +144,11 @@ class HomeInventarOptionsFlow(config_entries.OptionsFlow):
             expiry = user_input[EXPIRY_SECTION]
             value = int(expiry[CONF_EXPIRY_VALUE])
             unit = expiry[CONF_EXPIRY_UNIT]
+            retention = int(user_input[TRASH_SECTION][CONF_TRASH_RETENTION])
             if not 1 <= value <= EXPIRY_MAX[unit]:
                 errors["base"] = "invalid_expiry_value"
+            elif not 1 <= retention <= TRASH_RETENTION_MAX:
+                errors["base"] = "invalid_trash_retention"
             else:
                 # store flat: the section is only a UI grouping
                 user_input = {
@@ -132,6 +157,7 @@ class HomeInventarOptionsFlow(config_entries.OptionsFlow):
                     "show_qr_nfc": user_input["show_qr_nfc"],
                     CONF_EXPIRY_VALUE: value,
                     CONF_EXPIRY_UNIT: unit,
+                    CONF_TRASH_RETENTION: retention,
                 }
                 _LOGGER.info("[Home Inventory] Updating options with: %s", user_input)
                 return self.async_create_entry(title="", data=user_input)
@@ -143,11 +169,15 @@ class HomeInventarOptionsFlow(config_entries.OptionsFlow):
             int(self.config_entry.options.get(CONF_EXPIRY_VALUE, DEFAULT_EXPIRY_VALUE)),
             self.config_entry.options.get(CONF_EXPIRY_UNIT, DEFAULT_EXPIRY_UNIT),
         )
+        current_retention = int(
+            self.config_entry.options.get(CONF_TRASH_RETENTION, DEFAULT_TRASH_RETENTION)
+        )
         if user_input is not None:  # re-show the form with what the user typed
             current_allow = user_input["allow_structure_modification"]
             current_language = user_input["language"]
             current_show_qr = user_input["show_qr_nfc"]
             current_expiry = (int(expiry[CONF_EXPIRY_VALUE]), expiry[CONF_EXPIRY_UNIT])
+            current_retention = int(user_input[TRASH_SECTION][CONF_TRASH_RETENTION])
         
         _LOGGER.debug(
             "[Home Inventory] Current settings - allow: %s, language: %s", 
@@ -156,7 +186,9 @@ class HomeInventarOptionsFlow(config_entries.OptionsFlow):
 
         return self.async_show_form(
             step_id="init",
-            data_schema=_schema(current_allow, current_language, current_expiry, current_show_qr),
+            data_schema=_schema(
+                current_allow, current_language, current_expiry, current_show_qr, current_retention
+            ),
             errors=errors,
             description_placeholders={
                 "structure_info": "Rooms > Cupboards > Shelves > Organizers > Items",

@@ -87,18 +87,16 @@ class HomeInventarRoomsView(HomeAssistantView):
                 return web.json_response({"error": "Room ID required"}, status=400)
 
             devreload.reload_if_changed(repository)
-            count, images_to_delete = await request.app["hass"].async_add_executor_job(
-                partial(repository.delete_room, self.db_path, room_id)
+            count, images, trash_id = await request.app["hass"].async_add_executor_job(
+                partial(repository.delete_room, self.db_path, room_id, request["hass_user"].id)
             )
-            
+
             if count == 0:
                 return web.json_response({"error": "Room not found"}, status=404)
-            
-            for image in images_to_delete:
-                self._delete_image_file(image)
-            
-            _LOGGER.info(f"Room {room_id} deleted successfully (cleaned {len(images_to_delete)} images)")
-            return web.json_response({"message": "Deleted", "images_deleted": len(images_to_delete)})
+
+            # Photos stay on disk while the entry is in the bin
+            _LOGGER.info(f"Room {room_id} moved to bin (trash_id={trash_id}, {len(images)} images kept)")
+            return web.json_response({"message": "Deleted", "images_deleted": 0, "trash_id": trash_id})
             
         except Exception as e:
             _LOGGER.error(f"Error deleting room: {e}", exc_info=True)

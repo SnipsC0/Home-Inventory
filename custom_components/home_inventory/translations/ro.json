@@ -48,12 +48,23 @@
               "expiry_warning_value": "Număr de zile / luni.",
               "expiry_warning_unit": "Zile sau luni."
             }
+          },
+          "trash": {
+            "name": "Coș de gunoi",
+            "description": "Camerele, rafturile și obiectele șterse pot fi restaurate atâtea zile (1–90). Pozele se șterg când intrarea expiră.",
+            "data": {
+              "trash_retention_days": "Păstrează"
+            },
+            "data_description": {
+              "trash_retention_days": "Număr de zile."
+            }
           }
         }
       }
     },
     "error": {
-      "invalid_expiry_value": "Introdu 1–31 pentru zile sau 1–12 pentru luni."
+      "invalid_expiry_value": "Introdu 1–31 pentru zile sau 1–12 pentru luni.",
+      "invalid_trash_retention": "Introdu 1–90 de zile pentru coșul de gunoi."
     }
   },
   "selector": {

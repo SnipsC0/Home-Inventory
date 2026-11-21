@@ -48,12 +48,23 @@
               "expiry_warning_value": "Number of days / months.",
               "expiry_warning_unit": "Days or months."
             }
+          },
+          "trash": {
+            "name": "Recycle bin",
+            "description": "Deleted rooms, shelves and items stay restorable for this many days (1–90). Photos are removed when the entry expires.",
+            "data": {
+              "trash_retention_days": "Keep for"
+            },
+            "data_description": {
+              "trash_retention_days": "Number of days."
+            }
           }
         }
       }
     },
     "error": {
-      "invalid_expiry_value": "Enter 1–31 for days or 1–12 for months."
+      "invalid_expiry_value": "Enter 1–31 for days or 1–12 for months.",
+      "invalid_trash_retention": "Enter 1–90 days for the recycle bin."
     }
   },
   "selector": {

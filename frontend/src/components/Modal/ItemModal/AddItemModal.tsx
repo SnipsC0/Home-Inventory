@@ -103,6 +103,32 @@ export default function AddItemModal({
     setTarget(null);
   };
 
+  // Masters are matched by exact (name, aliases), so complete the other field
+  // from the single existing master that matches, using its canonical spelling.
+  const normText = (s?: string | null) => (s ?? '').toLowerCase().trim();
+
+  const completeFromName = () => {
+    if (!name.trim() || aliases.trim()) return;
+    const matches = allItems.filter((it) => normText(it.name) === normText(name));
+    if (matches.length !== 1) return;
+    setName(matches[0].name);
+    if (matches[0].aliases) setAliases(matches[0].aliases);
+  };
+
+  const completeFromAliases = () => {
+    const typed = normText(aliases);
+    if (!typed || name.trim()) return;
+    const matches = allItems.filter(
+      (it) =>
+        it.aliases &&
+        (normText(it.aliases) === typed ||
+          it.aliases.split(',').some((a) => normText(a) === typed))
+    );
+    if (matches.length !== 1) return;
+    setName(matches[0].name);
+    setAliases(matches[0].aliases ?? '');
+  };
+
   // Unknown barcode + variant filled on an already existing item (by name):
   // the backend will link the code to that variant.
   const linkHintVariant = useMemo(() => {
@@ -196,6 +222,7 @@ export default function AddItemModal({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onBlur={completeFromName}
             className="field"
             placeholder={`${t.common.name}`}
           />
@@ -210,6 +237,7 @@ export default function AddItemModal({
             type="text"
             value={aliases}
             onChange={(e) => setAliases(e.target.value)}
+            onBlur={completeFromAliases}
             className="field"
             placeholder={t.items.aliasesPlaceholder}
           />

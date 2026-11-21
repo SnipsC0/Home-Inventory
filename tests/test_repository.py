@@ -288,12 +288,12 @@ def master_patch(db_path, item_id, data, **kw):
 
 
 def test_delete_location_not_found(db_path):
-    assert delete_item_location(db_path, "999") == (0, [], "Location not found")
+    assert delete_item_location(db_path, "999") == (0, [], "Location not found", None)
 
 
 def test_delete_last_location_removes_master_and_images(db_path, loc, q):
     (loc_id, master_id), _ = create(db_path, quantity=1, image={"default_path": "m.jpg", "path": "l.jpg"})
-    count, images, err = delete_item_location(db_path, str(loc_id))
+    count, images, err, _ = delete_item_location(db_path, str(loc_id))
     assert (count, err) == (1, None)
     assert sorted(images) == ["l.jpg", "m.jpg"]
     assert q(db_path, "SELECT COUNT(*) FROM items_master")[0][0] == 0
@@ -304,7 +304,7 @@ def test_delete_one_of_many_keeps_master(db_path, loc, seed, q):
     seed(db_path, "Kitchen", "Cup", "Bottom")
     (l1, master_id), _ = create(db_path, quantity=1, image="l1.jpg")
     (l2, _), _ = create(db_path, quantity=1, shelf="Bottom")
-    count, images, err = delete_item_location(db_path, str(l1))
+    count, images, err, _ = delete_item_location(db_path, str(l1))
     assert (count, err) == (1, None)
     assert images == ["l1.jpg"]
     assert q(db_path, "SELECT COUNT(*) FROM items_master WHERE id=?", (master_id,))[0][0] == 1
@@ -315,7 +315,7 @@ def test_delete_master_cascades_locations(db_path, loc, seed, q):
     seed(db_path, "Kitchen", "Cup", "Bottom")
     (l1, master_id), _ = create(db_path, quantity=1, image="l1.jpg")
     create(db_path, quantity=1, shelf="Bottom")
-    count, images, infos, err = delete_item_master(db_path, str(master_id))
+    count, images, infos, err, _ = delete_item_master(db_path, str(master_id))
     assert (count, err) == (1, None)
     assert "l1.jpg" in images
     assert sorted(infos) == ["Kitchen / Cup / Bottom", "Kitchen / Cup / Top"]
@@ -324,7 +324,7 @@ def test_delete_master_cascades_locations(db_path, loc, seed, q):
 
 
 def test_delete_master_not_found(db_path):
-    assert delete_item_master(db_path, "999") == (0, [], [], "Item master not found")
+    assert delete_item_master(db_path, "999") == (0, [], [], "Item master not found", None)
 
 
 def test_update_master_not_found(db_path):

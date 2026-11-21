@@ -43,3 +43,10 @@ def delete_image_file(hass, image_path):
 
     except Exception as e:
         _LOGGER.error(f"[Home Inventory] Error deleting image file: {e}", exc_info=True)
+
+
+def delete_image_files(hass, image_paths):
+    """Delete several uploaded images; returns how many paths were handed over."""
+    for path in image_paths:
+        delete_image_file(hass, path)
+    return len(image_paths)

@@ -155,6 +155,7 @@ export interface Config {
   language: 'ro' | 'en' | 'ru' | 'de';
   expiry_warning_value?: number;
   expiry_warning_unit?: 'days' | 'months';
+  trash_retention_days?: number;
 }
 
 // QR/NFC deep links
@@ -178,7 +179,8 @@ export interface AppState {
     | 'items'
     | 'all-items'
     | 'tracked-items'
-    | 'expiring';
+    | 'expiring'
+    | 'trash';
   selectedRoom: string | null;
   selectedCupboard: string | null;
   selectedShelf: string | null;
@@ -200,3 +202,53 @@ export interface UploadContext {
 export type ClickOrTouchEvent =
   | React.MouseEvent<HTMLElement>
   | React.TouchEvent<HTMLElement>;
+
+// Recycle bin
+export type TrashKind =
+  | 'room'
+  | 'cupboard'
+  | 'shelf'
+  | 'organizer'
+  | 'item_master'
+  | 'item_location';
+
+export interface TrashSummary {
+  cupboards?: number;
+  shelves?: number;
+  organizers?: number;
+  locations?: number;
+  items?: number;
+  images?: number;
+}
+
+export interface TrashEntry {
+  id: number;
+  kind: TrashKind;
+  entity_id: number;
+  label: string;
+  path: string | null;
+  summary: TrashSummary;
+  deleted_at: string | null;
+  expires_at: string | null;
+}
+
+export interface TrashResponse {
+  entries: TrashEntry[];
+  retention_days: number;
+}
+
+export type TrashWarning =
+  | { code: 'renamed'; table: string; from: string; to: string }
+  | { code: 'item_merged'; name: string }
+  | { code: 'barcode_dropped'; name: string; barcode: string }
+  | { code: 'variant_barcode_skipped'; variant: string; barcode: string };
+
+export type RestoreResult =
+  | { ok: true; warnings: TrashWarning[] }
+  | {
+      ok: false;
+      error: 'parent_missing' | 'not_found' | 'failed';
+      parent_trash_id?: number | null;
+      parent_label?: string | null;
+      message?: string;
+    };

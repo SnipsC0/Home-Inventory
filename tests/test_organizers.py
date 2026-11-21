@@ -66,6 +66,6 @@ def test_hard_delete_organizer_removes_items(db_path, seed, q):
     conn.close()
     add_loc(db_path, ids["shelf_id"], ids["organizer_id"], "loc.jpg")
     add_loc(db_path, ids["shelf_id"])  # untouched: no organizer
-    assert hard_delete_organizer(db_path, ids["organizer_id"]) == (True, "org.jpg", ["loc.jpg"], 1)
+    assert hard_delete_organizer(db_path, ids["organizer_id"]) == (True, "org.jpg", ["loc.jpg"], 1, 1)
     assert q(db_path, "SELECT COUNT(*) FROM item_locations") == [(1,)]
-    assert hard_delete_organizer(db_path, 999) == (False, None, [], 0)
+    assert hard_delete_organizer(db_path, 999) == (False, None, [], 0, None)

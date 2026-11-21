@@ -4,6 +4,8 @@ import logging
 from ..const import (
     CONF_EXPIRY_UNIT,
     CONF_EXPIRY_VALUE,
+    CONF_TRASH_RETENTION,
+    DEFAULT_TRASH_RETENTION,
     DEFAULT_EXPIRY_UNIT,
     DEFAULT_EXPIRY_VALUE,
     DOMAIN,
@@ -32,6 +34,7 @@ class HomeInventarConfigView(HomeAssistantView):
                     "language": "en",  # Default language
                     "expiry_warning_value": DEFAULT_EXPIRY_VALUE,
                     "expiry_warning_unit": DEFAULT_EXPIRY_UNIT,
+                    "trash_retention_days": DEFAULT_TRASH_RETENTION,
                 })
             
             allow_structure_modification = entry.options.get(
@@ -50,6 +53,9 @@ class HomeInventarConfigView(HomeAssistantView):
                 ),
                 "expiry_warning_unit": entry.options.get(
                     CONF_EXPIRY_UNIT, DEFAULT_EXPIRY_UNIT
+                ),
+                "trash_retention_days": int(
+                    entry.options.get(CONF_TRASH_RETENTION, DEFAULT_TRASH_RETENTION)
                 ),
             })
             

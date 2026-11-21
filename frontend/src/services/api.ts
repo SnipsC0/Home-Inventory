@@ -1,3 +1,4 @@
+import { useUndoStore } from '../store/useUndoStore';
 import { getStaticTranslations } from '../i18n/translations';
 import {
   setAuthSource,
@@ -18,6 +19,8 @@ import type {
   AddItemData,
   LocationTarget,
   LocateResult,
+  TrashResponse,
+  RestoreResult,
 } from '../types';
 
 export interface DeletePreview {
@@ -96,6 +99,11 @@ export class ApiService {
     return `/api/home_inventory/images/${filename}?access_token=${getCurrentToken()}`;
   }
 
+  /** Shows the undo toast after a delete moved something to the bin. */
+  private notifyDeleted(trashId?: number) {
+    if (trashId != null) useUndoStore.getState().show(trashId);
+  }
+
   async getConfig(): Promise<Config> {
     return this.safeCall('GET', 'home_inventory/config');
   }
@@ -134,7 +142,8 @@ export class ApiService {
   }
 
   async deleteRoom(id: number): Promise<void> {
-    return this.safeCall('DELETE', 'home_inventory/rooms', { id });
+    const res = await this.safeCall<{ trash_id?: number }>('DELETE', 'home_inventory/rooms', { id });
+    this.notifyDeleted(res?.trash_id);
   }
 
   // Cupboards
@@ -169,7 +178,8 @@ export class ApiService {
   }
 
   async deleteCupboard(id: number): Promise<void> {
-    return this.safeCall('DELETE', 'home_inventory/cupboards', { id });
+    const res = await this.safeCall<{ trash_id?: number }>('DELETE', 'home_inventory/cupboards', { id });
+    this.notifyDeleted(res?.trash_id);
   }
 
   // Shelves
@@ -209,7 +219,8 @@ export class ApiService {
   }
 
   async deleteShelf(id: number): Promise<void> {
-    return this.safeCall('DELETE', 'home_inventory/shelves', { id });
+    const res = await this.safeCall<{ trash_id?: number }>('DELETE', 'home_inventory/shelves', { id });
+    this.notifyDeleted(res?.trash_id);
   }
 
   /**
@@ -285,7 +296,8 @@ export class ApiService {
   }
 
   async deleteOrganizer(id: number): Promise<void> {
-    return this.safeCall('DELETE', 'home_inventory/organizers', { id });
+    const res = await this.safeCall<{ trash_id?: number }>('DELETE', 'home_inventory/organizers', { id });
+    this.notifyDeleted(res?.trash_id);
   }
 
   async getExpiringBatches(): Promise<ExpiringBatchesResponse> {
@@ -353,7 +365,74 @@ export class ApiService {
   }
 
   async deleteItemMaster(id: number): Promise<void> {
-    return this.safeCall('DELETE', `home_inventory/items_master/${id}`);
+    const res = await this.safeCall<{ trash_id?: number }>('DELETE', `home_inventory/items_master/${id}`);
+    this.notifyDeleted(res?.trash_id);
+  }
+
+  // Recycle bin
+  /** Throws on failure (no empty fallback) so React Query retries instead of caching "empty bin". */
+  async getTrash(): Promise<TrashResponse> {
+    const token = await getValidToken();
+    if (!token) throw new Error('Missing authentication token');
+    const response = await fetch('/api/home_inventory/trash', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    return (await response.json()) as TrashResponse;
+  }
+
+  /** Restore a bin entry; errors are returned (not alerted) so the UI can explain them. */
+  async restoreTrash(id: number): Promise<RestoreResult> {
+    try {
+      const token = await getValidToken();
+      if (!token) return { ok: false, error: 'failed', message: 'Missing authentication token' };
+      const response = await fetch(`/api/home_inventory/trash/${id}/restore`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await response.json().catch(() => ({}));
+      if (response.ok) return { ok: true, warnings: json.warnings ?? [] };
+      if (response.status === 409 && json.error === 'parent_missing') {
+        return {
+          ok: false,
+          error: 'parent_missing',
+          parent_trash_id: json.parent_trash_id ?? null,
+          parent_label: json.parent_label ?? null,
+        };
+      }
+      return {
+        ok: false,
+        error: response.status === 404 ? 'not_found' : 'failed',
+        message: json.error,
+      };
+    } catch (err: any) {
+      return { ok: false, error: 'failed', message: err?.message };
+    }
+  }
+
+  async deleteTrashEntry(id: number): Promise<void> {
+    return this.safeCall('DELETE', `home_inventory/trash/${id}`);
+  }
+
+  async emptyTrash(): Promise<void> {
+    return this.safeCall('DELETE', 'home_inventory/trash');
+  }
+
+  // Favorites (per HA user)
+  async getFavorites(): Promise<number[]> {
+    const data = await this.safeCall<{ item_ids: number[] }>(
+      'GET',
+      'home_inventory/favorites'
+    );
+    return data?.item_ids ?? [];
+  }
+
+  async addFavorite(itemId: number): Promise<void> {
+    return this.safeCall('PUT', `home_inventory/favorites/${itemId}`);
+  }
+
+  async removeFavorite(itemId: number): Promise<void> {
+    return this.safeCall('DELETE', `home_inventory/favorites/${itemId}`);
   }
 
   async getItemLocations(itemId: number): Promise<any[]> {
@@ -368,7 +447,8 @@ export class ApiService {
   }
 
   async deleteItem(locationId: number): Promise<void> {
-    return this.safeCall('DELETE', `home_inventory/items/${locationId}`);
+    const res = await this.safeCall<{ trash_id?: number }>('DELETE', `home_inventory/items/${locationId}`);
+    this.notifyDeleted(res?.trash_id);
   }
 
   async uploadImage(

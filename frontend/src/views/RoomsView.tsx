@@ -1,4 +1,6 @@
 import { useState, useCallback } from 'react';
+import { Trash2 } from 'lucide-react';
+import { useTrash } from '../hooks/trash/useTrash';
 import RoomsHeader from '../components/Room/RoomsHeader';
 import RoomCard from '../components/Room/RoomCard';
 import EditRoomModal from '../components/Modal/EditRoomModal';
@@ -21,7 +23,8 @@ export default function RoomsView({ api }: RoomsViewProps) {
   const { t } = useTranslation();
   const { data: config } = useHomeInventarConfig(api);
   const { data: rooms = [], isLoading, error } = useRooms(api);
-  const { goToRoom, goToAllItems, goToTrackedItems, goToExpiring } = useRoomNavigation();
+  const { goToRoom, goToAllItems, goToTrackedItems, goToExpiring, goToTrash } = useRoomNavigation();
+  const { data: trash } = useTrash(api);
   const { addRoom, updateRoom } = useRoomMutations(api);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -105,6 +108,17 @@ export default function RoomsView({ api }: RoomsViewProps) {
           )}
         </div>
       </div>
+
+      {(trash?.entries.length ?? 0) > 0 && (
+        <button
+          onClick={goToTrash}
+          title={t.trash.title}
+          aria-label={t.trash.title}
+          className="fixed bottom-4 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-ha-divider bg-ha-card text-ha-primary shadow-md transition hover:shadow-lg hover:border-ha-primary active:scale-95 cursor-pointer"
+        >
+          <Trash2 size={22} />
+        </button>
+      )}
 
       {isBarcodeOpen && (
         <FindByBarcodeModal api={api} onClose={() => setIsBarcodeOpen(false)} />

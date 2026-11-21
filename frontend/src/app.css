@@ -257,6 +257,32 @@
   to { opacity: 1; transform: none; }
 }
 
+/* Toast: slide up on entry, countdown bar drains to the right */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(24px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes toast-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+.toast-in {
+  animation: toast-in 280ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.toast-progress {
+  transform-origin: left;
+  animation-name: toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-in { animation: fade-in 150ms ease both; }
+}
+
 /* Image placeholder shown while a picture downloads */
 .img-skeleton {
   background: linear-gradient(

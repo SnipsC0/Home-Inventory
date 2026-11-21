@@ -14,6 +14,8 @@ import CupboardsView from './views/CupboardView';
 import { isDev } from './config/dev';
 import TrackedItemsView from './views/TrackedItemsView';
 import ExpiringView from './views/ExpiringView';
+import TrashView from './views/TrashView';
+import UndoToast from './components/Toast/UndoToast';
 import { I18nProvider, useTranslation } from './i18n/I18nContext';
 import { useHomeInventarConfig } from './hooks/global/useHomeInventarConfig';
 import { ApiProvider } from './contexts/ApiContext';
@@ -103,7 +105,9 @@ function AppContent({ api }: { api: ApiService }) {
         {currentView === 'all-items' && <AllItemsView api={api} />}
         {currentView === 'tracked-items' && <TrackedItemsView api={api} />}
         {currentView === 'expiring' && <ExpiringView api={api} />}
+        {currentView === 'trash' && <TrashView api={api} />}
       </div>
+      <UndoToast />
 
       {isDev && <ReactQueryDevtools initialIsOpen={false} />}
     </I18nProvider>

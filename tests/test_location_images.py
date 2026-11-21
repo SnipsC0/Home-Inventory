@@ -134,7 +134,7 @@ def _fill_images(db_path, ids):
 def test_delete_room_returns_all_images(db_path, seed):
     ids = seed(db_path, "Kitchen", "C1", "S1", "Box")
     _fill_images(db_path, ids)
-    count, images = delete_room(db_path, ids["room_id"])
+    count, images, _ = delete_room(db_path, ids["room_id"])
     assert count == 1
     assert sorted(images) == ["cup.jpg", "loc.jpg", "org.jpg", "room.jpg", "shelf.jpg"]
 
@@ -142,7 +142,7 @@ def test_delete_room_returns_all_images(db_path, seed):
 def test_delete_cupboard_returns_all_images(db_path, seed):
     ids = seed(db_path, "Kitchen", "C1", "S1", "Box")
     _fill_images(db_path, ids)
-    count, images = delete_cupboard(db_path, ids["cupboard_id"])
+    count, images, _ = delete_cupboard(db_path, ids["cupboard_id"])
     assert count == 1
     assert sorted(images) == ["cup.jpg", "loc.jpg", "org.jpg", "shelf.jpg"]
 
@@ -164,7 +164,7 @@ def test_shelf_image_create_list_update(db_path, seed):
 def test_delete_shelf_returns_all_images(db_path, seed):
     ids = seed(db_path, "Kitchen", "C1", "S1", "Box")
     _fill_images(db_path, ids)
-    count, images = delete_shelf(db_path, ids["shelf_id"])
+    count, images, _ = delete_shelf(db_path, ids["shelf_id"])
     assert count == 1
     assert sorted(images) == ["loc.jpg", "org.jpg", "shelf.jpg"]
 

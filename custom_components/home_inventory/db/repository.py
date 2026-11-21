@@ -8,7 +8,7 @@ import json
 import logging
 import sqlite3
 import calendar
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -132,6 +132,529 @@ def _set_variant_barcode(cur, item_id, variant, barcode):
             (item_id, variant, barcode),
         )
     return None
+
+
+def _delete_favorites(cur, item_id):
+    """Drop favorites of a master about to be deleted (API connections don't enable foreign_keys)."""
+    cur.execute("DELETE FROM item_favorites WHERE item_id = ?", (item_id,))
+
+
+def _move_favorites(cur, old_item_id, new_item_id):
+    """Carry favorites from a master being replaced (rename/merge) to its successor."""
+    cur.execute(
+        "UPDATE OR IGNORE item_favorites SET item_id = ? WHERE item_id = ?",
+        (new_item_id, old_item_id),
+    )
+    _delete_favorites(cur, old_item_id)
+
+
+def list_favorite_ids(db_path, user_id):
+    """Item master ids marked as favorite by ``user_id``, newest first."""
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT item_id FROM item_favorites WHERE user_id = ? ORDER BY created_at DESC, item_id",
+            (user_id,),
+        ).fetchall()
+        return [r[0] for r in rows]
+    finally:
+        conn.close()
+
+
+def set_favorite(db_path, user_id, item_id, favorite):
+    """Add or remove a favorite (idempotent). Returns False if the item master does not exist."""
+    conn = sqlite3.connect(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM items_master WHERE id = ?", (item_id,))
+        if cur.fetchone() is None:
+            return False
+        if favorite:
+            cur.execute(
+                "INSERT OR IGNORE INTO item_favorites (user_id, item_id) VALUES (?, ?)",
+                (user_id, item_id),
+            )
+        else:
+            cur.execute(
+                "DELETE FROM item_favorites WHERE user_id = ? AND item_id = ?",
+                (user_id, item_id),
+            )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------- trash
+
+# Restore order (parents first)
+TRASH_TABLES = (
+    "rooms", "cupboards", "shelves", "organizers",
+    "items_master", "item_locations", "item_variant_barcodes", "item_favorites",
+)
+_IMAGE_COLUMNS = {
+    "rooms": "image", "cupboards": "image", "shelves": "image", "organizers": "image",
+    "items_master": "default_image", "item_locations": "image",
+}
+_CHUNK = 500
+
+
+def _rows(cur, sql, params=()):
+    """Rows of ``sql`` as dicts keyed by column name (``SELECT *`` keeps future columns)."""
+    cur.execute(sql, params)
+    cols = [d[0] for d in cur.description]
+    return [dict(zip(cols, r)) for r in cur.fetchall()]
+
+
+def _rows_in(cur, table, column, ids):
+    """``SELECT * FROM table WHERE column IN ids``, chunked to stay under SQLite's variable limit."""
+    ids = list(dict.fromkeys(ids))
+    out = []
+    for i in range(0, len(ids), _CHUNK):
+        chunk = ids[i:i + _CHUNK]
+        out += _rows(
+            cur,
+            f"SELECT * FROM {table} WHERE {column} IN ({','.join('?' * len(chunk))}) ORDER BY id",
+            chunk,
+        )
+    return out
+
+
+def _snapshot_subtree(cur, kind, entity_id):
+    """Rows a user delete of ``kind``/``entity_id`` removes, as ``{table: [row dicts]}``.
+
+    Masters are included only when the delete leaves them without locations (same
+    rule as ``_cascade_delete_locations``), with their variant barcodes and favorites.
+    Returns None for an unknown kind/id.
+    """
+    try:
+        entity_id = int(entity_id)
+    except (TypeError, ValueError):
+        return None
+    snap = {t: [] for t in TRASH_TABLES}
+    if kind == "room":
+        snap["rooms"] = _rows(cur, "SELECT * FROM rooms WHERE id = ?", (entity_id,))
+        if not snap["rooms"]:
+            return None
+        snap["cupboards"] = _rows_in(cur, "cupboards", "room_id", [entity_id])
+    elif kind == "cupboard":
+        snap["cupboards"] = _rows(cur, "SELECT * FROM cupboards WHERE id = ?", (entity_id,))
+        if not snap["cupboards"]:
+            return None
+    elif kind == "shelf":
+        snap["shelves"] = _rows(cur, "SELECT * FROM shelves WHERE id = ?", (entity_id,))
+        if not snap["shelves"]:
+            return None
+    elif kind == "organizer":
+        snap["organizers"] = _rows(cur, "SELECT * FROM organizers WHERE id = ?", (entity_id,))
+        if not snap["organizers"]:
+            return None
+    elif kind == "item_master":
+        if not _rows(cur, "SELECT id FROM items_master WHERE id = ?", (entity_id,)):
+            return None
+    elif kind == "item_location":
+        snap["item_locations"] = _rows(cur, "SELECT * FROM item_locations WHERE id = ?", (entity_id,))
+        if not snap["item_locations"]:
+            return None
+    else:
+        return None
+
+    if kind in ("room", "cupboard"):
+        snap["shelves"] = _rows_in(cur, "shelves", "cupboard_id", [c["id"] for c in snap["cupboards"]])
+    if kind in ("room", "cupboard", "shelf"):
+        shelf_ids = [s["id"] for s in snap["shelves"]]
+        snap["organizers"] = _rows_in(cur, "organizers", "shelf_id", shelf_ids)
+        snap["item_locations"] = _rows_in(cur, "item_locations", "shelf_id", shelf_ids)
+    elif kind == "organizer":
+        snap["item_locations"] = _rows_in(cur, "item_locations", "organizer_id", [entity_id])
+    elif kind == "item_master":
+        snap["item_locations"] = _rows_in(cur, "item_locations", "item_id", [entity_id])
+
+    # Masters left without locations
+    per_item = {}
+    for loc in snap["item_locations"]:
+        per_item[loc["item_id"]] = per_item.get(loc["item_id"], 0) + 1
+    if kind == "item_master":
+        per_item.setdefault(entity_id, 0)
+    orphaned = [
+        item_id for item_id, n in per_item.items()
+        if kind == "item_master"
+        or cur.execute("SELECT COUNT(*) FROM item_locations WHERE item_id = ?", (item_id,)).fetchone()[0] == n
+    ]
+    snap["items_master"] = _rows_in(cur, "items_master", "id", orphaned)
+    snap["item_variant_barcodes"] = _rows_in(cur, "item_variant_barcodes", "item_id", orphaned)
+    snap["item_favorites"] = []
+    for i in range(0, len(orphaned), _CHUNK):
+        chunk = orphaned[i:i + _CHUNK]
+        snap["item_favorites"] += _rows(
+            cur,
+            f"SELECT * FROM item_favorites WHERE item_id IN ({','.join('?' * len(chunk))})"
+            " ORDER BY item_id, user_id",
+            chunk,
+        )
+    return snap
+
+
+def _snapshot_images(snap):
+    """Distinct image paths referenced by the snapshot rows."""
+    images = []
+    for table, col in _IMAGE_COLUMNS.items():
+        images += [r.get(col) for r in snap[table]]
+    return list(dict.fromkeys(i for i in images if i))
+
+
+def _snapshot_summary(kind, snap):
+    """Counts shown in the delete confirmation / bin entry (descendants, not the entry itself)."""
+    return {
+        "cupboards": len(snap["cupboards"]) - (1 if kind == "cupboard" else 0),
+        "shelves": len(snap["shelves"]),
+        "organizers": len(snap["organizers"]),
+        "locations": len(snap["item_locations"]),
+        "items": len(snap["items_master"]),
+        "images": len(_snapshot_images(snap)),
+    }
+
+
+def _breadcrumb(cur, kind, entity_id):
+    """``(label, path)`` of the entity at delete time; ``path`` is the parent breadcrumb."""
+    if kind == "room":
+        row = cur.execute("SELECT name, NULL FROM rooms WHERE id = ?", (entity_id,)).fetchone()
+    elif kind == "cupboard":
+        row = cur.execute('''
+            SELECT c.name, r.name FROM cupboards c
+            LEFT JOIN rooms r ON c.room_id = r.id WHERE c.id = ?
+        ''', (entity_id,)).fetchone()
+    elif kind == "shelf":
+        row = cur.execute('''
+            SELECT s.name, r.name || ' / ' || c.name FROM shelves s
+            LEFT JOIN cupboards c ON s.cupboard_id = c.id
+            LEFT JOIN rooms r ON c.room_id = r.id WHERE s.id = ?
+        ''', (entity_id,)).fetchone()
+    elif kind == "organizer":
+        row = cur.execute('''
+            SELECT o.name, r.name || ' / ' || c.name || ' / ' || s.name FROM organizers o
+            LEFT JOIN shelves s ON o.shelf_id = s.id
+            LEFT JOIN cupboards c ON s.cupboard_id = c.id
+            LEFT JOIN rooms r ON c.room_id = r.id WHERE o.id = ?
+        ''', (entity_id,)).fetchone()
+    elif kind == "item_master":
+        row = cur.execute("SELECT name, NULL FROM items_master WHERE id = ?", (entity_id,)).fetchone()
+    else:  # item_location
+        row = cur.execute('''
+            SELECT im.name || COALESCE(' (' || NULLIF(il.variant, '') || ')', ''),
+                   r.name || ' / ' || c.name || ' / ' || s.name || COALESCE(' / ' || o.name, '')
+            FROM item_locations il
+            LEFT JOIN items_master im ON il.item_id = im.id
+            LEFT JOIN shelves s ON il.shelf_id = s.id
+            LEFT JOIN cupboards c ON s.cupboard_id = c.id
+            LEFT JOIN rooms r ON c.room_id = r.id
+            LEFT JOIN organizers o ON il.organizer_id = o.id
+            WHERE il.id = ?
+        ''', (entity_id,)).fetchone()
+    if not row:
+        return f"{kind} {entity_id}", None
+    return row[0] or f"{kind} {entity_id}", row[1]
+
+
+def _write_trash_entry(cur, kind, entity_id, snap, user_id):
+    """Insert the bin entry for ``snap``; returns the new ``trash_id``."""
+    label, path = _breadcrumb(cur, kind, entity_id)
+    cur.execute(
+        "INSERT INTO trash_entries (kind, entity_id, label, path, summary, payload, images, deleted_by)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            kind, int(entity_id), label, path,
+            json.dumps(_snapshot_summary(kind, snap)),
+            json.dumps({t: snap[t] for t in TRASH_TABLES if snap[t]}),
+            json.dumps(_snapshot_images(snap)),
+            user_id,
+        ),
+    )
+    return cur.lastrowid
+
+
+def _trash_snapshot(cur, kind, entity_id, user_id):
+    """Snapshot the subtree into the bin, inside the caller's transaction.
+
+    Must run before the rows are deleted. Returns the ``trash_id`` or None if not found.
+    """
+    snap = _snapshot_subtree(cur, kind, entity_id)
+    if snap is None:
+        return None
+    return _write_trash_entry(cur, kind, entity_id, snap, user_id)
+
+
+def _trash_image_refs(cur, filename, exclude_id=None):
+    """Bin entries (other than ``exclude_id``) still referencing image ``filename``."""
+    cur.execute(
+        "SELECT COUNT(*) FROM trash_entries WHERE images LIKE ? AND id != ?",
+        (f"%{filename}%", exclude_id if exclude_id is not None else -1),
+    )
+    return cur.fetchone()[0]
+
+
+# parent links checked before a restore: table -> ((column, parent table), ...)
+_TRASH_PARENTS = {
+    "cupboards": (("room_id", "rooms"),),
+    "shelves": (("cupboard_id", "cupboards"),),
+    "organizers": (("shelf_id", "shelves"),),
+    "item_locations": (
+        ("item_id", "items_master"), ("shelf_id", "shelves"), ("organizer_id", "organizers"),
+    ),
+    "item_variant_barcodes": (("item_id", "items_master"),),
+    "item_favorites": (("item_id", "items_master"),),
+}
+# tables with a per-parent unique name
+_TRASH_NAME_SCOPE = {"rooms": None, "cupboards": "room_id", "shelves": "cupboard_id", "organizers": "shelf_id"}
+_RETENTION_FALLBACK_DAYS = 7
+
+
+def _trash_ts(value):
+    """SQLite ``CURRENT_TIMESTAMP`` (UTC) -> datetime, or None."""
+    try:
+        return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+    except (TypeError, ValueError):
+        return None
+
+
+def _iso_utc(dt):
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ") if dt else None
+
+
+def list_trash(db_path, retention_days=_RETENTION_FALLBACK_DAYS):
+    """Bin entries, newest first, with ``expires_at`` = ``deleted_at`` + ``retention_days`` (UTC ISO)."""
+    conn = sqlite3.connect(db_path)
+    try:
+        cur = conn.cursor()
+        rows = _rows(
+            cur,
+            "SELECT id, kind, entity_id, label, path, summary, deleted_at FROM trash_entries"
+            " ORDER BY deleted_at DESC, id DESC",
+        )
+    finally:
+        conn.close()
+    out = []
+    for r in rows:
+        deleted = _trash_ts(r["deleted_at"])
+        try:
+            summary = json.loads(r["summary"])
+        except ValueError:
+            summary = {}
+        out.append({
+            "id": r["id"],
+            "kind": r["kind"],
+            "entity_id": r["entity_id"],
+            "label": r["label"],
+            "path": r["path"],
+            "summary": summary,
+            "deleted_at": _iso_utc(deleted),
+            "expires_at": _iso_utc(deleted + timedelta(days=retention_days)) if deleted else None,
+        })
+    return out
+
+
+def _image_name(path):
+    return path.split("?")[0].rsplit("/", 1)[-1]
+
+
+def _image_referenced(cur, name):
+    """True if a live row or a bin entry still references image file ``name``."""
+    for table, col in _IMAGE_COLUMNS.items():
+        try:
+            cur.execute(f"SELECT 1 FROM {table} WHERE {col} LIKE ? LIMIT 1", (f"%{name}%",))
+        except sqlite3.OperationalError:  # table has no such column (e.g. rooms)
+            continue
+        if cur.fetchone():
+            return True
+    return _trash_image_refs(cur, name) > 0
+
+
+def trash_entry_exists(db_path, trash_id):
+    conn = sqlite3.connect(db_path)
+    try:
+        return conn.execute("SELECT 1 FROM trash_entries WHERE id = ?", (int(trash_id),)).fetchone() is not None
+    finally:
+        conn.close()
+
+
+def purge_trash(db_path, *, trash_id=None, older_than=None, all=False):
+    """Permanently remove bin entries: one by id, those deleted before ``older_than`` (naive UTC
+    datetime), or all. Returns the image paths no longer referenced by live rows or by any
+    remaining entry (the caller deletes the files)."""
+    conn = sqlite3.connect(db_path)
+    try:
+        cur = conn.cursor()
+        if all:
+            where, params = "1=1", ()
+        elif trash_id is not None:
+            where, params = "id = ?", (int(trash_id),)
+        elif older_than is not None:
+            where, params = "deleted_at < ?", (older_than.strftime("%Y-%m-%d %H:%M:%S"),)
+        else:
+            return []
+        cur.execute(f"SELECT id, images FROM trash_entries WHERE {where}", params)
+        entries = cur.fetchall()
+        if not entries:
+            return []
+        images = []
+        for _id, raw in entries:
+            try:
+                images += json.loads(raw)
+            except ValueError:
+                pass
+        cur.executemany("DELETE FROM trash_entries WHERE id = ?", [(e[0],) for e in entries])
+        free = [
+            img for img in dict.fromkeys(images)
+            if img and not _image_referenced(cur, _image_name(img))
+        ]
+        conn.commit()
+        return free
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def _find_trash_parent(cur, table, row_id, exclude_id):
+    """``(trash_id, label)`` of a bin entry whose snapshot contains ``table`` row ``row_id``."""
+    cur.execute("SELECT id, label, payload FROM trash_entries WHERE id != ? ORDER BY id DESC", (exclude_id,))
+    for tid, label, raw in cur.fetchall():
+        try:
+            rows = json.loads(raw).get(table, [])
+        except ValueError:
+            continue
+        if any(r.get("id") == row_id for r in rows):
+            return tid, label
+    return None, None
+
+
+def _table_columns(cur, table):
+    return {r[1] for r in cur.execute(f"PRAGMA table_info({table})").fetchall()}
+
+
+def _insert_row(cur, table, row):
+    cols = _table_columns(cur, table)
+    data = {k: v for k, v in row.items() if k in cols}
+    cur.execute(
+        f"INSERT INTO {table} ({','.join(data)}) VALUES ({','.join('?' * len(data))})",
+        list(data.values()),
+    )
+
+
+def _free_name(cur, table, name, scope_col, scope_val):
+    """``name`` or ``name (2)``, ``name (3)``... not yet used under the same parent."""
+    n, candidate = 1, name
+    while True:
+        if scope_col:
+            cur.execute(f"SELECT 1 FROM {table} WHERE name = ? AND {scope_col} = ?", (candidate, scope_val))
+        else:
+            cur.execute(f"SELECT 1 FROM {table} WHERE name = ?", (candidate,))
+        if not cur.fetchone():
+            return candidate
+        n += 1
+        candidate = f"{name} ({n})"
+
+
+def _barcode_taken(cur, barcode):
+    cur.execute(
+        "SELECT 1 FROM items_master WHERE barcode = ? UNION SELECT 1 FROM item_variant_barcodes WHERE barcode = ?",
+        (barcode, barcode),
+    )
+    return cur.fetchone() is not None
+
+
+def restore_trash_entry(db_path, trash_id):
+    """Put a bin entry back, keeping the original ids, in one transaction.
+
+    Returns ``{"restored": kind, "entity_id": id, "warnings": [...]}``, or
+    ``{"error": "not_found"}``, or ``{"error": "parent_missing", "parent_table", "parent_id",
+    "parent_trash_id", "parent_label"}`` (nothing changed). Name/barcode conflicts are
+    resolved and reported as ``warnings`` (dicts with a ``code``).
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cur = conn.cursor()
+        entry = _rows(cur, "SELECT * FROM trash_entries WHERE id = ?", (int(trash_id),))
+        if not entry:
+            return {"error": "not_found"}
+        entry = entry[0]
+        payload = json.loads(entry["payload"])
+        payload_ids = {t: {r["id"] for r in payload.get(t, []) if "id" in r} for t in TRASH_TABLES}
+
+        # Every parent must exist now (or be restored by this same entry)
+        for table in TRASH_TABLES:
+            for row in payload.get(table, []):
+                for col, parent in _TRASH_PARENTS.get(table, ()):
+                    pid = row.get(col)
+                    if pid is None or pid in payload_ids[parent]:
+                        continue
+                    cur.execute(f"SELECT 1 FROM {parent} WHERE id = ?", (pid,))
+                    if cur.fetchone():
+                        continue
+                    ptid, plabel = _find_trash_parent(cur, parent, pid, entry["id"])
+                    return {
+                        "error": "parent_missing", "parent_table": parent, "parent_id": pid,
+                        "parent_trash_id": ptid, "parent_label": plabel,
+                    }
+
+        warnings = []
+        item_map = {}  # snapshot master id -> id the restored rows attach to
+        for table in TRASH_TABLES:
+            for row in payload.get(table, []):
+                row = dict(row)
+                if table in ("item_locations", "item_variant_barcodes", "item_favorites"):
+                    row["item_id"] = item_map.get(row["item_id"], row["item_id"])
+
+                if table == "items_master":
+                    cur.execute(
+                        "SELECT id FROM items_master WHERE id = ? OR (name = ? AND COALESCE(aliases, '') = ?)",
+                        (row["id"], row["name"], row.get("aliases") or ""),
+                    )
+                    existing = cur.fetchone()
+                    if existing:
+                        item_map[row["id"]] = existing[0]
+                        if existing[0] != row["id"]:
+                            warnings.append({"code": "item_merged", "name": row["name"]})
+                        continue
+                    if row.get("barcode") and _barcode_taken(cur, row["barcode"]):
+                        warnings.append({"code": "barcode_dropped", "name": row["name"], "barcode": row["barcode"]})
+                        row["barcode"] = None
+                elif table in _TRASH_NAME_SCOPE:
+                    scope_col = _TRASH_NAME_SCOPE[table]
+                    name = _free_name(cur, table, row["name"], scope_col, row.get(scope_col))
+                    if name != row["name"]:
+                        warnings.append({"code": "renamed", "table": table, "from": row["name"], "to": name})
+                        row["name"] = name
+                elif table == "item_variant_barcodes":
+                    cur.execute(
+                        "SELECT 1 FROM item_variant_barcodes WHERE item_id = ? AND variant = ?",
+                        (row["item_id"], row["variant"]),
+                    )
+                    if cur.fetchone() or _barcode_taken(cur, row["barcode"]):
+                        warnings.append({"code": "variant_barcode_skipped", "variant": row["variant"], "barcode": row["barcode"]})
+                        continue
+                elif table == "item_favorites":
+                    cur.execute(
+                        "INSERT OR IGNORE INTO item_favorites (user_id, item_id, created_at)"
+                        " VALUES (?, ?, COALESCE(?, CURRENT_TIMESTAMP))",
+                        (row["user_id"], row["item_id"], row.get("created_at")),
+                    )
+                    continue
+                elif table == "item_locations":
+                    cur.execute("SELECT 1 FROM item_locations WHERE id = ?", (row["id"],))
+                    if cur.fetchone():
+                        continue
+                _insert_row(cur, table, row)
+
+        cur.execute("DELETE FROM trash_entries WHERE id = ?", (entry["id"],))
+        conn.commit()
+        return {"restored": entry["kind"], "entity_id": entry["entity_id"], "warnings": warnings}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def create_item_location(
@@ -613,6 +1136,7 @@ def update_item(
                             old_images_to_delete.append(current_image)
 
                     cur.execute("DELETE FROM item_variant_barcodes WHERE item_id = ?", (item_id,))
+                    _move_favorites(cur, item_id, new_master_id)
                     cur.execute("DELETE FROM items_master WHERE id = ?", (item_id,))
                     _LOGGER.info(f"[ITEM PATCH] Deleted old master {item_id} (no remaining locations)")
 
@@ -656,6 +1180,7 @@ def update_item(
                         if not loc_img or loc_img[0] != current_image:
                             old_images_to_delete.append(current_image)
 
+                    _move_favorites(cur, item_id, new_master_id)
                     cur.execute("DELETE FROM items_master WHERE id = ?", (item_id,))
                     _LOGGER.info(f"[ITEM PATCH] Deleted old master {item_id}")
 
@@ -893,11 +1418,13 @@ def get_low_stock_info(db_path, location_id):
     return _low_stock_payload(db_path, location_id, True)
 
 
-def delete_item_location(db_path, location_id):
+def delete_item_location(db_path, location_id, user_id=None):
+    """Returns (count, images, error, trash_id); the deleted rows are snapshotted into the bin."""
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
 
     try:
+        trash_id = None
         cur.execute(
             '''
             SELECT il.item_id, il.image, im.default_image, im.name
@@ -909,9 +1436,10 @@ def delete_item_location(db_path, location_id):
         )
         loc = cur.fetchone()
         if not loc:
-            return 0, [], "Location not found"
+            return 0, [], "Location not found", None
 
         item_master_id, location_image, master_image, item_name = loc
+        trash_id = _trash_snapshot(cur, "item_location", location_id, user_id)
 
         cur.execute(
             "SELECT COUNT(*) FROM item_locations WHERE item_id = ?",
@@ -937,11 +1465,13 @@ def delete_item_location(db_path, location_id):
             cur.execute("DELETE FROM item_locations WHERE id = ?", (location_id,))
 
             # Delete master
+            cur.execute("DELETE FROM item_variant_barcodes WHERE item_id = ?", (item_master_id,))
+            _delete_favorites(cur, item_master_id)
             cur.execute("DELETE FROM items_master WHERE id = ?", (item_master_id,))
 
             conn.commit()
             _LOGGER.info(f"[ITEM DELETE] Deleted item_master {item_master_id} and location {location_id}")
-            return 1, images_to_delete, None
+            return 1, images_to_delete, None, trash_id
 
         else:
             # Multiple locations - delete only this location
@@ -959,13 +1489,13 @@ def delete_item_location(db_path, location_id):
 
             conn.commit()
             _LOGGER.info(f"[ITEM DELETE] Deleted location {location_id}")
-            return 1, images_to_delete, None
+            return 1, images_to_delete, None, trash_id
 
     except Exception as e:
         conn.rollback()
         import traceback
         _LOGGER.error(f"[ITEM DELETE] Error: {e}\n{traceback.format_exc()}")
-        return 0, [], str(e)
+        return 0, [], str(e), None
     finally:
         conn.close()
 
@@ -1051,7 +1581,8 @@ def update_item_master(db_path, item_id, data, *, name, aliases, barcode, defaul
         conn.close()
 
 
-def delete_item_master(db_path, item_id):
+def delete_item_master(db_path, item_id, user_id=None):
+    """Returns (count, images, location_info, error, trash_id); snapshotted into the bin first."""
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
 
@@ -1063,9 +1594,10 @@ def delete_item_master(db_path, item_id):
         )
         master = cur.fetchone()
         if not master:
-            return 0, [], [], "Item master not found"
+            return 0, [], [], "Item master not found", None
 
         master_name, master_image = master
+        trash_id = _trash_snapshot(cur, "item_master", item_id, user_id)
 
         # Get all locations and their images
         cur.execute(
@@ -1112,6 +1644,7 @@ def delete_item_master(db_path, item_id):
         # Delete all locations (cascade)
         cur.execute("DELETE FROM item_locations WHERE item_id = ?", (item_id,))
         cur.execute("DELETE FROM item_variant_barcodes WHERE item_id = ?", (item_id,))
+        _delete_favorites(cur, item_id)
 
         # Delete master item
         cur.execute("DELETE FROM items_master WHERE id = ?", (item_id,))
@@ -1122,13 +1655,13 @@ def delete_item_master(db_path, item_id):
             f"with {len(locations)} locations"
         )
 
-        return 1, images_to_delete, location_info, None
+        return 1, images_to_delete, location_info, None, trash_id
 
     except Exception as e:
         conn.rollback()
         import traceback
         _LOGGER.error(f"[ITEM_MASTER DELETE] Error: {e}\n{traceback.format_exc()}")
-        return 0, [], [], str(e)
+        return 0, [], [], str(e), None
     finally:
         conn.close()
 
@@ -1403,10 +1936,11 @@ def update_room(db_path, room_id, name, new_image=None):
     return _update_named_with_image(db_path, "rooms", room_id, name, new_image)
 
 
-def _cascade_delete_locations(cur, where_sql, params):
+def _cascade_delete_locations(cur, where_sql, params, trash_id=None):
     """Delete item_locations matched by ``where_sql`` (on alias ``il``), and any item
-    master left without locations. Returns the images to delete from disk
-    (location images + orphaned masters' default images)."""
+    master left without locations. Returns the images no longer referenced by live rows
+    or by bin entries other than ``trash_id`` (location images + orphaned masters' default
+    images), i.e. the files now owned only by that bin entry."""
     cur.execute(f"SELECT il.id, il.item_id, il.image FROM item_locations il WHERE {where_sql}", params)
     rows = cur.fetchall()
     images = [r[2] for r in rows if r[2]]
@@ -1426,9 +1960,10 @@ def _cascade_delete_locations(cur, where_sql, params):
         if row and row[0]:
             images.append(row[0])
         cur.execute("DELETE FROM item_variant_barcodes WHERE item_id = ?", (item_id,))
+        _delete_favorites(cur, item_id)
         cur.execute("DELETE FROM items_master WHERE id = ?", (item_id,))
 
-    # Never delete a file still referenced by a surviving location or master
+    # Never report a file still referenced by a surviving location/master or another bin entry
     kept = []
     for img in dict.fromkeys(images):
         name = img.split("?")[0].rsplit("/", 1)[-1]
@@ -1437,7 +1972,7 @@ def _cascade_delete_locations(cur, where_sql, params):
             " + (SELECT COUNT(*) FROM items_master WHERE default_image LIKE ?)",
             (f"%{name}%", f"%{name}%"),
         )
-        if cur.fetchone()[0] == 0:
+        if cur.fetchone()[0] == 0 and _trash_image_refs(cur, name, trash_id) == 0:
             kept.append(img)
     return kept
 
@@ -1453,84 +1988,11 @@ def delete_preview(db_path, kind, entity_id):
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     try:
-        cupboards, shelves, organizers, images = [], [], [], []
-
-        def col(sql, params=()):
-            return [r for r in cur.execute(sql, params).fetchall()]
-
-        if kind == "room":
-            rows = col("SELECT id, image FROM rooms WHERE id = ?", (entity_id,))
-            if not rows:
-                return None
-            images.append(rows[0][1])
-            cupboards = col("SELECT id, image FROM cupboards WHERE room_id = ?", (entity_id,))
-        elif kind == "cupboard":
-            rows = col("SELECT id, image FROM cupboards WHERE id = ?", (entity_id,))
-            if not rows:
-                return None
-            cupboards = []
-            images.append(rows[0][1])
-            shelves = col("SELECT id, image FROM shelves WHERE cupboard_id = ?", (entity_id,))
-        elif kind == "shelf":
-            rows = col("SELECT id, image FROM shelves WHERE id = ?", (entity_id,))
-            if not rows:
-                return None
-            shelves = rows
-        elif kind == "organizer":
-            rows = col("SELECT id, image FROM organizers WHERE id = ?", (entity_id,))
-            if not rows:
-                return None
-            organizers = rows
-        elif kind == "item_master":
-            rows = col("SELECT id FROM items_master WHERE id = ?", (entity_id,))
-            if not rows:
-                return None
-        elif kind == "item_location":
-            rows = col("SELECT id FROM item_locations WHERE id = ?", (entity_id,))
-            if not rows:
-                return None
-        else:
+        snap = _snapshot_subtree(cur, kind, entity_id)
+        if snap is None:
             return None
-
-        if kind == "room":
-            ids = [c[0] for c in cupboards]
-            shelves = [r for i in ids for r in col("SELECT id, image FROM shelves WHERE cupboard_id = ?", (i,))]
-        if kind in ("room", "cupboard", "shelf"):
-            organizers = [r for sh in shelves for r in col("SELECT id, image FROM organizers WHERE shelf_id = ?", (sh[0],))]
-
-        # Locations in scope
-        if kind == "item_master":
-            locs = col("SELECT id, item_id, image FROM item_locations WHERE item_id = ?", (entity_id,))
-        elif kind == "item_location":
-            locs = col("SELECT id, item_id, image FROM item_locations WHERE id = ?", (entity_id,))
-        elif kind == "organizer":
-            locs = col("SELECT id, item_id, image FROM item_locations WHERE organizer_id = ?", (entity_id,))
-        else:
-            locs = [r for sh in shelves for r in col("SELECT id, item_id, image FROM item_locations WHERE shelf_id = ?", (sh[0],))]
-
-        images += [c[1] for c in cupboards] + [x[1] for x in shelves] + [o[1] for o in organizers] + [l[2] for l in locs]
-
-        # Masters that would be left without locations
-        per_item = {}
-        for _, item_id, _ in locs:
-            per_item[item_id] = per_item.get(item_id, 0) + 1
-        masters = 0
-        for item_id, n in per_item.items():
-            total = cur.execute("SELECT COUNT(*) FROM item_locations WHERE item_id = ?", (item_id,)).fetchone()[0]
-            if total == n:
-                masters += 1
-                d = cur.execute("SELECT default_image FROM items_master WHERE id = ?", (item_id,)).fetchone()
-                images.append(d[0] if d else None)
-
-        result = {
-            "cupboards": len(cupboards),
-            "shelves": len(shelves),
-            "organizers": len(organizers),
-            "locations": len(locs),
-            "items": masters,
-            "images": len({i for i in images if i}),
-            "locations_list": [],
-        }
+        result = _snapshot_summary(kind, snap)
+        result["locations_list"] = []
         if kind == "item_master":
             result["locations_list"] = [
                 " / ".join(p for p in r if p)
@@ -1548,13 +2010,15 @@ def delete_preview(db_path, kind, entity_id):
         conn.close()
 
 
-def delete_room(db_path, room_id):
-    """Returns (rowcount, images_to_delete): the room's own image plus all descendants'
-    (cupboards, shelves, organizers, item locations, and masters left without locations).
-    Cascades explicitly: API connections don't enable foreign_keys."""
+def delete_room(db_path, room_id, user_id=None):
+    """Returns (rowcount, images, trash_id). The subtree is snapshotted into the bin first
+    (same transaction); ``images`` = the room's own image plus all descendants' (cupboards,
+    shelves, organizers, item locations, and masters left without locations), now kept on
+    disk for the bin. Cascades explicitly: API connections don't enable foreign_keys."""
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     try:
+        trash_id = _trash_snapshot(cur, "room", room_id, user_id)
         cur.execute('''
             SELECT image FROM rooms WHERE id = ?
             UNION ALL
@@ -1575,6 +2039,7 @@ def delete_room(db_path, room_id):
             cur,
             "il.shelf_id IN (SELECT s.id FROM shelves s JOIN cupboards c ON s.cupboard_id = c.id WHERE c.room_id = ?)",
             (room_id,),
+            trash_id,
         )
         cur.execute("DELETE FROM organizers WHERE shelf_id IN (SELECT s.id FROM shelves s JOIN cupboards c ON s.cupboard_id = c.id WHERE c.room_id = ?)", (room_id,))
         cur.execute("DELETE FROM shelves WHERE cupboard_id IN (SELECT id FROM cupboards WHERE room_id = ?)", (room_id,))
@@ -1587,7 +2052,7 @@ def delete_room(db_path, room_id):
         raise
     finally:
         conn.close()
-    return count, images
+    return count, images, trash_id
 
 
 # ------------------------------------------------------------ cupboards
@@ -1686,11 +2151,12 @@ def update_cupboard(db_path, cupboard_id, name, new_image):
     return count, old_image if (new_image is not None and old_image != new_image) else None
 
 
-def delete_cupboard(db_path, cupboard_id):
-    """Returns (rowcount, images_to_delete). Cascades explicitly (see delete_room)."""
+def delete_cupboard(db_path, cupboard_id, user_id=None):
+    """Returns (rowcount, images, trash_id). Snapshots + cascades like delete_room."""
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     try:
+        trash_id = _trash_snapshot(cur, "cupboard", cupboard_id, user_id)
         cur.execute('''
             SELECT image FROM cupboards WHERE id = ?
             UNION ALL
@@ -1706,6 +2172,7 @@ def delete_cupboard(db_path, cupboard_id):
             cur,
             "il.shelf_id IN (SELECT id FROM shelves WHERE cupboard_id = ?)",
             (cupboard_id,),
+            trash_id,
         )
         cur.execute("DELETE FROM organizers WHERE shelf_id IN (SELECT id FROM shelves WHERE cupboard_id = ?)", (cupboard_id,))
         cur.execute("DELETE FROM shelves WHERE cupboard_id = ?", (cupboard_id,))
@@ -1717,7 +2184,7 @@ def delete_cupboard(db_path, cupboard_id):
         raise
     finally:
         conn.close()
-    return count, images
+    return count, images, trash_id
 
 
 # --------------------------------------------------------------- shelves
@@ -1780,11 +2247,12 @@ def update_shelf(db_path, shelf_id, name, new_image=None):
     return _update_named_with_image(db_path, "shelves", shelf_id, name, new_image)
 
 
-def delete_shelf(db_path, shelf_id):
-    """Returns (rowcount, images_to_delete). Cascades explicitly (see delete_room)."""
+def delete_shelf(db_path, shelf_id, user_id=None):
+    """Returns (rowcount, images, trash_id). Snapshots + cascades like delete_room."""
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     try:
+        trash_id = _trash_snapshot(cur, "shelf", shelf_id, user_id)
         cur.execute('''
             SELECT image FROM shelves WHERE id = ?
             UNION ALL
@@ -1792,7 +2260,7 @@ def delete_shelf(db_path, shelf_id):
         ''', (shelf_id,) * 2)
         images = [row[0] for row in cur.fetchall() if row[0]]
 
-        images += _cascade_delete_locations(cur, "il.shelf_id = ?", (shelf_id,))
+        images += _cascade_delete_locations(cur, "il.shelf_id = ?", (shelf_id,), trash_id)
         cur.execute("DELETE FROM organizers WHERE shelf_id = ?", (shelf_id,))
         cur.execute("DELETE FROM shelves WHERE id = ?", (shelf_id,))
         count = cur.rowcount
@@ -1802,7 +2270,7 @@ def delete_shelf(db_path, shelf_id):
         raise
     finally:
         conn.close()
-    return count, images
+    return count, images, trash_id
 
 
 # ---------------------------------------------------------- deep links
@@ -1986,13 +2454,15 @@ def update_organizer(db_path, organizer_id, name, new_image, new_room, new_cupbo
     return count, old_image if (new_image is not None and old_image and old_image != new_image) else None, None
 
 
-def hard_delete_organizer(db_path, organizer_id):
-    """Returns (deleted, organizer_image, item_images, items_deleted_count).
+def hard_delete_organizer(db_path, organizer_id, user_id=None):
+    """Returns (deleted, organizer_image, item_images, items_deleted_count, trash_id).
 
-    ``item_images`` includes default images of masters left without locations."""
+    The subtree is snapshotted into the bin first (same transaction); ``item_images``
+    includes default images of masters left without locations."""
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     try:
+        trash_id = _trash_snapshot(cur, "organizer", organizer_id, user_id)
         cur.execute("SELECT image FROM organizers WHERE id = ?", (organizer_id,))
         org_row = cur.fetchone()
         organizer_image = org_row[0] if org_row else None
@@ -2000,7 +2470,7 @@ def hard_delete_organizer(db_path, organizer_id):
         cur.execute("SELECT COUNT(*) FROM item_locations WHERE organizer_id = ?", (organizer_id,))
         items_count = cur.fetchone()[0]
 
-        item_images = _cascade_delete_locations(cur, "il.organizer_id = ?", (organizer_id,))
+        item_images = _cascade_delete_locations(cur, "il.organizer_id = ?", (organizer_id,), trash_id)
         cur.execute("DELETE FROM organizers WHERE id = ?", (organizer_id,))
         deleted = cur.rowcount > 0
         conn.commit()
@@ -2009,7 +2479,7 @@ def hard_delete_organizer(db_path, organizer_id):
         raise
     finally:
         conn.close()
-    return deleted, organizer_image, item_images, items_count
+    return deleted, organizer_image, item_images, items_count, trash_id
 
 
 # ------------------------------------------------------------- all_items
@@ -2264,16 +2734,17 @@ def search_items(db_path, query, barcode):
 
 
 def count_default_image_refs(db_path, filename):
+    """References that forbid deleting ``filename``: master default images + bin entries."""
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    cursor.execute(
-        "SELECT COUNT(*) FROM items_master WHERE default_image LIKE ?",
-        (f'%{filename}%',)
-    )
-    count = cursor.fetchone()[0]
-    conn.close()
-    return count
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM items_master WHERE default_image LIKE ?",
+            (f'%{filename}%',)
+        )
+        return cursor.fetchone()[0] + _trash_image_refs(cursor, filename)
+    finally:
+        conn.close()
 
 
 def list_item_locations(db_path, item_id):

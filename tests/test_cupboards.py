@@ -44,7 +44,7 @@ def test_delete_cupboard_collects_images(db_path, seed, q):
     )
     conn.commit()
     conn.close()
-    count, images = delete_cupboard(db_path, ids["cupboard_id"])
+    count, images, _ = delete_cupboard(db_path, ids["cupboard_id"])
     assert count == 1 and sorted(images) == ["cup.jpg", "loc.jpg"]
     assert q(db_path, "SELECT COUNT(*) FROM cupboards") == [(0,)]
-    assert delete_cupboard(db_path, 999) == (0, [])
+    assert delete_cupboard(db_path, 999) == (0, [], None)

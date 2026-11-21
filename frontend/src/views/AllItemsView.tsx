@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, Star, X } from 'lucide-react';
 import Breadcrumb from '../components/Layout/BreadCrumb';
 import { useGlobalItems } from '../hooks/items/useItems';
+import { useFavorites } from '../hooks/items/useFavorites';
 import ItemCard from '../components/Item/ItemCard';
 import type { ApiService } from '../services/api';
 import { useInfiniteScroll } from '../hooks/global/useInfiniteScroll';
@@ -17,10 +18,16 @@ export default function AllItemsView({ api }: Props) {
   const { t, language } = useTranslation();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const itemsPerPage = 20;
   const goBack = useAppStore((state) => state.goBack);
 
   const { data: allItems = [], isLoading } = useGlobalItems(api);
+  const { ids: favoriteIds } = useFavorites();
+  const favoriteCount = useMemo(
+    () => allItems.filter((item) => favoriteIds.has(item.id)).length,
+    [allItems, favoriteIds]
+  );
 
   const normalize = (text: string) =>
     text
@@ -29,11 +36,14 @@ export default function AllItemsView({ api }: Props) {
       .toLowerCase();
 
   const filteredItems = useMemo(() => {
-    if (!search) return allItems;
+    const baseItems = favoritesOnly
+      ? allItems.filter((item) => favoriteIds.has(item.id))
+      : allItems;
+    if (!search) return baseItems;
 
     const searchNormalized = normalize(search);
 
-    return allItems.filter((item) => {
+    return baseItems.filter((item) => {
       const name = normalize(item.name);
       const aliases = normalize(item.aliases || '');
 
@@ -60,7 +70,7 @@ export default function AllItemsView({ api }: Props) {
         matchesInAnyLocation
       );
     });
-  }, [allItems, search]);
+  }, [allItems, search, favoritesOnly, favoriteIds]);
 
   const displayedItems = useMemo(() => {
     return filteredItems.slice(0, (currentPage + 1) * itemsPerPage);
@@ -107,33 +117,48 @@ export default function AllItemsView({ api }: Props) {
     <div className="space-y-4">
       <Breadcrumb currentLabel={t.rooms.allItems} onBack={goBack} />
 
-      <div className="relative">
-        <Search
-          size={18}
-          className="absolute left-4 inset-y-0 my-auto text-ha-text/50 pointer-events-none"
-        />
-        <input
-          type="text"
-          placeholder={t.trackedItems.searchPlaceholder}
-          className="field !pl-11 !pr-10 !py-3 !rounded-2xl"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        {search && (
-          <button
-            onClick={() => setSearch('')}
-            aria-label={t.common.clear}
-            className="absolute right-2 inset-y-0 my-auto h-fit btn btn-ghost !p-1.5 !rounded-full"
-          >
-            <X size={16} />
-          </button>
-        )}
+      <div className="flex gap-3">
+        <div className="relative flex-1">
+          <Search
+            size={18}
+            className="absolute left-4 inset-y-0 my-auto text-ha-text/50 pointer-events-none"
+          />
+          <input
+            type="text"
+            placeholder={t.trackedItems.searchPlaceholder}
+            className="field !pl-11 !pr-10 !py-3 !rounded-2xl"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              aria-label={t.common.clear}
+              className="absolute right-2 inset-y-0 my-auto h-fit btn btn-ghost !p-1.5 !rounded-full"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => {
+            setFavoritesOnly((v) => !v);
+            setCurrentPage(0);
+          }}
+          aria-pressed={favoritesOnly}
+          className={`btn shrink-0 ${favoritesOnly ? 'btn-primary' : 'btn-secondary'}`}
+        >
+          <Star size={16} fill={favoritesOnly ? 'currentColor' : 'none'} />
+          {`${t.favorites.filter} (${favoriteCount})`}
+        </button>
       </div>
 
       <div className="stagger grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(140px,1fr))]">
         {!itemsForDisplay.length ? (
-          <p className="text-center text-ha-text py-10">
-            {t.trackedItems.noItemsFiltered}.
+          <p className="col-span-full text-center text-ha-text py-10">
+            {favoritesOnly && !search && !favoriteCount
+              ? t.favorites.empty
+              : `${t.trackedItems.noItemsFiltered}.`}
           </p>
         ) : (
           itemsForDisplay.map(({ item, location, key }) => (

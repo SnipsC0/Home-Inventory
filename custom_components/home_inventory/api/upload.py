@@ -182,7 +182,7 @@ class HomeInventarUpload(HomeAssistantView):
                 count = repository.count_default_image_refs(db_path, filename)
                 
                 if count > 0:
-                    _LOGGER.debug(f"[Home Inventory] 🔒 Skipping delete: {filename} is a default_image")
+                    _LOGGER.debug(f"[Home Inventory] 🔒 Skipping delete: {filename} is a default_image or in the bin")
                     return False
                 
                 full_path = self.hass.config.path(f"data/{DOMAIN}/images/{filename}")

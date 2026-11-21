@@ -48,12 +48,23 @@
               "expiry_warning_value": "Количество дней / месяцев.",
               "expiry_warning_unit": "Дни или месяцы."
             }
+          },
+          "trash": {
+            "name": "Корзина",
+            "description": "Удалённые комнаты, полки и предметы можно восстановить в течение этого числа дней (1–90). Фото удаляются, когда срок истекает.",
+            "data": {
+              "trash_retention_days": "Хранить"
+            },
+            "data_description": {
+              "trash_retention_days": "Количество дней."
+            }
           }
         }
       }
     },
     "error": {
-      "invalid_expiry_value": "Введите 1–31 для дней или 1–12 для месяцев."
+      "invalid_expiry_value": "Введите 1–31 для дней или 1–12 для месяцев.",
+      "invalid_trash_retention": "Введите от 1 до 90 дней для корзины."
     }
   },
   "selector": {

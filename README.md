@@ -48,7 +48,7 @@ A picture of the shelf or the box is often faster than a description, and it hel
 Batteries, coffee filters and light bulbs are worth it. A hammer is not. For tracked items, set a minimum you would really restock at. The low stock alert fires when the total across all places drops to it, so it will not nag you while the spare is in another cupboard.
 
 **Add aliases**<br>
-If you call it "the drill" but the label says "cordless screwdriver", add both names so either one finds it.
+If you call it "the drill" but the label says "cordless screwdriver", add both names so either one finds it. When you add the item somewhere else, typing either the name or an alias fills in the other.
 
 **Use variants for sizes and brands**<br>
 A 500 g and a 1 kg jar of honey are the same item with two variants. Each gets its own quantity and its own barcode, and scanning either one opens the right row.
@@ -63,7 +63,7 @@ A QR code or an NFC tag on the cupboard door takes you straight to what is insid
 Send low stock to a shopping list and expiring items to your phone (see the [automation examples](https://github.com/SnipsC0/Home-Inventory/blob/main/docs/automations.md)). Then you only open the panel when you need to look something up.
 
 **Check the delete preview**<br>
-Deleting a cupboard removes its shelves, items and photos too. The preview lists all of it before you confirm.
+Deleting a cupboard removes its shelves, items and photos too. The preview lists all of it before you confirm, and the Bin keeps it for a few days in case you change your mind.
 
 </details>
 
@@ -102,7 +102,7 @@ Start at a room, open a cupboard, then a shelf, and you're looking at the item. 
 
 ### One item, many places
 
-Batteries in three drawers? Olive oil in the pantry and in the kitchen? Add the item once and give each place its own quantity, expiry dates and photo. Variants like a small jar vs. a big one get their own row and their own barcode.
+Batteries in three drawers? Olive oil in the pantry and in the kitchen? Add the item once and give each place its own quantity, expiry dates and photo. Variants like a small jar vs. a big one get their own row and their own barcode. Type the name of something you already have and its aliases fill in by themselves, so the new place is added to the same item instead of a duplicate.
 
 </td>
 </tr>
@@ -146,14 +146,14 @@ Stick a QR code or an NFC tag on a cupboard or shelf and one tap opens it in the
 <tr>
 <td width="40%" valign="middle">
 
-### Safe deletes
+### Safe deletes and a Bin
 
-Deleting a cupboard also deletes everything inside it. Before you confirm, you get a list of exactly what will go: shelves, items and images.
+Deleting a cupboard also removes everything inside it. Before you confirm, you get a list of exactly what will go: shelves, items and images. Nothing is lost right away: it all moves to the **Bin**, where you can restore it (with photos) until the retention time runs out. An **Undo** message appears right after a delete. The round **Bin** button (bottom right of the Rooms screen) shows up as soon as the Bin has something in it.
 
 </td>
 <td width="60%">
 
-<img src="https://raw.githubusercontent.com/SnipsC0/Home-Inventory/main/docs/assets/screenshots/05-delete-preview.png" alt="Delete preview" width="100%">
+<img src="https://raw.githubusercontent.com/SnipsC0/Home-Inventory/main/docs/assets/gifs/bin.gif" alt="Deleting an item, then restoring it from the Bin" width="100%">
 
 </td>
 </tr>
@@ -172,6 +172,7 @@ Deleting a cupboard also deletes everything inside it. Before you confirm, you g
 
 - **Barcodes**: scan with the Companion app, upload a photo of the code, or type it in. **Find by barcode** in the header jumps straight to the item.
 - **Photos**: on rooms, cupboards, shelves, organizers and every item location.
+- **Favorites**: star the items you reach for most. Each Home Assistant user has their own, and All items has a Favorites filter.
 - **Languages**: English, German, Romanian and Russian.
 - **Large inventories**: it loads lazily, so a few hundred items are no problem.
 - **Automations**: four sensors and two events (low stock, expiring).
@@ -208,6 +209,7 @@ Deleting a cupboard also deletes everything inside it. Before you confirm, you g
 - **Interface language** (English / German / Romanian / Russian), used by the whole panel
 - **Allow editing the structure**: when off, rooms, cupboards and shelves cannot be added, edited or deleted (items and organizers stay editable)
 - **Warn before expiry**: 1-31 days or 1-12 months (default 7 days)
+- **Recycle bin retention**: how long deleted entries stay in the bin, 1-90 days (default 7)
 
 <details>
 <summary>Upgrading from 2.x</summary>
@@ -225,12 +227,13 @@ To roll back: stop Home Assistant and extract the zip into `/config/data/` (it c
 Once installed, a **Home Inventory** panel shows up in the sidebar. Data and images are only reachable while you're logged in to Home Assistant.
 
 - **Rooms, cupboards, shelves, organizers**: browse and edit the structure
-- **All items**: every item with all its locations and the total; you can filter by location
+- **All items**: every item with all its locations and the total; you can filter by location or show only your favorites
 - **Tracked items**: the ones where you count quantity
+- **Bin**: everything you deleted, with Restore, Delete forever and Empty bin
 - **Expiring**: batches inside the warning window, including ones already expired
 - **Find by barcode** (header): scan or type a code to open the item
 
-Long press (or right-click) a card to edit or delete it. This is the kind of link a QR code or NFC tag opens:
+Long press (or right-click) a card to edit or delete it. Deleted things go to the Bin, with an Undo right after. This is the kind of link a QR code or NFC tag opens:
 
 ```
 homeassistant://navigate/home_inventory?target=shelf&id=12

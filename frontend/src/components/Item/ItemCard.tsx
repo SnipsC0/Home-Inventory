@@ -4,6 +4,7 @@ import ViewItemModal from '../Modal/ItemModal/ViewItemModal';
 import EditItemModal from '../Modal/ItemModal/EditItemModal';
 import SelectLocationModal from '../Modal/SelectLocationModal';
 import { useInteractions } from '../../hooks/global/useInteractions';
+import { useInvalidateItems } from '../../hooks/items/useInvalidateItems';
 import type { Item, ItemLocation } from '../../types';
 import type { ApiService } from '../../services/api';
 import SmartImage from '../SmartImage';
@@ -34,6 +35,7 @@ export default function ItemCard({
   );
 
   const api = useApi();
+  const { invalidateAll } = useInvalidateItems();
   const { t } = useTranslation();
 
   const hasMultipleLocations = (item.locations?.length || 0) > 1;
@@ -216,7 +218,10 @@ export default function ItemCard({
           api={api}
           organizer={organizer}
           location={activeLocation!}
-          onSuccess={handleCloseEdit}
+          onSuccess={() => {
+            invalidateAll();
+            handleCloseEdit();
+          }}
         />
       )}
     </>

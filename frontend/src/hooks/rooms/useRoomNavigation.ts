@@ -11,6 +11,7 @@ export function useRoomNavigation() {
     },
     goToAllItems: () => setView('all-items'),
     goToExpiring: () => setView('expiring'),
+    goToTrash: () => setView('trash'),
     goToTrackedItems: () => setView('tracked-items'),
   };
 }

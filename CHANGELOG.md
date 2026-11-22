@@ -36,6 +36,7 @@
 ### Thanks
 
 - **@Wurstgulasch84** - for the German translation, small fixes and the contribution (#3)
+- **@Wurstgulasch84** - for the German translation (#11)
 
 ## 🏷️ 3.0.1
 
